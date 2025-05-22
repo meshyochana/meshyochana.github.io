@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lattice Superposition & Interaction Simulation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        #controls {
+            width: 380px; 
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-color: #e9e9e9;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            background-color: white;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+
+        .control-group:last-child {
+            border-bottom: none;
+        }
+
+        h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        h4 {
+            margin-top: 15px;
+            margin-bottom: 5px;
+            color: #555;
+        }
+         h4 .layer-color-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 5px;
+            border: 1px solid #777;
+        }
+
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .label-inline {
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        input[type="number"],
+        select,
+        button { 
+            width: calc(100% - 12px);
+            padding: 8px; 
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .input-group input[type="range"] {
+            flex-grow: 1;
+            padding: 0;
+            margin-bottom: 0; 
+        }
+
+        .input-group input[type="number"] {
+            width: 70px; 
+            margin-bottom: 0; 
+        }
+
+
+        input[type="range"] {
+            width: 100%; 
+            padding: 0;
+             margin-bottom: 10px;
+        }
+        input[type="checkbox"]{
+            vertical-align: middle;
+            width: auto;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="control-group">
+            <h3>Global Settings</h3>
+            <label for="latticeSize">Lattice Area Size (L x L pixels):</label>
+            <input type="number" id="latticeSize" value="300" min="100" max="800">
+
+            <label for="numLayers">Number of Layers:</label>
+            <select id="numLayers">
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+            </select>
+
+            <label for="pointSize">Base Layer Point Size (radius, px):</label>
+            <input type="number" id="pointSize" value="3" min="0.5" max="10" step="0.5">
+            
+            <label for="interactionPointSize">Interaction Point Size (radius, px):</label>
+            <input type="number" id="interactionPointSize" value="2.5" min="0.5" max="10" step="0.5">
+        </div>
+        
+        <div class="control-group">
+            <h3>Interaction Layer Settings</h3>
+            <div>
+                <input type="checkbox" id="enableInteractions" checked>
+                <label for="enableInteractions" class="label-inline">Enable Interaction Layer</label>
+            </div>
+            <label id="distanceThresholdLabel" for="distanceThresholdNumber" style="margin-top:10px;">Distance Threshold: 20.00</label>
+             <div class="input-group">
+                <input type="range" id="distanceThreshold" value="20" min="1" max="100" step="0.01">
+                <input type="number" id="distanceThresholdNumber" value="20" min="1" max="100" step="0.01">
+            </div>
+            <button id="exportInteractionPointsButton">Export Interaction Points (TXT)</button>
+        </div>
+
+
+        <div id="layers-controls-container">
+            </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="simulationCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const controls = {
+            latticeSize: document.getElementById('latticeSize'),
+            numLayers: document.getElementById('numLayers'),
+            pointSize: document.getElementById('pointSize'),
+            interactionPointSize: document.getElementById('interactionPointSize'),
+            layersControlsContainer: document.getElementById('layers-controls-container'),
+            distanceThreshold: document.getElementById('distanceThreshold'),
+            distanceThresholdNumber: document.getElementById('distanceThresholdNumber'),
+            distanceThresholdLabel: document.getElementById('distanceThresholdLabel'),
+            enableInteractions: document.getElementById('enableInteractions'),
+            exportInteractionPointsButton: document.getElementById('exportInteractionPointsButton'),
+        };
+
+        const layerColors = ['red', 'blue', 'green', 'orange'];
+        let layers = [];
+        let lastRenderedInteractionPoints = []; 
+
+        // --- Viridis Colormap ---
+        const viridisColormap = [
+            { t: 0.0,  rgb: [68,  1,   84] },  { t: 0.1,  rgb: [72,  40,  120] }, 
+            { t: 0.2,  rgb: [62,  74,  137] }, { t: 0.3,  rgb: [49,  104, 142] },
+            { t: 0.4,  rgb: [38,  130, 142] }, { t: 0.5,  rgb: [31,  158, 137] },
+            { t: 0.6,  rgb: [53,  183, 121] }, { t: 0.7,  rgb: [109, 205,  89] },
+            { t: 0.8,  rgb: [180, 222,  44] }, { t: 0.9,  rgb: [248, 231,  28] },
+            { t: 1.0,  rgb: [253, 231,  37] }
+        ];
+
+        function getViridisColor(t) {
+            t = Math.max(0, Math.min(1, t)); 
+            for (let i = 0; i < viridisColormap.length - 1; i++) {
+                const c1 = viridisColormap[i]; const c2 = viridisColormap[i+1];
+                if (t >= c1.t && t <= c2.t) {
+                    const local_t = (t - c1.t) / (c2.t - c1.t);
+                    const r = Math.round(c1.rgb[0] * (1 - local_t) + c2.rgb[0] * local_t);
+                    const g = Math.round(c1.rgb[1] * (1 - local_t) + c2.rgb[1] * local_t);
+                    const b = Math.round(c1.rgb[2] * (1 - local_t) + c2.rgb[2] * local_t);
+                    return `rgb(${r},${g},${b})`;
+                }
+            }
+            const lastColor = viridisColormap[viridisColormap.length - 1].rgb;
+            return `rgb(${lastColor[0]},${lastColor[1]},${lastColor[2]})`;
+        }
+
+
+        // --- Point Generation Functions ---
+        function generateSquareLatticePoints(size, spacing) {
+            // Generates points with (0,0) being one of them.
+            const points = []; if (spacing <= 0) return points;
+            const numStepsHalf = Math.floor(size / (2 * spacing));
+            for (let i = -numStepsHalf; i <= numStepsHalf; i++) {
+                const x = i * spacing;
+                for (let j = -numStepsHalf; j <= numStepsHalf; j++) {
+                    const y = j * spacing; points.push({ x, y });
+                }
+            }
+            return points;
+        }
+
+        function generateTriangularLatticePoints(size, spacing) {
+            // Generates points with (0,0) being one of them.
+            const points = []; if (spacing <= 0) return points;
+            const h = spacing * Math.sqrt(3) / 2; if (h <= 0) return points;
+            const numYRowsHalf = Math.floor(size / (2 * h));
+            const numXPointsHalf = Math.floor(size / (2 * spacing));
+            for (let j = -numYRowsHalf; j <= numYRowsHalf; j++) {
+                const y = j * h; const isOffsetRow = (Math.abs(j) % 2 === 1);
+                const kStart = -numXPointsHalf - (isOffsetRow ? 1 : 0);
+                const kEnd = numXPointsHalf + (isOffsetRow ? 1 : 0);
+                for (let k = kStart; k <= kEnd; k++) {
+                    let x = k * spacing; if (isOffsetRow) { x += spacing / 2; }
+                    if (Math.abs(x) < (size / 2 + spacing) && Math.abs(y) < (size / 2 + h) ) { points.push({ x, y });}
+                }
+            }
+            const uniquePoints = []; const uniqueKeys = new Set();
+            for (const p of points) {
+                const key = `${p.x.toFixed(3)},${p.y.toFixed(3)}`;
+                if (!uniqueKeys.has(key)) { uniqueKeys.add(key); uniquePoints.push(p);}
+            }
+            return uniquePoints;
+        }
+
+        function generateHoneycombPointLatticePoints(size, sideLength) {
+            // Generates honeycomb vertices and then shifts them so one vertex is at (0,0).
+            const rawPoints = []; 
+            if (sideLength <= 0) return rawPoints;
+
+            const hexWidth = Math.sqrt(3) * sideLength; const hexHeight = 2 * sideLength;      
+            const vertSpacing = hexHeight * 3/4; const horizSpacing = hexWidth; 
+            
+            const numRowsForLoop = Math.floor((size / vertSpacing) / 2) + 1; 
+            const numColsForLoop = Math.floor((size / horizSpacing) / 2) + 1; 
+
+            const uniqueVertices = new Set();
+            for (let r = -numRowsForLoop; r <= numRowsForLoop; r++) {
+                for (let c = -numColsForLoop; c <= numColsForLoop; c++) {
+                    const xCenter = c * horizSpacing + (Math.abs(r) % 2 === 1 ? horizSpacing / 2 : 0); 
+                    const yCenter = r * vertSpacing;
+
+                    if (Math.abs(xCenter) > size / 2 + hexWidth || Math.abs(yCenter) > size / 2 + hexHeight) {
+                        continue;
+                    }
+
+                    for (let i = 0; i < 6; i++) {
+                        const angle_rad = (Math.PI / 3) * i + Math.PI / 6; 
+                        const vx = xCenter + sideLength * Math.cos(angle_rad); 
+                        const vy = yCenter + sideLength * Math.sin(angle_rad);
+                        
+                        const key = `${vx.toFixed(3)},${vy.toFixed(3)}`; 
+                        if (!uniqueVertices.has(key)) { 
+                            rawPoints.push({ x: vx, y: vy }); 
+                            uniqueVertices.add(key);
+                        }
+                    }
+                }
+            }
+
+            if (rawPoints.length === 0) {
+                return [];
+            }
+
+            // Find the point closest to the geometric origin (0,0) among the raw generated vertices
+            let closestPoint = rawPoints[0];
+            let minDistanceSq = closestPoint.x * closestPoint.x + closestPoint.y * closestPoint.y;
+
+            for (let i = 1; i < rawPoints.length; i++) {
+                const p = rawPoints[i];
+                const distSq = p.x * p.x + p.y * p.y;
+                if (distSq < minDistanceSq) {
+                    minDistanceSq = distSq;
+                    closestPoint = p;
+                }
+            }
+
+            // Calculate the shift needed to move this closest point to (0,0)
+            const shiftX = -closestPoint.x;
+            const shiftY = -closestPoint.y;
+
+            // Apply the shift to all points
+            const finalPoints = rawPoints.map(p => {
+                return { x: p.x + shiftX, y: p.y + shiftY };
+            });
+
+            return finalPoints;
+        }
+
+        // --- Transformation and Utility Functions ---
+        function transformPoint(point, L, layerConfig) {
+            let { x, y } = point; 
+            x *= layerConfig.scale; y *= layerConfig.scale;
+            const angleRad = layerConfig.angle * Math.PI / 180;
+            const cosA = Math.cos(angleRad); const sinA = Math.sin(angleRad);
+            const rotatedX = x * cosA - y * sinA; const rotatedY = x * sinA + y * cosA;
+            return { x: L / 2 + rotatedX + layerConfig.shiftX, y: L / 2 + rotatedY + layerConfig.shiftY };
+        }
+        
+        function calculateDistance(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        function getColorForDistanceViridisLog(distance, threshold) {
+            const epsilon = 0.001; 
+            const val = -distance//Math.log(Math.max(epsilon, distance) + epsilon); 
+            const val_max = -epsilon//Math.log(epsilon + epsilon); 
+            const val_min = -threshold//Math.log(threshold + epsilon);
+            let normalized_val;
+            if (val_max === val_min) { normalized_val = 0.5; } 
+            else { normalized_val = (val - val_min) / (val_max - val_min); }
+            normalized_val = 1-Math.max(0, Math.min(1, normalized_val));
+            return getViridisColor(normalized_val);
+        }
+
+        // --- Layer Control Generation ---
+        function getDefaultLayer(index, type = 'square') {
+             return {
+                id: `layer-${index + 1}`, type,
+                color: layerColors[index % layerColors.length],
+                angle: 0, scale: 1.0, shiftX: 0, shiftY: 0, visible: true,
+                alpha: 1.0, 
+                localPointsCache: null, transformedPointsCache: null 
+            };
+        }
+
+        function updateNumberOfLayers() {
+            const num = parseInt(controls.numLayers.value);
+            const currentGlobalType = layers.length > 0 && layers[0].type ? layers[0].type : 'square';
+            const newLayers = [];
+            for (let i = 0; i < num; i++) {
+                if (layers[i]) {
+                    newLayers.push(layers[i]);
+                } else {
+                    newLayers.push(getDefaultLayer(i, currentGlobalType));
+                }
+            }
+            layers = newLayers.slice(0, num);
+            generateLayerControls(); 
+            invalidateAllPointCaches();
+            drawSimulation();
+        }
+        
+        function invalidateAllPointCaches() {
+            layers.forEach(l => { l.localPointsCache = null; l.transformedPointsCache = null;});
+        }
+        function invalidateLayerPointCache(layerId) {
+            const layer = layers.find(l => l.id === layerId);
+            if (layer) { layer.localPointsCache = null; layer.transformedPointsCache = null;}
+        }
+
+        function generateLayerControls() {
+            controls.layersControlsContainer.innerHTML = ''; 
+            const L = parseInt(controls.latticeSize.value); 
+
+            layers.forEach((layer, index) => {
+                const layerDiv = document.createElement('div');
+                layerDiv.className = 'layer-controls control-group';
+                layerDiv.id = `controls-${layer.id}`;
+
+                const colorIndicator = `<span class="layer-color-indicator" style="background-color: ${layer.color};"></span>`;
+                layerDiv.innerHTML = `<h4>${colorIndicator}Layer ${index + 1} (${layer.color})</h4>`;
+
+                const typeLabel = document.createElement('label'); typeLabel.textContent = 'Lattice Type:';
+                const typeSelect = document.createElement('select'); typeSelect.id = `type-${layer.id}`;
+                ['square', 'triangular', 'honeycomb'].forEach(type => {
+                    const option = document.createElement('option'); option.value = type; option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+                    if (type === layer.type) option.selected = true; typeSelect.appendChild(option);
+                });
+                typeSelect.addEventListener('change', (e) => { layer.type = e.target.value; invalidateLayerPointCache(layer.id); drawSimulation(); });
+                layerDiv.appendChild(typeLabel); layerDiv.appendChild(typeSelect);
+
+                const angleGroup = document.createElement('div'); angleGroup.className = 'input-group';
+                const angleLabel = document.createElement('label'); angleLabel.textContent = `Angle: ${layer.angle.toFixed(1)}°`;
+                const angleInput = document.createElement('input'); angleInput.type = 'range'; angleInput.min = -180; angleInput.max = 180; angleInput.value = layer.angle; angleInput.step = 0.1;
+                const angleNumberInput = document.createElement('input'); angleNumberInput.type = 'number'; angleNumberInput.min = -180; angleNumberInput.max = 180; angleNumberInput.value = layer.angle.toFixed(1); angleNumberInput.step = 0.1;
+                const angleUpdate = (val) => { layer.angle = val; angleLabel.textContent = `Angle: ${val.toFixed(1)}°`; invalidateLayerPointCache(layer.id); drawSimulation(); };
+                angleInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); angleNumberInput.value = v.toFixed(1); angleUpdate(v); });
+                angleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(-180, Math.min(180,v)); angleInput.value = cV.toFixed(1); if(v.toFixed(1) !== cV.toFixed(1)) e.target.value = cV.toFixed(1); angleUpdate(cV); });
+                layerDiv.appendChild(angleLabel); angleGroup.appendChild(angleInput); angleGroup.appendChild(angleNumberInput); layerDiv.appendChild(angleGroup);
+
+                const scaleGroup = document.createElement('div'); scaleGroup.className = 'input-group';
+                const scaleLabel = document.createElement('label'); scaleLabel.textContent = `Scale: ${layer.scale.toFixed(2)}`;
+                const scaleInput = document.createElement('input'); scaleInput.type = 'range'; scaleInput.min = 0.1; scaleInput.max = 3; scaleInput.value = layer.scale; scaleInput.step = 0.01;
+                const scaleNumberInput = document.createElement('input'); scaleNumberInput.type = 'number'; scaleNumberInput.min = 0.1; scaleNumberInput.max = 3; scaleNumberInput.value = layer.scale.toFixed(2); scaleNumberInput.step = 0.01;
+                const scaleUpdate = (val) => { layer.scale = val; scaleLabel.textContent = `Scale: ${val.toFixed(2)}`; invalidateLayerPointCache(layer.id); drawSimulation(); };
+                scaleInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); scaleNumberInput.value = v.toFixed(2); scaleUpdate(v); });
+                scaleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(0.1, Math.min(3,v)); scaleInput.value = cV.toFixed(2); if(v.toFixed(2) !== cV.toFixed(2)) e.target.value = cV.toFixed(2); scaleUpdate(cV); });
+                layerDiv.appendChild(scaleLabel); scaleGroup.appendChild(scaleInput); scaleGroup.appendChild(scaleNumberInput); layerDiv.appendChild(scaleGroup);
+
+                const shiftXLabel = document.createElement('label'); shiftXLabel.textContent = `Shift X: ${layer.shiftX}px`;
+                const shiftXInput = document.createElement('input'); shiftXInput.type = 'range'; shiftXInput.min = -Math.floor(L / 2); shiftXInput.max = Math.floor(L/2); shiftXInput.value = layer.shiftX; shiftXInput.step = 1;
+                shiftXInput.addEventListener('input', (e) => { layer.shiftX = parseFloat(e.target.value); shiftXLabel.textContent = `Shift X: ${layer.shiftX}px`; invalidateLayerPointCache(layer.id); drawSimulation(); });
+                layerDiv.appendChild(shiftXLabel); layerDiv.appendChild(shiftXInput);
+
+                const shiftYLabel = document.createElement('label'); shiftYLabel.textContent = `Shift Y: ${layer.shiftY}px`;
+                const shiftYInput = document.createElement('input'); shiftYInput.type = 'range'; shiftYInput.min = -Math.floor(L / 2); shiftYInput.max = Math.floor(L/2); shiftYInput.value = layer.shiftY; shiftYInput.step = 1;
+                shiftYInput.addEventListener('input', (e) => { layer.shiftY = parseFloat(e.target.value); shiftYLabel.textContent = `Shift Y: ${layer.shiftY}px`; invalidateLayerPointCache(layer.id); drawSimulation(); });
+                layerDiv.appendChild(shiftYLabel); layerDiv.appendChild(shiftYInput);
+                
+                const alphaGroup = document.createElement('div'); alphaGroup.className = 'input-group';
+                const alphaLabel = document.createElement('label'); alphaLabel.textContent = `Alpha: ${layer.alpha.toFixed(2)}`;
+                const alphaInput = document.createElement('input'); alphaInput.type = 'range'; alphaInput.min = 0; alphaInput.max = 1; alphaInput.value = layer.alpha; alphaInput.step = 0.01;
+                const alphaNumberInput = document.createElement('input'); alphaNumberInput.type = 'number'; alphaNumberInput.min = 0; alphaNumberInput.max = 1; alphaNumberInput.value = layer.alpha.toFixed(2); alphaNumberInput.step = 0.01;
+                const alphaUpdate = (val) => { layer.alpha = val; alphaLabel.textContent = `Alpha: ${val.toFixed(2)}`; drawSimulation(); };
+                alphaInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); alphaNumberInput.value = v.toFixed(2); alphaUpdate(v); });
+                alphaNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(0, Math.min(1,v)); alphaInput.value = cV.toFixed(2); if(v.toFixed(2) !== cV.toFixed(2)) e.target.value = cV.toFixed(2); alphaUpdate(cV); });
+                layerDiv.appendChild(alphaLabel); alphaGroup.appendChild(alphaInput); alphaGroup.appendChild(alphaNumberInput); layerDiv.appendChild(alphaGroup);
+
+                const visibleLabel = document.createElement('label');
+                const visibleCheckbox = document.createElement('input'); visibleCheckbox.type = 'checkbox'; visibleCheckbox.checked = layer.visible;
+                visibleCheckbox.addEventListener('change', (e) => { layer.visible = e.target.checked; drawSimulation(); }); 
+                visibleLabel.appendChild(visibleCheckbox); visibleLabel.append(` Visible`); layerDiv.appendChild(visibleLabel);
+                
+                controls.layersControlsContainer.appendChild(layerDiv);
+            });
+        }
+        
+        // --- Main Drawing Logic ---
+        function drawSimulation() {
+            const L = parseInt(controls.latticeSize.value);
+            canvas.width = L;
+            canvas.height = L;
+            const mainPointSize = parseFloat(controls.pointSize.value);
+            const spacing = 40; 
+            const interactionLayerEnabled = controls.enableInteractions.checked;
+            
+            let minEffectiveScale = 1;
+            if (layers.length > 0) {
+                minEffectiveScale = layers.reduce((min, l) => l.scale < min ? l.scale : min, layers[0].scale);
+            } else { 
+                minEffectiveScale = 1;
+            }
+            const drawL = L * 1.8 / Math.max(0.1, minEffectiveScale);
+
+            ctx.clearRect(0, 0, L, L);
+            lastRenderedInteractionPoints = []; 
+
+            let currentFramePrecomputedData = [];
+
+            layers.forEach(layerConfig => {
+                let localPts = layerConfig.localPointsCache;
+                let transformedPts = layerConfig.transformedPointsCache;
+                
+                if (!localPts) { 
+                    switch (layerConfig.type) {
+                        case 'square': localPts = generateSquareLatticePoints(drawL, spacing); break;
+                        case 'triangular': localPts = generateTriangularLatticePoints(drawL, spacing); break;
+                        case 'honeycomb': localPts = generateHoneycombPointLatticePoints(drawL, spacing); break;
+                        default: localPts = [];
+                    }
+                    layerConfig.localPointsCache = localPts;
+                    transformedPts = null; 
+                    layerConfig.transformedPointsCache = null;
+                }
+                
+                if (!transformedPts) { 
+                     transformedPts = localPts.map(p => transformPoint(p, L, layerConfig));
+                     layerConfig.transformedPointsCache = transformedPts;
+                }
+
+                currentFramePrecomputedData.push({ ...layerConfig, localPoints: localPts, transformedPoints: transformedPts });
+
+                if (layerConfig.visible) {
+                    ctx.globalAlpha = layerConfig.alpha; 
+                    ctx.fillStyle = layerConfig.color;
+                    transformedPts.forEach(p => {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, mainPointSize, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                }
+            });
+            
+            ctx.globalAlpha = 1.0; 
+
+            if (interactionLayerEnabled && layers.length > 1) {
+                drawInteractionLayer(L, currentFramePrecomputedData);
+            }
+        }
+
+        function drawInteractionLayer(L, allPrecomputedData) {
+            const threshold = parseFloat(controls.distanceThreshold.value);
+            const interactionPtSize = parseFloat(controls.interactionPointSize.value);
+            
+            const redLayerData = allPrecomputedData[0]; 
+            if (!redLayerData || !redLayerData.transformedPoints || redLayerData.transformedPoints.length === 0) {
+                return; 
+            }
+
+            const otherLayersData = allPrecomputedData.slice(1).filter(ld => ld.transformedPoints && ld.transformedPoints.length > 0);
+            if (otherLayersData.length === 0) return;
+
+            redLayerData.transformedPoints.forEach(rp => {
+                let clusterPoints = [rp]; 
+                let participatingNeighbors = [];
+                let minDistanceToOtherLayer = Infinity;
+
+                otherLayersData.forEach(otherLayer => {
+                    let nearestNeighbor = null;
+                    let minDistSq = Infinity;
+
+                    otherLayer.transformedPoints.forEach(op => {
+                        const distSq = Math.pow(rp.x - op.x, 2) + Math.pow(rp.y - op.y, 2);
+                        if (distSq < minDistSq) {
+                            minDistSq = distSq;
+                            nearestNeighbor = op;
+                        }
+                    });
+
+                    if (nearestNeighbor) {
+                        const actualDist = Math.sqrt(minDistSq);
+                        if (actualDist <= threshold) {
+                            participatingNeighbors.push(nearestNeighbor);
+                            minDistanceToOtherLayer = Math.min(minDistanceToOtherLayer, actualDist);
+                        }
+                    }
+                });
+
+                if (participatingNeighbors.length > 0) {
+                    clusterPoints.push(...participatingNeighbors);
+                    
+                    let sumX = 0, sumY = 0;
+                    clusterPoints.forEach(p => { sumX += p.x; sumY += p.y; });
+                    const avgX = sumX / clusterPoints.length;
+                    const avgY = sumY / clusterPoints.length;
+
+                    const color = getColorForDistanceViridisLog(minDistanceToOtherLayer, threshold);
+                    lastRenderedInteractionPoints.push({x: avgX, y: avgY, color: color, distance: minDistanceToOtherLayer}); 
+
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(avgX, avgY, interactionPtSize, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // --- Export Functionality ---
+        function exportInteractionPoints() {
+            if (lastRenderedInteractionPoints.length === 0) {
+                alert("No interaction points to export from the last render.");
+                return;
+            }
+            let fileContent = "x,y,distance,color_rgb\n"; 
+            lastRenderedInteractionPoints.forEach(p => {
+                fileContent += `${p.x.toFixed(3)},${p.y.toFixed(3)},${p.distance.toFixed(3)},${p.color}\n`;
+            });
+
+            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "interaction_points.txt");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+        controls.exportInteractionPointsButton.addEventListener('click', exportInteractionPoints);
+
+
+        // --- Event Listeners for Global Controls ---
+        controls.latticeSize.addEventListener('input', () => {
+            invalidateAllPointCaches(); 
+            generateLayerControls(); 
+            drawSimulation();
+            resizeCanvasContainer();
+        });
+        controls.numLayers.addEventListener('change', updateNumberOfLayers);
+        controls.pointSize.addEventListener('input', drawSimulation); 
+        controls.interactionPointSize.addEventListener('input', drawSimulation);
+
+
+        controls.distanceThreshold.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value).toFixed(2); 
+            controls.distanceThresholdLabel.textContent = `Distance Threshold: ${val}`;
+            controls.distanceThresholdNumber.value = val;
+            drawSimulation();
+        });
+        controls.distanceThresholdNumber.addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value);
+            if(isNaN(val)) val = parseFloat(controls.distanceThreshold.min); 
+            val = Math.max(parseFloat(controls.distanceThreshold.min), Math.min(parseFloat(controls.distanceThreshold.max), val));
+            const formattedVal = val.toFixed(2); 
+            e.target.value = formattedVal; 
+            controls.distanceThresholdLabel.textContent = `Distance Threshold: ${formattedVal}`;
+            controls.distanceThreshold.value = formattedVal; 
+            drawSimulation();
+        });
+        controls.enableInteractions.addEventListener('change', drawSimulation);
+
+
+        function resizeCanvasContainer() {
+            const controlWidth = document.getElementById('controls').offsetWidth;
+            const availableWidth = window.innerWidth - controlWidth - 40; 
+            const availableHeight = window.innerHeight - 40; 
+            const L = parseInt(controls.latticeSize.value);
+            let displayScale = 1;
+            if (L > 0 && (L > availableWidth || L > availableHeight)) {
+                displayScale = Math.min(availableWidth / L, availableHeight / L, 1); 
+            } else if (L <= 0) { displayScale = 1; }
+            canvas.style.width = (L * displayScale) + 'px';
+            canvas.style.height = (L * displayScale) + 'px';
+        }
+
+        // --- Initial Setup ---
+        window.addEventListener('resize', () => { invalidateAllPointCaches(); resizeCanvasContainer(); drawSimulation(); });
+        updateNumberOfLayers(); 
+        resizeCanvasContainer();
+        
+    </script>
+</body>
+</html>
