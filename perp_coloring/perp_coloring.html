@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perp-Space Coloring</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        .plots {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .plot {
+            width: 48%;
+            min-width: 400px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .plot h3 {
+            text-align: center;
+            margin-top: 0;
+        }
+        .btn {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        input, select {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        label {
+            margin-right: 5px;
+        }
+        .control-group {
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Quasicrystal Analysis</h1>
+        
+        <div class="controls">
+            <h2>Configuration</h2>
+            <div class="control-group">
+                <label for="basisType">Basis Type:</label>
+                <select id="basisType">
+                    <option value="8" selected>8-fold</option>
+                    <option value="12">12-fold</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="basisLength">Basis Length:</label>
+                <input type="number" id="basisLength" value="18" min="1" max="50">
+            </div>
+            
+            <div class="control-group">
+                <label for="epsilon">Epsilon:</label>
+                <input type="number" id="epsilon" value="2" min="0.1" max="10" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <label for="tolerance">Tolerance:</label>
+                <input type="number" id="tolerance" value="3" min="0.1" max="10" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <button id="loadSample" class="btn">Load Sample Data</button>
+                <button id="analyze" class="btn">Analyze</button>
+                <button id="resetOrigin" class="btn" style="background-color: #f44336;">Reset Origin</button>
+            </div>
+            
+            <div>
+                <p>Upload your own coordinates file (CSV):</p>
+                <input type="file" id="fileInput" accept=".csv,.txt">
+            </div>
+            
+            <div id="originInfo" style="margin-top: 10px; font-weight: bold;">
+                Current origin: Point 0
+            </div>
+            
+            <div style="margin-top: 10px; font-style: italic;">
+                You can click any point in the Real Space plot to change the origin.
+            </div>
+        </div>
+        
+        <div class="plots">
+            <div class="plot">
+                <div id="realPlot"></div>
+            </div>
+            <div class="plot">
+                <div id="perpPlot"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions
+        const PI = Math.PI;
+
+        // 1. Sort points by distance from center
+        function sortByDistFromCenter(points, center) {
+            // Calculate distances from each point to the center
+            const distances = points.map(point => {
+                // Calculate Euclidean distance between point and center
+                return Math.sqrt(
+                    point.reduce((sum, coord, i) => sum + Math.pow(coord - center[i], 2), 0)
+                );
+            });
+            
+            // Create array of indices and sort them by distances
+            const sortedIndices = Array.from({ length: points.length }, (_, i) => i)
+                .sort((a, b) => distances[a] - distances[b]);
+            
+            // Return points in sorted order by distance
+            return sortedIndices.map(index => points[index]);
+        }
+
+        // 2. Create full graph function
+        function createFullGraph(points, lengths, eps = 0.1) {
+            const n = 10; // Arbitrary number of neighbors
+            
+            // Find nearest neighbors
+            function findNearestNeighbors(points, k) {
+                const indices = [];
+                const distances = [];
+                
+                // For each point, find k nearest neighbors
+                for (let i = 0; i < points.length; i++) {
+                    // Calculate distances to all other points
+                    const dists = points.map((p, idx) => {
+                        // Euclidean distance
+                        const dist = Math.sqrt(
+                            p.reduce((sum, coord, j) => sum + Math.pow(coord - points[i][j], 2), 0)
+                        );
+                        return { dist, idx };
+                    });
+                    
+                    // Sort by distance and take k nearest
+                    const sorted = dists.sort((a, b) => a.dist - b.dist);
+                    const nearestK = sorted.slice(0, k);
+                    
+                    // Store results
+                    indices.push(nearestK.map(item => item.idx));
+                    distances.push(nearestK.map(item => item.dist));
+                }
+                
+                return { distances, indices };
+            }
+            
+            // Find nearest neighbors
+            const { distances: distancesNew, indices: indicesNew } = findNearestNeighbors(points, n);
+            
+            const edges = [];
+            const PMask = new Array(points.length).fill(0);
+            
+            // Create edges based on distance criteria
+            for (let p = 0; p < points.length; p++) {
+                for (let j = 0; j < lengths.length; j++) {
+                    for (let k = 0; k < n; k++) {
+                        if (Math.abs(distancesNew[p][k] - lengths[j]) <= eps) {
+                            // Sort the indices to ensure unique edges
+                            const edge = [p, indicesNew[p][k]].sort((a, b) => a - b);
+                            // Check if edge already exists
+                            const edgeExists = edges.some(e => 
+                                e[0] === edge[0] && e[1] === edge[1]
+                            );
+                            if (!edgeExists) {
+                                edges.push(edge);
+                            }
+                            PMask[p] = 1;
+                            PMask[indicesNew[p][k]] = 1;
+                        }
+                    }
+                }
+            }
+            
+            return {
+                edges,
+                PMask,
+                indicesNew,
+                distancesNew
+            };
+        }
+
+        // 3. BFS Indexing function
+        function BFS_indexing(points, edges, startIndex, basisAngles, basisLengths, branchline = [], tol = 0.1) {
+            // Initialize arrays
+            const indexes = Array(points.length).fill().map(() => Array(basisAngles.length).fill(0));
+            const rank = basisAngles.length;
+            
+            // Create basis vectors
+            const basisVectors = basisAngles.map((angle, i) => [
+                basisLengths[i] * Math.cos(angle),
+                basisLengths[i] * Math.sin(angle)
+            ]);
+            
+            // Create adjacency matrix
+            const adj = Array(points.length).fill().map(() => Array(points.length).fill(0));
+            edges.forEach(([i, j]) => {
+                adj[i][j] = 1;
+                adj[j][i] = 1;
+            });
+            
+            const correctedIndices = [];
+            const windowSum = Array(adj.length).fill().map(() => [0, 0]);
+            
+            // Helper function to find index of minimum value
+            function indexOfMin(arr) {
+                let min = arr[0];
+                let minIndex = 0;
+                
+                for (let i = 1; i < arr.length; i++) {
+                    if (arr[i] < min) {
+                        min = arr[i];
+                        minIndex = i;
+                    }
+                }
+                
+                return minIndex;
+            }
+            
+            // Function to check if edge intersects branch line
+            function intersectContours(branchline, edge) {
+                // Placeholder - implement if needed
+                return false;
+            }
+            
+            // Calculate dot product
+            function dotProduct(v1, v2) {
+                return v1[0] * v2[0] + v1[1] * v2[1];
+            }
+            
+            // BFS algorithm
+            function BFS(start) {
+                let maxDeviation = 0;
+                
+                const visited = Array(adj.length).fill(-1);
+                const q = [start];
+                
+                visited[start] = 0;
+                let count = 0;
+                
+                while (q.length > 0) {
+                    const vis = q.shift();
+                    
+                    for (let i = 0; i < adj.length; i++) {
+                        if (adj[vis][i] === 1 && visited[i] === -1) {
+                            const ed = [points[i], points[vis]];
+                            
+                            // Check if edge crosses branch line
+                            if (intersectContours(branchline, ed)) {
+                                count++;
+                                continue;
+                            }
+                            
+                            // Calculate edge vector
+                            const e = [
+                                points[i][0] - points[vis][0],
+                                points[i][1] - points[vis][1]
+                            ];
+                            
+                            // Find closest basis vector
+                            const norm = basisVectors.map(bv => {
+                                const normPlus = Math.sqrt(
+                                    Math.pow(bv[0] - e[0], 2) + Math.pow(bv[1] - e[1], 2)
+                                );
+                                const normMinus = Math.sqrt(
+                                    Math.pow(bv[0] + e[0], 2) + Math.pow(bv[1] + e[1], 2)
+                                );
+                                return Math.min(normPlus, normMinus);
+                            });
+                            
+                            const j = indexOfMin(norm);
+                            
+                            if (norm[j] > tol) {
+                                continue;
+                            }
+                            
+                            q.push(i);
+                            maxDeviation = Math.max(maxDeviation, norm[j]);
+                            
+                            // Set visited flag
+                            visited[i] = i;
+                            
+                            // Copy and update index
+                            const temp = [...indexes[vis]];
+                            
+                            // Update index based on direction
+                            temp[j] += Math.sign(dotProduct(basisVectors[j], e));
+                            indexes[i] = temp;
+                        }
+                    }
+                }
+                
+                console.log("Number of points crossing the branch cut:", count);
+                return { maxDeviation, visited };
+            }
+            
+            const { maxDeviation, visited } = BFS(startIndex);
+            return { indexes, maxDeviation, correctedIndices, windowSum, visited };
+        }
+
+        // 4. Matrix multiplication function
+        function matrixMultiply(A, B) {
+            // A is m x n, B is n x p, result is m x p
+            const m = A.length;
+            const n = B.length;
+            const p = B[0].length;
+            
+            const result = Array(m).fill().map(() => Array(p).fill(0));
+            
+            for (let i = 0; i < m; i++) {
+                for (let j = 0; j < p; j++) {
+                    for (let k = 0; k < n; k++) {
+                        result[i][j] += A[i][k] * B[k][j];
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        // 5. Modified coloring function based on distance from center in perpendicular space
+        function coloringPerp(perpPlot) {
+            // Calculate distances from center for each point in perpendicular space
+            const distances = perpPlot.map(point => {
+                return Math.sqrt(point[0]*point[0] + point[1]*point[1]);
+            });
+            
+            // Find max distance for normalization
+            const maxDist = Math.max(...distances);
+            
+            // Create a color scale that varies with distance from center
+            // Using a rainbow color scale that transitions smoothly
+            const colorScale = d3.scaleSequential(d3.interpolateViridis)
+                               .domain([0, maxDist]);
+            
+            // Generate colors based on normalized distances
+            const colors = distances.map(dist => {
+                return colorScale(dist);
+            });
+            
+            return { colors };
+        }
+
+        // Create basis vectors
+        function createBasisVectors(basisType) {
+            const baseAngles = [];
+            const perpBaseAngles = [];
+            
+            if (basisType === 8) {
+                // 8-fold basis
+                baseAngles.push(0, 2*PI/8, 4*PI/8, 6*PI/8);
+                perpBaseAngles.push(0, 10*PI/8, 4*PI/8, 14*PI/8);
+            } else {
+                // 12-fold basis
+                baseAngles.push(0, PI/6, 2*PI/6, 3*PI/6);
+                perpBaseAngles.push(PI, PI/6, 8*PI/6, 3*PI/6);
+            }
+            
+            // Create real base vectors
+            const realBase = baseAngles.map(angle => [
+                Math.cos(angle),
+                Math.sin(angle)
+            ]);
+            
+            // Create perpendicular base vectors
+            const perpBase = perpBaseAngles.map(angle => [
+                Math.cos(angle),
+                Math.sin(angle)
+            ]);
+            
+            return { realBase, perpBase, baseAngles, perpBaseAngles };
+        }
+
+        // Main analysis function
+        function analyzePoints(points, originIndex = 0) {
+            const basisType = parseInt(document.getElementById('basisType').value);
+            const basisLength = parseFloat(document.getElementById('basisLength').value);
+            const epsilon = parseFloat(document.getElementById('epsilon').value);
+            const tolerance = parseFloat(document.getElementById('tolerance').value);
+            
+            // 1. Sort points by distance from center
+            const sortedPoints = sortByDistFromCenter(points, points[originIndex]);
+            
+            // 2. Create basis vectors
+            const { realBase, perpBase, baseAngles, perpBaseAngles } = createBasisVectors(basisType);
+            
+            // 3. Create full graph
+            const { edges, PMask } = createFullGraph(points, [basisLength], epsilon);
+            
+            // 4. BFS indexing
+            const basisLengths = Array(baseAngles.length).fill(basisLength);
+            const { indexes } = BFS_indexing(points, edges, originIndex, baseAngles, basisLengths, [], tolerance); //*
+            
+            // 5. Calculate real and perpendicular space plots
+            const realPlot = matrixMultiply(indexes, realBase);
+            const perpPlot = matrixMultiply(indexes, perpBase);
+            
+            // 6. Apply coloring based on distance from center in perpendicular space
+            const { colors } = coloringPerp(perpPlot);
+            
+            // Return all data for plotting
+            return {
+                realPlot,
+                perpPlot,
+                colors,
+                edges,
+                points,
+                originIndex
+                //*
+            };
+        }
+
+        // Plotting function using D3.js
+        function plotResults(results) {
+            const { realPlot, perpPlot, colors, edges, points, originIndex } = results; //*
+            
+            // Plot real space
+            plotSpace('realPlot', realPlot, colors, 'Real Space');
+            //const filteredPoints = points.filter((_, i) => visited[i]); //*
+            //plotSpace('realPlot', filteredPoints, colors, 'Real Space'); //*
+
+            // Plot perpendicular space
+            plotSpace('perpPlot', perpPlot, colors, 'Perpendicular Space');
+            
+            // Update info about current origin
+            const originInfo = document.getElementById('originInfo');
+            if (originInfo) {
+                originInfo.innerHTML = `Current origin: Point ${originIndex} at [${points[originIndex][0].toFixed(2)}, ${points[originIndex][1].toFixed(2)}]`;
+            }
+        }
+        
+        function plotSpace(elementId, data, colors, title) {
+            // Clear previous plot
+            d3.select(`#${elementId}`).html('');
+            
+            // Set dimensions
+            const margin = { top: 20, right: 20, bottom: 40, left: 40 };
+            const width = 500 - margin.left - margin.right;
+            const height = 500 - margin.top - margin.bottom;
+            
+            // Find data extents for scaling
+            const xExtent = d3.extent(data, d => d[0]);
+            const yExtent = d3.extent(data, d => d[1]);
+            
+            // Create padding for the scales
+            const xRange = xExtent[1] - xExtent[0];
+            const yRange = yExtent[1] - yExtent[0];
+            const padding = Math.max(xRange, yRange) * 0.1;
+            
+            // Create scales with equal aspect ratio
+            const maxRange = Math.max(xRange, yRange) + padding * 2;
+            const xScale = d3.scaleLinear()
+                .domain([xExtent[0] - padding, xExtent[0] + maxRange])
+                .range([0, width]);
+                
+            const yScale = d3.scaleLinear()
+                .domain([yExtent[0] - padding, yExtent[0] + maxRange])
+                .range([height, 0]);
+            
+            // Create SVG element
+            const svg = d3.select(`#${elementId}`)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // Add X axis
+            svg.append('g')
+                .attr('transform', `translate(0,${height/2})`)
+                .call(d3.axisBottom(xScale));
+            
+            // Add Y axis
+            svg.append('g')
+                .attr('transform', `translate(${width/2},0)`)
+                .call(d3.axisLeft(yScale));
+            
+            // Add grid lines
+            svg.append('g')
+                .attr('class', 'grid')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale)
+                    .tickSize(-height)
+                    .tickFormat('')
+                );
+                
+            svg.append('g')
+                .attr('class', 'grid')
+                .call(d3.axisLeft(yScale)
+                    .tickSize(-width)
+                    .tickFormat('')
+                );
+                
+            // Style grid lines
+            svg.selectAll('.grid line')
+                .style('stroke', '#e0e0e0')
+                .style('stroke-opacity', 0.7)
+                .style('shape-rendering', 'crispEdges');
+            
+            // Add points
+            svg.selectAll('.point')
+                .data(data)
+                .enter()
+                .append('circle')
+                .attr('class', 'point')
+                .attr('cx', d => xScale(d[0]))
+                .attr('cy', d => yScale(d[1]))
+                .attr('r', 3) // Increased point size for better visibility
+                .style('fill', (d, i) => colors[i])
+                .style('opacity', 0.8)
+                .style('cursor', elementId === 'realPlot' ? 'pointer' : 'default')
+                .on('click', function(event, d, i) {
+                    if (elementId === 'realPlot') {
+                        // Find the closest point in the original dataset
+                        const clickedX = d[0];
+                        const clickedY = d[1];
+                        
+                        // Find the index of this point in the original dataset
+                        const pointIndex = currentPoints.findIndex((point, idx) => {
+                            // Find corresponding point in real space
+                            const realPoint = data[idx];
+                            return Math.abs(realPoint[0] - clickedX) < 0.001 && 
+                                   Math.abs(realPoint[1] - clickedY) < 0.001;
+                        });
+                        
+                        if (pointIndex !== -1) {
+                            // Set new origin and reanalyze
+                            currentOriginIndex = pointIndex;
+                            const results = analyzePoints(currentPoints, currentOriginIndex);
+                            plotResults(results);
+                        }
+                    }
+                });
+            
+            // Add origin point
+            const originCircle = svg.append('circle')
+                .attr('class', 'origin')
+                .attr('cx', xScale(0))
+                .attr('cy', yScale(0))
+                .attr('r', 10)
+                .style('fill', 'red')
+                .style('opacity', 0.5)
+                .style('cursor', elementId === 'realPlot' ? 'move' : 'default');
+            
+            // For real space plot, make the origin point draggable
+            if (elementId === 'realPlot') {
+                originCircle.call(d3.drag()
+                    .on('start', function() {
+                        isDragging = true;
+                    })
+                    .on('drag', function(event) {
+                        // Update the position of the origin point during drag
+                        d3.select(this)
+                            .attr('cx', event.x)
+                            .attr('cy', event.y);
+                            
+                        // Find the closest point to the current drag position
+                        const x = xScale.invert(event.x);
+                        const y = yScale.invert(event.y);
+                        
+                        let closestIndex = 0;
+                        let minDist = Infinity;
+                        
+                        currentPoints.forEach((point, idx) => {
+                            const dist = Math.sqrt(
+                                Math.pow(point[0] - x, 2) + 
+                                Math.pow(point[1] - y, 2)
+                            );
+                            
+                            if (dist < minDist) {
+                                minDist = dist;
+                                closestIndex = idx;
+                            }
+                        });
+                        
+                        draggedOrigin = closestIndex;
+                        
+                        // Highlight the closest point
+                        svg.selectAll('.point')
+                            .style('stroke', (d, i) => i === closestIndex ? 'black' : 'none')
+                            .style('stroke-width', (d, i) => i === closestIndex ? 2 : 0);
+                    })
+                    .on('end', function() {
+                        isDragging = false;
+                        
+                        if (draggedOrigin !== null && draggedOrigin !== currentOriginIndex) {
+                            // Set new origin and reanalyze
+                            currentOriginIndex = draggedOrigin;
+                            const results = analyzePoints(currentPoints, currentOriginIndex);
+                            plotResults(results);
+                        }
+                        
+                        draggedOrigin = null;
+                    })
+                );
+            }
+                
+            // Add axis labels
+            svg.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('transform', `translate(${width/2},${height + margin.bottom - 5})`)
+                .text('X');
+                
+            svg.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('transform', `translate(${-margin.left/2},${height/2})rotate(-90)`)
+                .text('Y');
+                
+            // Add title
+            svg.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('transform', `translate(${width/2},${-margin.top/2})`)
+                .style('font-size', '14px')
+                .style('font-weight', 'bold')
+                .text(title);
+        }
+
+        // Sample data generation
+        function generateSampleData() {
+            // Generate a simple set of points in a grid pattern
+            const points = [];
+            const gridSize = 10;
+            const spacing = 20;
+            
+            for (let i = -gridSize; i <= gridSize; i++) {
+                for (let j = -gridSize; j <= gridSize; j++) {
+                    // Add some noise to create an interesting pattern
+                    const noise = (Math.random() - 0.5) * spacing * 0.2;
+                    points.push([i * spacing + noise, j * spacing + noise]);
+                }
+            }
+            
+            return points;
+        }
+
+        // Parse CSV file
+        function parseCSV(text) {
+            const rows = text.trim().split('\n');
+            const points = [];
+            
+            rows.forEach(row => {
+                const values = row.split(',').map(val => parseFloat(val.trim()));
+                if (values.length >= 2 && !isNaN(values[0]) && !isNaN(values[1])) {
+                    points.push([values[0], values[1]]);
+                }
+            });
+            
+            return points;
+        }
+
+        // Global variables to store current state
+        let currentPoints = [];
+        let currentOriginIndex = 0;
+        let isDragging = false;
+        let draggedOrigin = null;
+
+        // Event listeners
+        document.getElementById('loadSample').addEventListener('click', () => {
+            currentPoints = generateSampleData();
+            currentOriginIndex = 0;
+            const results = analyzePoints(currentPoints, currentOriginIndex);
+            plotResults(results);
+        });
+        
+        document.getElementById('analyze').addEventListener('click', () => {
+            const fileInput = document.getElementById('fileInput');
+            
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    currentPoints = parseCSV(e.target.result);
+                    if (currentPoints.length > 0) {
+                        currentOriginIndex = 0;
+                        const results = analyzePoints(currentPoints, currentOriginIndex);
+                        plotResults(results);
+                    } else {
+                        alert('No valid points found in the file.');
+                    }
+                };
+                
+                reader.readAsText(file);
+            } else {
+                // Use sample data if no file is selected
+                currentPoints = generateSampleData();
+                currentOriginIndex = 0;
+                const results = analyzePoints(currentPoints, currentOriginIndex);
+                plotResults(results);
+            }
+        });
+        
+        // Add event listener for reset origin button
+        document.getElementById('resetOrigin').addEventListener('click', () => {
+            if (currentPoints.length > 0) {
+                currentOriginIndex = 0;
+                const results = analyzePoints(currentPoints, currentOriginIndex);
+                plotResults(results);
+            }
+        });
+
+        // Initialize with sample data
+        window.onload = () => {
+            currentPoints = generateSampleData();
+            currentOriginIndex = 0;
+            const results = analyzePoints(currentPoints, currentOriginIndex);
+            plotResults(results);
+        };
+    </script>
+</body>
+</html>

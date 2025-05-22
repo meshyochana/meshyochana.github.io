@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fourier Transform Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .main-content {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 20px;
+            width: 100%;
+        }
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            width: 350px;
+        }
+        #visualization {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            width: 100%;
+        }
+        input, button {
+            margin: 5px;
+            padding: 8px;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+        }
+        #fileInput {
+            margin: 10px 0;
+        }
+        .color-scale {
+            display: flex;
+            align-items: center;
+            margin-top: 15px;
+        }
+        .color-gradient {
+            width: 200px;
+            height: 20px;
+            margin: 0 10px;
+            background: linear-gradient(to right, #3498db, #e74c3c);
+        }
+        .file-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            width: 100%;
+        }
+        .selection-square {
+            fill: none;
+            stroke: red;
+            stroke-width: 2;
+            stroke-dasharray: 5, 5;
+            pointer-events: none;
+        }
+        .selection-circle {
+            fill: none;
+            stroke: blue;
+            stroke-width: 2;
+            stroke-dasharray: 5, 5;
+            pointer-events: none;
+        }
+        #returnBackButton {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #returnBackButton:hover {
+            background-color: #45a049;
+        }
+        #returnBackButton:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        #coordinatesInput {
+            width: 90%;
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .button-group button {
+            flex: 1;
+            min-width: 100px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fourier Transform Visualization</h1>
+        
+        <div class="main-content">
+            <div class="controls-container">
+                <div class="file-container">
+                    <input type="file" id="fileInput" accept=".txt">
+                    <textarea id="coordinatesInput" rows="4" placeholder="Enter coordinates (x,y format)"></textarea>
+                    <button id="processButton">Process Coordinates</button>
+                </div>
+
+                <div class="controls">
+                    <div>
+                        <label for="centerX">Center X:</label>
+                        <input type="number" id="centerX" value="0" step="0.1">
+                    </div>
+                    <div>
+                        <label for="centerY">Center Y:</label>
+                        <input type="number" id="centerY" value="0" step="0.1">
+                    </div>
+                    <div>
+                        <label for="radius">Radius:</label>
+                        <input type="number" id="radius" value="1.5" min="0.01" step="0.01">
+                    </div>
+                    <div>
+                        <label for="resolution">Resolution:</label>
+                        <input type="number" id="resolution" value="100" min="10" step="10">
+                    </div>
+                    <div class="button-group">
+                        <button id="updateButton">Update Visualization</button>
+                        <button id="resetButton">Reset View</button>
+                        <button id="returnBackButton" disabled>Back</button>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="selectionMode" name="selectionMode">
+                        <label for="selectionMode">Enable Region Selection</label>
+
+                    </div>
+                </div>
+            </div>
+            
+            <svg id="visualization" width="800" height="800"></svg>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Computes the Fourier transform intensity for a set of points
+         * @param {Array<Array<number>>} points - Array of 2D points
+         * @param {Array<number>} center - Center of the Fourier space [default: [0,0]]
+         * @param {number} radius - Radius of the circular region in Fourier space [default: 1.5]
+         * @param {number} res - Resolution parameter [default: 100]
+         * @returns {Object} Object containing intensity values and corresponding k-space coordinates
+         */
+        function fourier4(points, center = [0, 0], radius = 1.5, res = 100) {
+            // Calculate step size
+            const steps = radius / res;
+            
+            // Create array of k values
+            const k = [];
+            for (let val = -radius; val < radius; val += steps) {
+                k.push(val);
+            }
+            
+            // Create cartesian product of k values (all possible 2D coordinates)
+            const kIndices = [];
+            for (let i = 0; i < k.length; i++) {
+                for (let j = 0; j < k.length; j++) {
+                    kIndices.push([k[i], k[j]]);
+                }
+            }
+            
+            // Filter to keep only points within the circular region
+            const circ = kIndices.filter(point => 
+                (point[0] ** 2 + point[1] ** 2) < radius ** 2
+            );
+            
+            // Shift coordinates by the center
+            const shiftedIndices = circ.map(point => 
+                [point[0] + center[0], point[1] + center[1]]
+            );
+            
+            // Calculate intensity through Fourier transform
+            const intensity = shiftedIndices.map(kPoint => {
+                // Compute dot product and sum of exponentials
+                let sum = { real: 0, imag: 0 };
+                
+                for (const point of points) {
+                    // Calculate dot product
+                    const dotProduct = point[0] * kPoint[0] + point[1] * kPoint[1];
+                    
+                    // Calculate complex exponential (e^(-i * dot))
+                    const cosVal = Math.cos(-dotProduct);
+                    const sinVal = Math.sin(-dotProduct);
+                    
+                    // Add to running sum
+                    sum.real += cosVal;
+                    sum.imag += sinVal;
+                }
+                
+                // Calculate absolute square of the sum (|sum|²)
+                return sum.real ** 2 + sum.imag ** 2;
+            });
+            
+            return { intensity, kIndices: shiftedIndices };
+        }
+
+        // Parse the input text to extract coordinates
+        function parseCoordinates(text) {
+            const lines = text.trim().split('\n');
+            const points = [];
+            
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine) {
+                    const [x, y] = trimmedLine.split(',').map(val => parseFloat(val.trim()));
+                    if (!isNaN(x) && !isNaN(y)) {
+                        points.push([x, y]);
+                    }
+                }
+            }
+            
+            return points;
+        }
+
+        // Initialize a parameter history stack
+        let parameterHistory = [];
+        
+        // Function to get current parameters
+        function getCurrentParameters() {
+            return {
+                centerX: parseFloat(document.getElementById('centerX').value) || 0,
+                centerY: parseFloat(document.getElementById('centerY').value) || 0,
+                radius: parseFloat(document.getElementById('radius').value) || 1.5,
+                resolution: parseInt(document.getElementById('resolution').value) || 100
+            };
+        }
+        
+        // Function to save current parameters to history
+        function saveParametersToHistory() {
+            parameterHistory.push(getCurrentParameters());
+            // Enable the Return Back button if we have history
+            document.getElementById('returnBackButton').disabled = parameterHistory.length <= 1;
+        }
+
+        // Function to create/update the scatter plot
+        function createVisualization(points, saveToHistory = true) {
+            // Get parameters from the form
+            const params = getCurrentParameters();
+            
+            // Save current parameters to history before updating
+            if (saveToHistory) {
+                saveParametersToHistory();
+            }
+            
+            console.log("Creating visualization with:", params);
+            
+            // Calculate Fourier transform
+            const { intensity, kIndices } = fourier4(
+                points, 
+                [params.centerX, params.centerY], 
+                params.radius, 
+                params.resolution
+            );
+            
+            // Prepare data for visualization
+            const data = intensity.map((value, index) => ({
+                x: kIndices[index][0],
+                y: kIndices[index][1],
+                intensity: value
+            }));
+            
+            // Clear previous visualization
+            const svg = d3.select('#visualization');
+            svg.selectAll('*').remove();
+            
+            // Calculate scales for x and y axes
+            const margin = { top: 50, right: 50, bottom: 50, left: 50 };
+            const width = svg.attr('width') - margin.left - margin.right;
+            const height = svg.attr('height') - margin.top - margin.bottom;
+            
+            // Find min and max values for x and y
+            const xExtent = d3.extent(data, d => d.x);
+            const yExtent = d3.extent(data, d => d.y);
+            
+            // Add some padding to the extents
+            const xPadding = (xExtent[1] - xExtent[0]) * 0.1;
+            const yPadding = (yExtent[1] - yExtent[0]) * 0.1;
+            
+            // Calculate domains with padding
+            const xDomain = [xExtent[0] - xPadding, xExtent[1] + xPadding];
+            const yDomain = [yExtent[0] - yPadding, yExtent[1] + yPadding];
+            
+            // Make the scales equal ratio by adjusting the domains
+            const xRange = xDomain[1] - xDomain[0];
+            const yRange = yDomain[1] - yDomain[0];
+            
+            if (xRange > yRange) {
+                // Expand y domain to match x aspect ratio
+                const diff = (xRange - yRange) / 2;
+                yDomain[0] -= diff;
+                yDomain[1] += diff;
+            } else if (yRange > xRange) {
+                // Expand x domain to match y aspect ratio
+                const diff = (yRange - xRange) / 2;
+                xDomain[0] -= diff;
+                xDomain[1] += diff;
+            }
+            
+            // Create scales
+            const xScale = d3.scaleLinear()
+                .domain(xDomain)
+                .range([0, width]);
+                
+            const yScale = d3.scaleLinear()
+                .domain(yDomain)
+                .range([height, 0]);
+            
+            // Find min and max intensity for color scale
+            const intensityExtent = d3.extent(data, d => d.intensity);
+            const colorScale = d3.scaleSequential(d3.interpolateViridis)
+                .domain(intensityExtent);
+            
+            // Create a group to contain the plot
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // Add x and y axes
+            g.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .append('text')
+                .attr('x', width / 2)
+                .attr('y', 40)
+                .attr('fill', 'black')
+                .text('kx');
+                
+            g.append('g')
+                .call(d3.axisLeft(yScale))
+                .append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('y', -40)
+                .attr('x', -height / 2)
+                .attr('fill', 'black')
+                .attr('text-anchor', 'middle')
+                .text('ky');
+            
+            // Add title
+            svg.append('text')
+                .attr('x', svg.attr('width') / 2)
+                .attr('y', 25)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '16px')
+                .text(`Fourier Transform (${points.length} points)`);
+            
+            // Add points
+            g.selectAll('circle')
+                .data(data)
+                .enter()
+                .append('circle')
+                .attr('cx', d => xScale(d.x))
+                .attr('cy', d => yScale(d.y))
+                .attr('r', 3)
+                .attr('fill', d => colorScale(d.intensity))
+                .append('title')
+                .text(d => `Position: (${d.x.toFixed(4)}, ${d.y.toFixed(4)})\nIntensity: ${d.intensity.toFixed(4)}`);
+                
+            // Add a color legend
+            const legendWidth = 200;
+            const legendHeight = 20;
+            
+            const legend = svg.append('g')
+                .attr('transform', `translate(${svg.attr('width') - legendWidth - 20}, ${margin.top})`);
+                
+            // Create a linear gradient for the legend
+            const defs = svg.append('defs');
+            const linearGradient = defs.append('linearGradient')
+                .attr('id', 'intensity-gradient');
+                
+            // Add color stops
+            const stops = [0, 0.25, 0.5, 0.75, 1];
+            stops.forEach(stop => {
+                linearGradient.append('stop')
+                    .attr('offset', `${stop * 100}%`)
+                    .attr('stop-color', colorScale(intensityExtent[0] + stop * (intensityExtent[1] - intensityExtent[0])));
+            });
+            
+            // Add the colored rectangle
+            legend.append('rect')
+                .attr('width', legendWidth)
+                .attr('height', legendHeight)
+                .style('fill', 'url(#intensity-gradient)');
+                
+            // Add min and max labels
+            legend.append('text')
+                .attr('x', 0)
+                .attr('y', -5)
+                .style('font-size', '12px')
+                .text(`Min: ${intensityExtent[0].toFixed(2)}`);
+                
+            legend.append('text')
+                .attr('x', legendWidth)
+                .attr('y', -5)
+                .attr('text-anchor', 'end')
+                .style('font-size', '12px')
+                .text(`Max: ${intensityExtent[1].toFixed(2)}`);
+                
+            legend.append('text')
+                .attr('x', legendWidth / 2)
+                .attr('y', -20)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '12px')
+                .text('Intensity');
+                
+            // Selection functionality
+            let isSelectionMode = document.getElementById('selectionMode').checked;
+            let startX, startY;
+            let selectionSquare, selectionCircle;
+            let isDragging = false;
+            
+            // Function to convert from screen coordinates to data coordinates
+            function screenToData(screenX, screenY) {
+                const dataX = xScale.invert(screenX - margin.left);
+                const dataY = yScale.invert(screenY - margin.top);
+                return [dataX, dataY];
+            }
+            
+            // Only add selection functionality if in selection mode
+            if (isSelectionMode) {
+                svg.on('mousedown', function(event) {
+                    if (!isSelectionMode) return;
+                    
+                    // Get mouse position relative to SVG
+                    const [mouseX, mouseY] = d3.pointer(event);
+                    
+                    // Store starting position
+                    startX = mouseX;
+                    startY = mouseY;
+                    
+                    // Create selection square
+                    selectionSquare = g.append('rect')
+                        .attr('class', 'selection-square')
+                        .attr('x', startX - margin.left)
+                        .attr('y', startY - margin.top)
+                        .attr('width', 0)
+                        .attr('height', 0);
+                        
+                    // Create selection circle (will be updated during drag)
+                    selectionCircle = g.append('circle')
+                        .attr('class', 'selection-circle')
+                        .attr('cx', startX - margin.left)
+                        .attr('cy', startY - margin.top)
+                        .attr('r', 0);
+                        
+                    isDragging = true;
+                });
+                
+                svg.on('mousemove', function(event) {
+                    if (!isDragging || !isSelectionMode) return;
+                    
+                    // Get current mouse position
+                    const [mouseX, mouseY] = d3.pointer(event);
+                    
+                    // Calculate width and height of the selection rectangle
+                    const width = Math.abs(mouseX - startX);
+                    const height = Math.abs(mouseY - startY);
+                    
+                    // Update the selection rectangle
+                    selectionSquare
+                        .attr('x', Math.min(startX, mouseX) - margin.left)
+                        .attr('y', Math.min(startY, mouseY) - margin.top)
+                        .attr('width', width)
+                        .attr('height', height);
+                        
+                    // Calculate center of the square
+                    const centerX = (startX + mouseX) / 2 - margin.left;
+                    const centerY = (startY + mouseY) / 2 - margin.top;
+                    
+                    // Calculate radius (half of diagonal)
+                    const radius = Math.sqrt(width * width + height * height) / 2;
+                    
+                    // Update the selection circle
+                    selectionCircle
+                        .attr('cx', centerX)
+                        .attr('cy', centerY)
+                        .attr('r', radius);
+                });
+                
+                svg.on('mouseup', function(event) {
+                    if (!isDragging || !isSelectionMode) return;
+                    
+                    // Get final mouse position
+                    const [mouseX, mouseY] = d3.pointer(event);
+                    
+                    // Calculate center in data coordinates
+                    const centerX = (startX + mouseX) / 2;
+                    const centerY = (startY + mouseY) / 2;
+                    
+                    // Calculate width and height
+                    const width = Math.abs(mouseX - startX);
+                    const height = Math.abs(mouseY - startY);
+                    
+                    // Skip if selection is too small
+                    if (width < 10 || height < 10) {
+                        if (selectionSquare) selectionSquare.remove();
+                        if (selectionCircle) selectionCircle.remove();
+                        isDragging = false;
+                        return;
+                    }
+                    
+                    // Calculate radius (half of diagonal)
+                    const radius = Math.sqrt(width * width + height * height) / 2;
+                    
+                    // Convert center to data coordinates
+                    const [dataCenterX, dataCenterY] = screenToData(centerX, centerY);
+                    
+                    // Calculate radius in data coordinates (approximately)
+                    const dataRadius = Math.abs(xScale.invert(centerX + radius) - xScale.invert(centerX));
+                    
+                    // Save current parameters to history before updating
+                    saveParametersToHistory();
+                    
+                    // Update form values
+                    document.getElementById('centerX').value = dataCenterX.toFixed(4);
+                    document.getElementById('centerY').value = dataCenterY.toFixed(4);
+                    document.getElementById('radius').value = dataRadius.toFixed(4);
+                    
+
+                    
+                    // Reset flags
+                    isDragging = false;
+                    
+                    // Immediately update the visualization with the new parameters
+                    if (window.visualizationState && window.visualizationState.points) {
+                        console.log("Updating visualization after selection");
+                        createVisualization(window.visualizationState.points, false);
+                    }
+                });
+            }
+            
+            // Store the scales for later use
+            window.visualizationState = {
+                xScale,
+                yScale,
+                margin,
+                points
+            };
+            
+            return { xScale, yScale, margin };
+        }
+
+        // Event listeners setup
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listener for file input
+            document.getElementById('fileInput').addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const text = e.target.result;
+                        document.getElementById('coordinatesInput').value = text;
+                        
+                        // Process the coordinates automatically after loading the file
+                        const points = parseCoordinates(text);
+                        if (points.length > 0) {
+                            // Reset parameter history when loading new data
+                            parameterHistory = [];
+                            createVisualization(points);
+                            console.log(`Loaded and processed ${points.length} points from file`);
+                        } else {
+                            alert('No valid coordinates found in the file. Please check the format (x,y on each line).');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+
+            // Event listener for process button
+            document.getElementById('processButton').addEventListener('click', function() {
+                const text = document.getElementById('coordinatesInput').value;
+                const points = parseCoordinates(text);
+                
+                if (points.length > 0) {
+                    // Reset parameter history when processing new data
+                    parameterHistory = [];
+                    createVisualization(points);
+                } else {
+                    alert('No valid coordinates found. Please check the format (x,y on each line).');
+                }
+            });
+
+            // Event listener for update button
+            document.getElementById('updateButton').addEventListener('click', function() {
+                const text = document.getElementById('coordinatesInput').value;
+                const points = parseCoordinates(text);
+                
+                if (points.length > 0) {
+                    createVisualization(points);
+                } else {
+                    alert('No valid coordinates found. Please process coordinates first.');
+                }
+            });
+            
+            // Event handler for the reset button
+            document.getElementById('resetButton').addEventListener('click', function() {
+                console.log("Reset button clicked");
+                
+                // Save current parameters before resetting
+                saveParametersToHistory();
+                
+                // Reset form values
+                document.getElementById('centerX').value = "0";
+                document.getElementById('centerY').value = "0";
+                document.getElementById('radius').value = "1.5";
+                
+                // Get the current coordinates
+                const text = document.getElementById('coordinatesInput').value;
+                const points = parseCoordinates(text);
+                
+                if (points && points.length > 0) {
+                    console.log("Recreating visualization with reset parameters");
+                    // Force update without saving to history again
+                    createVisualization(points, false);
+                } else {
+                    console.log("No valid points found");
+                }
+            });
+            
+            // Event listener for selection mode checkbox
+            document.getElementById('selectionMode').addEventListener('change', function() {
+                const isSelectionMode = this.checked;
+                
+                // If selection mode is turned off, recreate the visualization to remove event handlers
+                if (!isSelectionMode && window.visualizationState && window.visualizationState.points) {
+                    createVisualization(window.visualizationState.points, false);
+                }
+                
+                // If selection mode is turned on, recreate the visualization to add event handlers
+                if (isSelectionMode && window.visualizationState && window.visualizationState.points) {
+                    createVisualization(window.visualizationState.points, false);
+                }
+            });
+            
+            
+            // Event listener for return back button
+            document.getElementById('returnBackButton').addEventListener('click', function() {
+                console.log("Return Back button clicked");
+                
+                // Check if we have previous parameters
+                if (parameterHistory.length > 1) {
+                    // Remove the current parameters
+                    parameterHistory.pop();
+                    
+                    // Get the previous parameters
+                    const prevParams = parameterHistory[parameterHistory.length - 1];
+                    
+                    // Update form values
+                    document.getElementById('centerX').value = prevParams.centerX;
+                    document.getElementById('centerY').value = prevParams.centerY;
+                    document.getElementById('radius').value = prevParams.radius;
+                    document.getElementById('resolution').value = prevParams.resolution;
+                    
+                    // Get the current coordinates
+                    const text = document.getElementById('coordinatesInput').value;
+                    const points = parseCoordinates(text);
+                    
+                    if (points && points.length > 0) {
+                        console.log("Recreating visualization with previous parameters");
+                        // Update visualization without saving these parameters to history
+                        createVisualization(points, false);
+                    }
+                    
+                    // Disable button if we're at the beginning of history
+                    this.disabled = parameterHistory.length <= 1;
+                }
+            });
+
+            // Initialize with some example data
+            const examplePoints = [
+                [0.1, 0.2],
+                [0.3, 0.4],
+                [0.5, 0.6],
+                [0.7, 0.8],
+                [0.9, 1.0]
+            ];
+            
+            document.getElementById('coordinatesInput').value = examplePoints
+                .map(point => point.join(','))
+                .join('\n');
+            
+            // Initialize parameter history with the default parameters
+            parameterHistory = [getCurrentParameters()];  
+                
+            createVisualization(examplePoints, false); // Don't save initial state again
+        });
+    </script>
+</body>
+</html>
