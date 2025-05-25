@@ -1,0 +1,75 @@
+================================================================================
+Quasicrystal Demonstrations
+Proprietary License for Academic Research Use Only
+Version 1.0 — 25.5.2025
+Copyright © 2025 Tel-Aviv University - Ron Lifshitz research group / Meshy Ochana
+================================================================================
+
+1.  Definitions
+    “Software” means the source code, object code, scripts, data files, and
+    documentation found in this repository.
+    “You” (or “Licensee”) means the individual or legal entity exercising
+    rights under this License.
+
+2.  Grant of Limited, Non-Commercial Research License
+    Subject to the terms below, Licensor hereby grants You a worldwide,
+    non-exclusive, non-transferable, royalty-free right to:
+        a) download and install the Software;
+        b) use and modify the Software **solely for internal, academic,
+           non-commercial research and teaching**.
+
+3.  Required Attribution & Citation
+    In any scholarly article, presentation, or pre-print that directly uses
+    results produced by the Software, You must:
+        • cite the following work:  
+          Ochana, M. & Lifshitz, R. (2025). “Quasicrystal Demonstrations.” v1.0.0.  
+        • include the statement:  
+          “This work used Quasicrystal Demonstrations (© Tel-Aviv University - Ron Lifshitz research group, released under a
+          Proprietary Academic License).”
+
+4.  Restrictions
+    Except as expressly permitted in Section 2, **You may NOT**:
+        a) redistribute, publish, or sublicense the Software or
+           derivative works in source or binary form;
+        b) use the Software for commercial consulting, SaaS, or contract work;
+        c) incorporate the Software into a product or service offered for
+           sale, license, or any form of monetary or non-monetary compensation;
+        d) remove or alter copyright, trademark, or attribution notices.
+
+5.  Third-Party Components
+    The Software may include or link against open-source libraries listed in
+    “NOTICE.txt”. Their respective licenses continue to govern those components.
+
+6.  Intellectual-Property & Patent Rights
+    Nothing in this License grants You any rights under Licensor’s patents or
+    patent applications, whether presently existing or later filed.
+
+7.  Warranty Disclaimer
+    THE SOFTWARE IS PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND. LICENSOR
+    DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+    THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+    NON-INFRINGEMENT.
+
+8.  Limitation of Liability
+    TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR SHALL NOT BE LIABLE FOR
+    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES
+    ARISING OUT OF OR RELATED TO THE SOFTWARE OR THIS LICENSE.
+
+9.  Termination
+    This License terminates automatically if You breach any term.  
+    Upon termination, You must destroy all copies of the Software in your
+    possession or control.
+
+10. Governing Law & Venue
+    This License shall be governed by the laws of the State/Commonwealth of
+    [GOVERNING LAW JURISDICTION], excluding its conflicts-of-law rules.
+    Any dispute arising under this License shall be heard exclusively in the
+    courts located in [CITY, COUNTRY].
+
+11. Contact
+    Questions about this license or requests for commercial or
+    redistribution rights should be directed to:
+        meashyochana@mail.tau.ac.il / Tel-Aviv University - Ron Lifshitz research group
+
+================================================================================
+END OF LICENSE
