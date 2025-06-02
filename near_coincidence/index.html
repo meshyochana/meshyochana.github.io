@@ -388,7 +388,7 @@
                 id: `layer-${index + 1}`, type,
                 color: layerColors[index % layerColors.length],
                 angle: 0, scale: 1.0, shiftX: 0, shiftY: 0, visible: true,
-                alpha: 0.3, 
+                alpha: 0.2, 
                 localPointsCache: null, 
                 transformedPointsCache: null 
             };
@@ -442,11 +442,11 @@
                 // Angle
                 const angleGroup = document.createElement('div'); angleGroup.className = 'input-group';
                 const angleLabel = document.createElement('label'); angleLabel.textContent = `Angle: ${layer.angle.toFixed(1)}°`;
-                const angleInput = document.createElement('input'); angleInput.type = 'range'; angleInput.min = -180; angleInput.max = 180; angleInput.value = layer.angle; angleInput.step = 0.1;
-                const angleNumberInput = document.createElement('input'); angleNumberInput.type = 'number'; angleNumberInput.min = -180; angleNumberInput.max = 180; angleNumberInput.value = layer.angle.toFixed(1); angleNumberInput.step = 0.1;
+                const angleInput = document.createElement('input'); angleInput.type = 'range'; angleInput.min = 0; angleInput.max = 180; angleInput.value = layer.angle; angleInput.step = 0.1;
+                const angleNumberInput = document.createElement('input'); angleNumberInput.type = 'number'; angleNumberInput.min = 0; angleNumberInput.max = 180; angleNumberInput.value = layer.angle.toFixed(1); angleNumberInput.step = 0.1;
                 const angleUpdate = (val) => { layer.angle = val; angleLabel.textContent = `Angle: ${val.toFixed(1)}°`; invalidateLayerPointCache(layer.id); drawSimulation(); };
                 angleInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); angleNumberInput.value = v.toFixed(1); angleUpdate(v); });
-                angleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(-180, Math.min(180,v)); angleInput.value = cV.toFixed(1); if(v.toFixed(1) !== cV.toFixed(1)) e.target.value = cV.toFixed(1); angleUpdate(cV); });
+                angleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(0, Math.min(180,v)); angleInput.value = cV.toFixed(1); if(v.toFixed(1) !== cV.toFixed(1)) e.target.value = cV.toFixed(1); angleUpdate(cV); });
                 layerDiv.appendChild(angleLabel); angleGroup.appendChild(angleInput); angleGroup.appendChild(angleNumberInput); layerDiv.appendChild(angleGroup);
 
                 // Scale
