@@ -41,14 +41,22 @@
         }
 
         .control-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px; 
             border-bottom: 1px solid #eee;
-            padding-bottom: 15px;
+            padding-bottom: 10px; 
         }
 
         .control-group:last-child {
             border-bottom: none;
         }
+         .edge-config-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+
 
         h3 {
             margin-top: 0;
@@ -84,7 +92,8 @@
 
         input[type="number"],
         select,
-        button { 
+        button,
+        input[type="color"] { 
             width: calc(100% - 12px);
             padding: 8px; 
             margin-bottom: 10px;
@@ -92,14 +101,38 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
+        input[type="color"] {
+             width: calc(100% - 22px); 
+             padding: 5px;
+             height: 35px; 
+        }
         button {
             background-color: #007bff;
             color: white;
             cursor: pointer;
             font-weight: bold;
+            transition: background-color 0.2s ease;
         }
         button:hover {
             background-color: #0056b3;
+        }
+        button.add-button {
+            background-color: #28a745; /* Green */
+            margin-top: 5px;
+        }
+        button.add-button:hover {
+            background-color: #218838;
+        }
+        button.remove-button {
+            background-color: #dc3545; /* Red */
+            font-size: 0.8em;
+            padding: 5px 8px;
+            width: auto; /* Fit content */
+            margin-top: 5px;
+            float: right; /* Align remove button to the right */
+        }
+        button.remove-button:hover {
+            background-color: #c82333;
         }
         
         .input-group {
@@ -138,7 +171,7 @@
         <div class="control-group">
             <h3>Global Settings</h3>
             <label for="latticeSize">Lattice Area Size (L x L pixels):</label>
-            <input type="number" id="latticeSize" value="300" min="100" max="800">
+            <input type="number" id="latticeSize" value="500" min="100" max="800">
 
             <label for="numLayers">Number of Layers:</label>
             <select id="numLayers">
@@ -151,7 +184,7 @@
             <input type="number" id="pointSize" value="3" min="0.5" max="10" step="0.5">
             
             <label for="interactionPointSize">Interaction Point Size (radius, px):</label>
-            <input type="number" id="interactionPointSize" value="2.5" min="0.5" max="10" step="0.5">
+            <input type="number" id="interactionPointSize" value="4" min="0.5" max="10" step="0.5">
         </div>
         
         <div class="control-group">
@@ -160,12 +193,18 @@
                 <input type="checkbox" id="enableInteractions" checked>
                 <label for="enableInteractions" class="label-inline">Enable Interaction Layer</label>
             </div>
-            <label id="distanceThresholdLabel" for="distanceThresholdNumber" style="margin-top:10px;">Distance Threshold: 20.00</label>
+            <label id="distanceThresholdLabel" for="distanceThresholdNumber" style="margin-top:10px;">Point Distance Threshold: 20.00</label>
              <div class="input-group">
                 <input type="range" id="distanceThreshold" value="20" min="1" max="100" step="0.01">
                 <input type="number" id="distanceThresholdNumber" value="20" min="1" max="100" step="0.01">
             </div>
-            <button id="exportInteractionPointsButton">Export Interaction Points (TXT)</button>
+
+            <h4>Interaction Edges</h4>
+            <div id="interaction-edge-configs-container">
+                </div>
+            <button id="add-edge-config-button" class="add-button">+ Add Edge Type</button>
+            
+            <button id="exportInteractionPointsButton" style="margin-top: 15px;">Export Interaction Points (TXT)</button>
         </div>
 
 
@@ -178,9 +217,11 @@
     </div>
 
     <script>
+        // Get references to canvas and context
         const canvas = document.getElementById('simulationCanvas');
         const ctx = canvas.getContext('2d');
 
+        // Store references to all control elements
         const controls = {
             latticeSize: document.getElementById('latticeSize'),
             numLayers: document.getElementById('numLayers'),
@@ -192,13 +233,17 @@
             distanceThresholdLabel: document.getElementById('distanceThresholdLabel'),
             enableInteractions: document.getElementById('enableInteractions'),
             exportInteractionPointsButton: document.getElementById('exportInteractionPointsButton'),
+            interactionEdgeConfigsContainer: document.getElementById('interaction-edge-configs-container'),
+            addEdgeConfigButton: document.getElementById('add-edge-config-button')
         };
 
         const layerColors = ['red', 'blue', 'green', 'orange'];
         let layers = [];
         let lastRenderedInteractionPoints = []; 
+        let edgeConfigs = [];
+        let edgeConfigCounter = 0; 
 
-        // --- Viridis Colormap ---
+        // --- Viridis Colormap Definition ---
         const viridisColormap = [
             { t: 0.0,  rgb: [68,  1,   84] },  { t: 0.1,  rgb: [72,  40,  120] }, 
             { t: 0.2,  rgb: [62,  74,  137] }, { t: 0.3,  rgb: [49,  104, 142] },
@@ -227,7 +272,6 @@
 
         // --- Point Generation Functions ---
         function generateSquareLatticePoints(size, spacing) {
-            // Generates points with (0,0) being one of them.
             const points = []; if (spacing <= 0) return points;
             const numStepsHalf = Math.floor(size / (2 * spacing));
             for (let i = -numStepsHalf; i <= numStepsHalf; i++) {
@@ -240,13 +284,12 @@
         }
 
         function generateTriangularLatticePoints(size, spacing) {
-            // Generates points with (0,0) being one of them.
             const points = []; if (spacing <= 0) return points;
-            const h = spacing * Math.sqrt(3) / 2; if (h <= 0) return points;
+            const h = spacing * Math.sqrt(3) / 2; if (h <= 0) return points; 
             const numYRowsHalf = Math.floor(size / (2 * h));
             const numXPointsHalf = Math.floor(size / (2 * spacing));
             for (let j = -numYRowsHalf; j <= numYRowsHalf; j++) {
-                const y = j * h; const isOffsetRow = (Math.abs(j) % 2 === 1);
+                const y = j * h; const isOffsetRow = (Math.abs(j) % 2 === 1); 
                 const kStart = -numXPointsHalf - (isOffsetRow ? 1 : 0);
                 const kEnd = numXPointsHalf + (isOffsetRow ? 1 : 0);
                 for (let k = kStart; k <= kEnd; k++) {
@@ -256,38 +299,33 @@
             }
             const uniquePoints = []; const uniqueKeys = new Set();
             for (const p of points) {
-                const key = `${p.x.toFixed(3)},${p.y.toFixed(3)}`;
+                const key = `${p.x.toFixed(3)},${p.y.toFixed(3)}`; 
                 if (!uniqueKeys.has(key)) { uniqueKeys.add(key); uniquePoints.push(p);}
             }
             return uniquePoints;
         }
 
         function generateHoneycombPointLatticePoints(size, sideLength) {
-            // Generates honeycomb vertices and then shifts them so one vertex is at (0,0).
             const rawPoints = []; 
             if (sideLength <= 0) return rawPoints;
-
-            const hexWidth = Math.sqrt(3) * sideLength; const hexHeight = 2 * sideLength;      
-            const vertSpacing = hexHeight * 3/4; const horizSpacing = hexWidth; 
-            
-            const numRowsForLoop = Math.floor((size / vertSpacing) / 2) + 1; 
-            const numColsForLoop = Math.floor((size / horizSpacing) / 2) + 1; 
-
-            const uniqueVertices = new Set();
+            const hexWidth = Math.sqrt(3) * sideLength; 
+            const hexHeight = 2 * sideLength;      
+            const vertSpacing = hexHeight * 3/4; 
+            const horizSpacing = hexWidth;       
+            const numRowsForLoop = Math.floor((size / vertSpacing) / 2) + 2; 
+            const numColsForLoop = Math.floor((size / horizSpacing) / 2) + 2; 
+            const uniqueVertices = new Set(); 
             for (let r = -numRowsForLoop; r <= numRowsForLoop; r++) {
                 for (let c = -numColsForLoop; c <= numColsForLoop; c++) {
                     const xCenter = c * horizSpacing + (Math.abs(r) % 2 === 1 ? horizSpacing / 2 : 0); 
                     const yCenter = r * vertSpacing;
-
                     if (Math.abs(xCenter) > size / 2 + hexWidth || Math.abs(yCenter) > size / 2 + hexHeight) {
                         continue;
                     }
-
                     for (let i = 0; i < 6; i++) {
                         const angle_rad = (Math.PI / 3) * i + Math.PI / 6; 
                         const vx = xCenter + sideLength * Math.cos(angle_rad); 
                         const vy = yCenter + sideLength * Math.sin(angle_rad);
-                        
                         const key = `${vx.toFixed(3)},${vy.toFixed(3)}`; 
                         if (!uniqueVertices.has(key)) { 
                             rawPoints.push({ x: vx, y: vy }); 
@@ -296,15 +334,9 @@
                     }
                 }
             }
-
-            if (rawPoints.length === 0) {
-                return [];
-            }
-
-            // Find the point closest to the geometric origin (0,0) among the raw generated vertices
+            if (rawPoints.length === 0) return [];
             let closestPoint = rawPoints[0];
             let minDistanceSq = closestPoint.x * closestPoint.x + closestPoint.y * closestPoint.y;
-
             for (let i = 1; i < rawPoints.length; i++) {
                 const p = rawPoints[i];
                 const distSq = p.x * p.x + p.y * p.y;
@@ -313,16 +345,11 @@
                     closestPoint = p;
                 }
             }
-
-            // Calculate the shift needed to move this closest point to (0,0)
             const shiftX = -closestPoint.x;
             const shiftY = -closestPoint.y;
-
-            // Apply the shift to all points
             const finalPoints = rawPoints.map(p => {
                 return { x: p.x + shiftX, y: p.y + shiftY };
             });
-
             return finalPoints;
         }
 
@@ -342,13 +369,16 @@
 
         function getColorForDistanceViridisLog(distance, threshold) {
             const epsilon = 0.001; 
-            const val = -distance//Math.log(Math.max(epsilon, distance) + epsilon); 
-            const val_max = -epsilon//Math.log(epsilon + epsilon); 
-            const val_min = -threshold//Math.log(threshold + epsilon);
+            const val = -distance; 
+            const val_max = -epsilon; 
+            const val_min = -threshold; 
             let normalized_val;
-            if (val_max === val_min) { normalized_val = 0.5; } 
-            else { normalized_val = (val - val_min) / (val_max - val_min); }
-            normalized_val = 1-Math.max(0, Math.min(1, normalized_val));
+            if (val_max === val_min) { 
+                normalized_val = 0.5; 
+            } else { 
+                normalized_val = (val - val_min) / (val_max - val_min); 
+            }
+            normalized_val = 1 - Math.max(0, Math.min(1, normalized_val)); 
             return getViridisColor(normalized_val);
         }
 
@@ -358,26 +388,27 @@
                 id: `layer-${index + 1}`, type,
                 color: layerColors[index % layerColors.length],
                 angle: 0, scale: 1.0, shiftX: 0, shiftY: 0, visible: true,
-                alpha: 1.0, 
-                localPointsCache: null, transformedPointsCache: null 
+                alpha: 0.3, 
+                localPointsCache: null, 
+                transformedPointsCache: null 
             };
         }
 
         function updateNumberOfLayers() {
             const num = parseInt(controls.numLayers.value);
-            const currentGlobalType = layers.length > 0 && layers[0].type ? layers[0].type : 'square';
+            const currentGlobalType = layers.length > 0 && layers[0].type ? layers[0].type : 'square'; 
             const newLayers = [];
             for (let i = 0; i < num; i++) {
-                if (layers[i]) {
+                if (layers[i]) { 
                     newLayers.push(layers[i]);
-                } else {
+                } else { 
                     newLayers.push(getDefaultLayer(i, currentGlobalType));
                 }
             }
-            layers = newLayers.slice(0, num);
+            layers = newLayers.slice(0, num); 
             generateLayerControls(); 
-            invalidateAllPointCaches();
-            drawSimulation();
+            invalidateAllPointCaches(); 
+            drawSimulation(); 
         }
         
         function invalidateAllPointCaches() {
@@ -396,10 +427,9 @@
                 const layerDiv = document.createElement('div');
                 layerDiv.className = 'layer-controls control-group';
                 layerDiv.id = `controls-${layer.id}`;
-
                 const colorIndicator = `<span class="layer-color-indicator" style="background-color: ${layer.color};"></span>`;
                 layerDiv.innerHTML = `<h4>${colorIndicator}Layer ${index + 1} (${layer.color})</h4>`;
-
+                
                 const typeLabel = document.createElement('label'); typeLabel.textContent = 'Lattice Type:';
                 const typeSelect = document.createElement('select'); typeSelect.id = `type-${layer.id}`;
                 ['square', 'triangular', 'honeycomb'].forEach(type => {
@@ -409,6 +439,7 @@
                 typeSelect.addEventListener('change', (e) => { layer.type = e.target.value; invalidateLayerPointCache(layer.id); drawSimulation(); });
                 layerDiv.appendChild(typeLabel); layerDiv.appendChild(typeSelect);
 
+                // Angle
                 const angleGroup = document.createElement('div'); angleGroup.className = 'input-group';
                 const angleLabel = document.createElement('label'); angleLabel.textContent = `Angle: ${layer.angle.toFixed(1)}°`;
                 const angleInput = document.createElement('input'); angleInput.type = 'range'; angleInput.min = -180; angleInput.max = 180; angleInput.value = layer.angle; angleInput.step = 0.1;
@@ -418,6 +449,7 @@
                 angleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(-180, Math.min(180,v)); angleInput.value = cV.toFixed(1); if(v.toFixed(1) !== cV.toFixed(1)) e.target.value = cV.toFixed(1); angleUpdate(cV); });
                 layerDiv.appendChild(angleLabel); angleGroup.appendChild(angleInput); angleGroup.appendChild(angleNumberInput); layerDiv.appendChild(angleGroup);
 
+                // Scale
                 const scaleGroup = document.createElement('div'); scaleGroup.className = 'input-group';
                 const scaleLabel = document.createElement('label'); scaleLabel.textContent = `Scale: ${layer.scale.toFixed(2)}`;
                 const scaleInput = document.createElement('input'); scaleInput.type = 'range'; scaleInput.min = 0.1; scaleInput.max = 3; scaleInput.value = layer.scale; scaleInput.step = 0.01;
@@ -427,30 +459,62 @@
                 scaleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(0.1, Math.min(3,v)); scaleInput.value = cV.toFixed(2); if(v.toFixed(2) !== cV.toFixed(2)) e.target.value = cV.toFixed(2); scaleUpdate(cV); });
                 layerDiv.appendChild(scaleLabel); scaleGroup.appendChild(scaleInput); scaleGroup.appendChild(scaleNumberInput); layerDiv.appendChild(scaleGroup);
 
+                // Shift X (Range + Number)
+                const shiftXGroup = document.createElement('div'); shiftXGroup.className = 'input-group';
                 const shiftXLabel = document.createElement('label'); shiftXLabel.textContent = `Shift X: ${layer.shiftX}px`;
-                const shiftXInput = document.createElement('input'); shiftXInput.type = 'range'; shiftXInput.min = -Math.floor(L / 2); shiftXInput.max = Math.floor(L/2); shiftXInput.value = layer.shiftX; shiftXInput.step = 1;
-                shiftXInput.addEventListener('input', (e) => { layer.shiftX = parseFloat(e.target.value); shiftXLabel.textContent = `Shift X: ${layer.shiftX}px`; invalidateLayerPointCache(layer.id); drawSimulation(); });
-                layerDiv.appendChild(shiftXLabel); layerDiv.appendChild(shiftXInput);
-
-                const shiftYLabel = document.createElement('label'); shiftYLabel.textContent = `Shift Y: ${layer.shiftY}px`;
-                const shiftYInput = document.createElement('input'); shiftYInput.type = 'range'; shiftYInput.min = -Math.floor(L / 2); shiftYInput.max = Math.floor(L/2); shiftYInput.value = layer.shiftY; shiftYInput.step = 1;
-                shiftYInput.addEventListener('input', (e) => { layer.shiftY = parseFloat(e.target.value); shiftYLabel.textContent = `Shift Y: ${layer.shiftY}px`; invalidateLayerPointCache(layer.id); drawSimulation(); });
-                layerDiv.appendChild(shiftYLabel); layerDiv.appendChild(shiftYInput);
+                const shiftXRange = document.createElement('input'); shiftXRange.type = 'range'; shiftXRange.min = -Math.floor(L / 2); shiftXRange.max = Math.floor(L/2); shiftXRange.value = layer.shiftX; shiftXRange.step = 1;
+                const shiftXNumber = document.createElement('input'); shiftXNumber.type = 'number'; shiftXNumber.min = -Math.floor(L / 2); shiftXNumber.max = Math.floor(L/2); shiftXNumber.value = layer.shiftX; shiftXNumber.step = 1;
+                const shiftXUpdate = (val) => {
+                    layer.shiftX = val;
+                    shiftXLabel.textContent = `Shift X: ${val}px`;
+                    invalidateLayerPointCache(layer.id); drawSimulation();
+                };
+                shiftXRange.addEventListener('input', (e) => { const v = parseInt(e.target.value); shiftXNumber.value = v; shiftXUpdate(v); });
+                shiftXNumber.addEventListener('input', (e) => { 
+                    let v = parseInt(e.target.value); 
+                    if(isNaN(v)) v = 0;
+                    v = Math.max(parseInt(shiftXRange.min), Math.min(parseInt(shiftXRange.max), v));
+                    e.target.value = v; 
+                    shiftXRange.value = v; 
+                    shiftXUpdate(v); 
+                });
+                layerDiv.appendChild(shiftXLabel); shiftXGroup.appendChild(shiftXRange); shiftXGroup.appendChild(shiftXNumber); layerDiv.appendChild(shiftXGroup);
                 
+                // Shift Y (Range + Number)
+                const shiftYGroup = document.createElement('div'); shiftYGroup.className = 'input-group';
+                const shiftYLabel = document.createElement('label'); shiftYLabel.textContent = `Shift Y: ${layer.shiftY}px`;
+                const shiftYRange = document.createElement('input'); shiftYRange.type = 'range'; shiftYRange.min = -Math.floor(L / 2); shiftYRange.max = Math.floor(L/2); shiftYRange.value = layer.shiftY; shiftYRange.step = 1;
+                const shiftYNumber = document.createElement('input'); shiftYNumber.type = 'number'; shiftYNumber.min = -Math.floor(L / 2); shiftYNumber.max = Math.floor(L/2); shiftYNumber.value = layer.shiftY; shiftYNumber.step = 1;
+                const shiftYUpdate = (val) => {
+                    layer.shiftY = val;
+                    shiftYLabel.textContent = `Shift Y: ${val}px`;
+                    invalidateLayerPointCache(layer.id); drawSimulation();
+                };
+                shiftYRange.addEventListener('input', (e) => { const v = parseInt(e.target.value); shiftYNumber.value = v; shiftYUpdate(v); });
+                shiftYNumber.addEventListener('input', (e) => { 
+                    let v = parseInt(e.target.value); 
+                    if(isNaN(v)) v = 0;
+                     v = Math.max(parseInt(shiftYRange.min), Math.min(parseInt(shiftYRange.max), v));
+                    e.target.value = v; 
+                    shiftYRange.value = v; 
+                    shiftYUpdate(v); 
+                });
+                layerDiv.appendChild(shiftYLabel); shiftYGroup.appendChild(shiftYRange); shiftYGroup.appendChild(shiftYNumber); layerDiv.appendChild(shiftYGroup);
+
+                // Alpha
                 const alphaGroup = document.createElement('div'); alphaGroup.className = 'input-group';
                 const alphaLabel = document.createElement('label'); alphaLabel.textContent = `Alpha: ${layer.alpha.toFixed(2)}`;
                 const alphaInput = document.createElement('input'); alphaInput.type = 'range'; alphaInput.min = 0; alphaInput.max = 1; alphaInput.value = layer.alpha; alphaInput.step = 0.01;
                 const alphaNumberInput = document.createElement('input'); alphaNumberInput.type = 'number'; alphaNumberInput.min = 0; alphaNumberInput.max = 1; alphaNumberInput.value = layer.alpha.toFixed(2); alphaNumberInput.step = 0.01;
-                const alphaUpdate = (val) => { layer.alpha = val; alphaLabel.textContent = `Alpha: ${val.toFixed(2)}`; drawSimulation(); };
+                const alphaUpdate = (val) => { layer.alpha = val; alphaLabel.textContent = `Alpha: ${val.toFixed(2)}`; drawSimulation(); }; 
                 alphaInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); alphaNumberInput.value = v.toFixed(2); alphaUpdate(v); });
                 alphaNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(0, Math.min(1,v)); alphaInput.value = cV.toFixed(2); if(v.toFixed(2) !== cV.toFixed(2)) e.target.value = cV.toFixed(2); alphaUpdate(cV); });
                 layerDiv.appendChild(alphaLabel); alphaGroup.appendChild(alphaInput); alphaGroup.appendChild(alphaNumberInput); layerDiv.appendChild(alphaGroup);
-
+                
                 const visibleLabel = document.createElement('label');
                 const visibleCheckbox = document.createElement('input'); visibleCheckbox.type = 'checkbox'; visibleCheckbox.checked = layer.visible;
                 visibleCheckbox.addEventListener('change', (e) => { layer.visible = e.target.checked; drawSimulation(); }); 
                 visibleLabel.appendChild(visibleCheckbox); visibleLabel.append(` Visible`); layerDiv.appendChild(visibleLabel);
-                
                 controls.layersControlsContainer.appendChild(layerDiv);
             });
         }
@@ -458,134 +522,322 @@
         // --- Main Drawing Logic ---
         function drawSimulation() {
             const L = parseInt(controls.latticeSize.value);
-            canvas.width = L;
+            canvas.width = L; 
             canvas.height = L;
             const mainPointSize = parseFloat(controls.pointSize.value);
             const spacing = 40; 
-            const interactionLayerEnabled = controls.enableInteractions.checked;
             
             let minEffectiveScale = 1;
             if (layers.length > 0) {
-                minEffectiveScale = layers.reduce((min, l) => l.scale < min ? l.scale : min, layers[0].scale);
-            } else { 
-                minEffectiveScale = 1;
+                const visibleScales = layers.filter(l => l.visible).map(l => l.scale);
+                if (visibleScales.length > 0) {
+                    minEffectiveScale = Math.min(...visibleScales);
+                } else { 
+                    minEffectiveScale = 1;
+                }
             }
-            const drawL = L * 1.8 / Math.max(0.1, minEffectiveScale);
+            const drawL = L * 1.8 / Math.max(0.1, minEffectiveScale); 
 
-            ctx.clearRect(0, 0, L, L);
-            lastRenderedInteractionPoints = []; 
-
-            let currentFramePrecomputedData = [];
+            ctx.clearRect(0, 0, L, L); 
+            let currentFramePrecomputedData = []; 
 
             layers.forEach(layerConfig => {
                 let localPts = layerConfig.localPointsCache;
                 let transformedPts = layerConfig.transformedPointsCache;
-                
                 if (!localPts) { 
                     switch (layerConfig.type) {
                         case 'square': localPts = generateSquareLatticePoints(drawL, spacing); break;
                         case 'triangular': localPts = generateTriangularLatticePoints(drawL, spacing); break;
-                        case 'honeycomb': localPts = generateHoneycombPointLatticePoints(drawL, spacing); break;
+                        case 'honeycomb': localPts = generateHoneycombPointLatticePoints(drawL, spacing / Math.sqrt(3) * 2 /2 ); break; 
                         default: localPts = [];
                     }
                     layerConfig.localPointsCache = localPts;
                     transformedPts = null; 
                     layerConfig.transformedPointsCache = null;
                 }
-                
                 if (!transformedPts) { 
                      transformedPts = localPts.map(p => transformPoint(p, L, layerConfig));
                      layerConfig.transformedPointsCache = transformedPts;
                 }
-
                 currentFramePrecomputedData.push({ ...layerConfig, localPoints: localPts, transformedPoints: transformedPts });
-
                 if (layerConfig.visible) {
                     ctx.globalAlpha = layerConfig.alpha; 
                     ctx.fillStyle = layerConfig.color;
                     transformedPts.forEach(p => {
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, mainPointSize, 0, 2 * Math.PI);
-                        ctx.fill();
+                        if (p.x >= -mainPointSize && p.x <= L + mainPointSize && p.y >= -mainPointSize && p.y <= L + mainPointSize) {
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, mainPointSize, 0, 2 * Math.PI);
+                            ctx.fill();
+                        }
                     });
                 }
             });
-            
             ctx.globalAlpha = 1.0; 
-
-            if (interactionLayerEnabled && layers.length > 1) {
+            if (layers.length > 1) { 
                 drawInteractionLayer(L, currentFramePrecomputedData);
+            } else {
+                lastRenderedInteractionPoints = []; 
+            }
+        }
+
+        // --- Edge Configuration Management ---
+        function createEdgeConfigHTML(config) {
+            const div = document.createElement('div');
+            div.className = 'edge-config-item';
+            div.id = config.id;
+
+            const headerDiv = document.createElement('div');
+            headerDiv.style.overflow = "hidden"; 
+
+            const enableCheckbox = document.createElement('input');
+            enableCheckbox.type = 'checkbox';
+            enableCheckbox.id = `enable-${config.id}`;
+            enableCheckbox.checked = config.enabled;
+            
+            const enableLabel = document.createElement('label');
+            enableLabel.htmlFor = `enable-${config.id}`;
+            enableLabel.className = 'label-inline';
+            enableLabel.textContent = 'Enable this Edge Type';
+            enableLabel.style.marginRight = '10px';
+
+
+            const removeButton = document.createElement('button');
+            removeButton.className = 'remove-button';
+            removeButton.dataset.id = config.id;
+            removeButton.textContent = 'Remove';
+            
+            headerDiv.appendChild(enableCheckbox);
+            headerDiv.appendChild(enableLabel);
+            headerDiv.appendChild(removeButton);
+            div.appendChild(headerDiv);
+
+
+            div.innerHTML += `
+                <label for="lower-range-${config.id}" style="margin-top:5px;">Min Distance:</label>
+                <div class="input-group">
+                    <input type="range" id="lower-range-${config.id}" value="${config.lowerBound}" min="0" max="1000" step="0.1">
+                    <input type="number" id="lower-num-${config.id}" value="${config.lowerBound}" min="0" max="1000" step="0.1">
+                </div>
+                <label for="upper-range-${config.id}" style="margin-top:5px;">Max Distance:</label>
+                <div class="input-group">
+                    <input type="range" id="upper-range-${config.id}" value="${config.upperBound}" min="0" max="200" step="0.1">
+                    <input type="number" id="upper-num-${config.id}" value="${config.upperBound}" min="0" max="200" step="0.1">
+                </div>
+                <label for="color-${config.id}">Edge Color:</label>
+                <input type="color" id="color-${config.id}" value="${config.color}">
+                <label for="width-${config.id}">Edge Width (px):</label>
+                <input type="number" id="width-${config.id}" value="${config.width}" min="0.1" max="5" step="0.1" style="width: 70px; margin-bottom: 5px;">
+            `;
+
+             div.querySelector(`#enable-${config.id}`).addEventListener('change', (e) => {
+                config.enabled = e.target.checked;
+                drawSimulation();
+            });
+             div.querySelector('.remove-button').addEventListener('click', (e) => {
+                removeEdgeConfig(e.target.dataset.id);
+            });
+
+
+            const lowerRange = div.querySelector(`#lower-range-${config.id}`);
+            const lowerNum = div.querySelector(`#lower-num-${config.id}`);
+            const upperRange = div.querySelector(`#upper-range-${config.id}`);
+            const upperNum = div.querySelector(`#upper-num-${config.id}`);
+
+            lowerRange.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                lowerNum.value = val.toFixed(1);
+                config.lowerBound = val;
+                if (val > config.upperBound) {
+                    upperRange.value = val.toFixed(1);
+                    upperNum.value = val.toFixed(1);
+                    config.upperBound = val;
+                }
+                drawSimulation();
+            });
+            lowerNum.addEventListener('input', (e) => {
+                let val = parseFloat(e.target.value);
+                if (isNaN(val)) val = 0;
+                val = Math.max(0, Math.min(200, val));
+                e.target.value = val.toFixed(1);
+                lowerRange.value = val.toFixed(1);
+                config.lowerBound = val;
+                 if (val > config.upperBound) {
+                    upperRange.value = val.toFixed(1);
+                    upperNum.value = val.toFixed(1);
+                    config.upperBound = val;
+                }
+                drawSimulation();
+            });
+             upperRange.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                upperNum.value = val.toFixed(1);
+                config.upperBound = val;
+                if (val < config.lowerBound) {
+                    lowerRange.value = val.toFixed(1);
+                    lowerNum.value = val.toFixed(1);
+                    config.lowerBound = val;
+                }
+                drawSimulation();
+            });
+            upperNum.addEventListener('input', (e) => {
+                let val = parseFloat(e.target.value);
+                if (isNaN(val)) val = 0;
+                val = Math.max(0, Math.min(200, val));
+                e.target.value = val.toFixed(1);
+                upperRange.value = val.toFixed(1);
+                config.upperBound = val;
+                if (val < config.lowerBound) {
+                    lowerRange.value = val.toFixed(1);
+                    lowerNum.value = val.toFixed(1);
+                    config.lowerBound = val;
+                }
+                drawSimulation();
+            });
+
+            div.querySelector(`#color-${config.id}`).addEventListener('input', (e) => {
+                config.color = e.target.value;
+                drawSimulation();
+            });
+            div.querySelector(`#width-${config.id}`).addEventListener('input', (e) => {
+                let val = parseFloat(e.target.value);
+                if(isNaN(val)) val = 0.1;
+                val = Math.max(0.1, Math.min(5, val));
+                e.target.value = val.toFixed(1);
+                config.width = val;
+                drawSimulation();
+            });
+            return div;
+        }
+
+        function addNewEdgeConfig() {
+            const newConfig = {
+                id: `edgeConfig-${edgeConfigCounter++}`,
+                lowerBound: 0,
+                upperBound: 50,
+                color: '#'+(Math.random()*0xFFFFFF<<0).toString(16).padStart(6, '0'), 
+                width: 2,
+                enabled: false
+            };
+            edgeConfigs.push(newConfig);
+            const configElement = createEdgeConfigHTML(newConfig);
+            controls.interactionEdgeConfigsContainer.appendChild(configElement);
+            drawSimulation();
+        }
+
+        function removeEdgeConfig(configId) {
+            edgeConfigs = edgeConfigs.filter(config => config.id !== configId);
+            const elementToRemove = document.getElementById(configId);
+            if (elementToRemove) {
+                controls.interactionEdgeConfigsContainer.removeChild(elementToRemove);
+            }
+            drawSimulation();
+        }
+        
+        function initializeEdgeConfigs() {
+            controls.interactionEdgeConfigsContainer.innerHTML = ''; 
+            if (edgeConfigs.length === 0) {
+                 addNewEdgeConfig(); 
+            } else {
+                 edgeConfigs.forEach(config => {
+                    const configElement = createEdgeConfigHTML(config);
+                    controls.interactionEdgeConfigsContainer.appendChild(configElement);
+                });
             }
         }
 
         function drawInteractionLayer(L, allPrecomputedData) {
-            const threshold = parseFloat(controls.distanceThreshold.value);
-            const interactionPtSize = parseFloat(controls.interactionPointSize.value);
-            
-            const redLayerData = allPrecomputedData[0]; 
-            if (!redLayerData || !redLayerData.transformedPoints || redLayerData.transformedPoints.length === 0) {
-                return; 
+            const interactionLayerEnabled = controls.enableInteractions.checked;
+            if (!interactionLayerEnabled) {
+                lastRenderedInteractionPoints = []; 
+                return;
             }
 
-            const otherLayersData = allPrecomputedData.slice(1).filter(ld => ld.transformedPoints && ld.transformedPoints.length > 0);
-            if (otherLayersData.length === 0) return;
+            const threshold = parseFloat(controls.distanceThreshold.value);
+            const interactionPtSize = parseFloat(controls.interactionPointSize.value);
+            const visibleLayersData = allPrecomputedData.filter(ld => ld.visible && ld.transformedPoints && ld.transformedPoints.length > 0);
+            
+            if (visibleLayersData.length < 2) { 
+                 lastRenderedInteractionPoints = [];
+                 return;
+            }
+
+            const redLayerData = visibleLayersData[0]; 
+            const otherLayersData = visibleLayersData.slice(1); 
+            const currentFrameInteractionPoints = []; 
 
             redLayerData.transformedPoints.forEach(rp => {
                 let clusterPoints = [rp]; 
                 let participatingNeighbors = [];
                 let minDistanceToOtherLayer = Infinity;
-
                 otherLayersData.forEach(otherLayer => {
-                    let nearestNeighbor = null;
-                    let minDistSq = Infinity;
-
+                    let nearestNeighborThisLayer = null;
+                    let minDistSqThisLayer = Infinity;
                     otherLayer.transformedPoints.forEach(op => {
                         const distSq = Math.pow(rp.x - op.x, 2) + Math.pow(rp.y - op.y, 2);
-                        if (distSq < minDistSq) {
-                            minDistSq = distSq;
-                            nearestNeighbor = op;
+                        if (distSq < minDistSqThisLayer) {
+                            minDistSqThisLayer = distSq;
+                            nearestNeighborThisLayer = op;
                         }
                     });
-
-                    if (nearestNeighbor) {
-                        const actualDist = Math.sqrt(minDistSq);
-                        if (actualDist <= threshold) {
-                            participatingNeighbors.push(nearestNeighbor);
+                    if (nearestNeighborThisLayer) {
+                        const actualDist = Math.sqrt(minDistSqThisLayer);
+                        if (actualDist <= threshold) { 
+                            participatingNeighbors.push(nearestNeighborThisLayer);
                             minDistanceToOtherLayer = Math.min(minDistanceToOtherLayer, actualDist);
                         }
                     }
                 });
-
                 if (participatingNeighbors.length > 0) {
-                    clusterPoints.push(...participatingNeighbors);
-                    
+                    clusterPoints.push(...participatingNeighbors); 
                     let sumX = 0, sumY = 0;
                     clusterPoints.forEach(p => { sumX += p.x; sumY += p.y; });
                     const avgX = sumX / clusterPoints.length;
                     const avgY = sumY / clusterPoints.length;
-
                     const color = getColorForDistanceViridisLog(minDistanceToOtherLayer, threshold);
-                    lastRenderedInteractionPoints.push({x: avgX, y: avgY, color: color, distance: minDistanceToOtherLayer}); 
-
+                    currentFrameInteractionPoints.push({x: avgX, y: avgY, color: color, distance: minDistanceToOtherLayer, id: `ip-${currentFrameInteractionPoints.length}`}); 
                     ctx.fillStyle = color;
                     ctx.beginPath();
                     ctx.arc(avgX, avgY, interactionPtSize, 0, 2 * Math.PI);
                     ctx.fill();
                 }
             });
+            lastRenderedInteractionPoints = currentFrameInteractionPoints; 
+
+            if (lastRenderedInteractionPoints.length > 1) {
+                edgeConfigs.forEach(config => {
+                    if (config.enabled) {
+                        ctx.strokeStyle = config.color;
+                        ctx.lineWidth = config.width;
+                        ctx.globalAlpha = 0.7; 
+                        for (let i = 0; i < lastRenderedInteractionPoints.length; i++) {
+                            for (let j = i + 1; j < lastRenderedInteractionPoints.length; j++) { 
+                                const p1 = lastRenderedInteractionPoints[i];
+                                const p2 = lastRenderedInteractionPoints[j];
+                                const dist = calculateDistance(p1, p2);
+                                if (dist >= config.lowerBound && dist <= config.upperBound) {
+                                    ctx.beginPath();
+                                    ctx.moveTo(p1.x, p1.y);
+                                    ctx.lineTo(p2.x, p2.y);
+                                    ctx.stroke();
+                                }
+                            }
+                        }
+                    }
+                });
+                ctx.globalAlpha = 1.0; 
+            }
         }
 
         // --- Export Functionality ---
         function exportInteractionPoints() {
             if (lastRenderedInteractionPoints.length === 0) {
-                alert("No interaction points to export from the last render.");
+                alert("No interaction points to export from the last render. Ensure 'Enable Interaction Layer' is checked and layers are configured for interaction.");
                 return;
             }
-            let fileContent = "x,y,distance,color_rgb\n"; 
+            let fileContent = "x,y,distance_to_nearest_primary,color_rgb\n"; 
             lastRenderedInteractionPoints.forEach(p => {
                 fileContent += `${p.x.toFixed(3)},${p.y.toFixed(3)},${p.distance.toFixed(3)},${p.color}\n`;
             });
-
             const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
@@ -593,8 +845,8 @@
             link.setAttribute("download", "interaction_points.txt");
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            link.click(); 
+            document.body.removeChild(link); 
             URL.revokeObjectURL(url);
         }
         controls.exportInteractionPointsButton.addEventListener('click', exportInteractionPoints);
@@ -605,16 +857,14 @@
             invalidateAllPointCaches(); 
             generateLayerControls(); 
             drawSimulation();
-            resizeCanvasContainer();
+            resizeCanvasContainer(); 
         });
         controls.numLayers.addEventListener('change', updateNumberOfLayers);
         controls.pointSize.addEventListener('input', drawSimulation); 
         controls.interactionPointSize.addEventListener('input', drawSimulation);
-
-
         controls.distanceThreshold.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value).toFixed(2); 
-            controls.distanceThresholdLabel.textContent = `Distance Threshold: ${val}`;
+            controls.distanceThresholdLabel.textContent = `Point Distance Threshold: ${val}`;
             controls.distanceThresholdNumber.value = val;
             drawSimulation();
         });
@@ -624,30 +874,43 @@
             val = Math.max(parseFloat(controls.distanceThreshold.min), Math.min(parseFloat(controls.distanceThreshold.max), val));
             const formattedVal = val.toFixed(2); 
             e.target.value = formattedVal; 
-            controls.distanceThresholdLabel.textContent = `Distance Threshold: ${formattedVal}`;
+            controls.distanceThresholdLabel.textContent = `Point Distance Threshold: ${formattedVal}`;
             controls.distanceThreshold.value = formattedVal; 
             drawSimulation();
         });
         controls.enableInteractions.addEventListener('change', drawSimulation);
+        controls.addEdgeConfigButton.addEventListener('click', addNewEdgeConfig);
 
 
         function resizeCanvasContainer() {
-            const controlWidth = document.getElementById('controls').offsetWidth;
-            const availableWidth = window.innerWidth - controlWidth - 40; 
-            const availableHeight = window.innerHeight - 40; 
-            const L = parseInt(controls.latticeSize.value);
+            const controlPanelWidth = document.getElementById('controls').offsetWidth;
+            const padding = 40; 
+            const availableWidth = window.innerWidth - controlPanelWidth - padding; 
+            const availableHeight = window.innerHeight - padding; 
+            const L = parseInt(controls.latticeSize.value); 
             let displayScale = 1;
-            if (L > 0 && (L > availableWidth || L > availableHeight)) {
-                displayScale = Math.min(availableWidth / L, availableHeight / L, 1); 
-            } else if (L <= 0) { displayScale = 1; }
+            if (L > 0) { 
+                if (L > availableWidth || L > availableHeight) {
+                    displayScale = Math.min(availableWidth / L, availableHeight / L);
+                }
+                displayScale = Math.max(0.1, displayScale); 
+            } else { 
+                displayScale = 1; 
+            }
             canvas.style.width = (L * displayScale) + 'px';
             canvas.style.height = (L * displayScale) + 'px';
         }
 
         // --- Initial Setup ---
-        window.addEventListener('resize', () => { invalidateAllPointCaches(); resizeCanvasContainer(); drawSimulation(); });
+        window.addEventListener('resize', () => { 
+            invalidateAllPointCaches(); 
+            resizeCanvasContainer(); 
+            drawSimulation(); 
+        });
+        
         updateNumberOfLayers(); 
-        resizeCanvasContainer();
+        initializeEdgeConfigs(); 
+        resizeCanvasContainer(); 
         
     </script>
 </body>
