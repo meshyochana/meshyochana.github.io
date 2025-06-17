@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lattice Superposition & Interaction Simulation (Unit-Based)</title>
+    <title>Lattice Superposition & Interaction Simulation</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -452,12 +452,12 @@
                 
                 // Shift X (units)
                 const shiftXGroup = document.createElement('div'); shiftXGroup.className = 'input-group';
-                const shiftXLabel = document.createElement('label'); shiftXLabel.textContent = `Shift X (units): ${layer.shiftX.toFixed(2)}`;
+                const shiftXLabel = document.createElement('label'); shiftXLabel.textContent = `Shift X: ${layer.shiftX.toFixed(2)}`;
                 const shiftXRange = document.createElement('input'); shiftXRange.type = 'range'; shiftXRange.min = -maxShiftUnits.toFixed(2); shiftXRange.max = maxShiftUnits.toFixed(2); shiftXRange.value = layer.shiftX; shiftXRange.step = 0.01;
                 const shiftXNumber = document.createElement('input'); shiftXNumber.type = 'number'; shiftXNumber.min = -maxShiftUnits.toFixed(2); shiftXNumber.max = maxShiftUnits.toFixed(2); shiftXNumber.value = layer.shiftX.toFixed(2); shiftXNumber.step = 0.01;
                 const shiftXUpdate = (val) => {
                     layer.shiftX = val;
-                    shiftXLabel.textContent = `Shift X (units): ${val.toFixed(2)}`;
+                    shiftXLabel.textContent = `Shift X: ${val.toFixed(2)}`;
                     invalidateLayerPointCache(layer.id);
                     drawSimulation();
                 };
@@ -471,12 +471,12 @@
                 
                 // Shift Y (units)
                 const shiftYGroup = document.createElement('div'); shiftYGroup.className = 'input-group';
-                const shiftYLabel = document.createElement('label'); shiftYLabel.textContent = `Shift Y (units): ${layer.shiftY.toFixed(2)}`;
+                const shiftYLabel = document.createElement('label'); shiftYLabel.textContent = `Shift Y: ${layer.shiftY.toFixed(2)}`;
                 const shiftYRange = document.createElement('input'); shiftYRange.type = 'range'; shiftYRange.min = -maxShiftUnits.toFixed(2); shiftYRange.max = maxShiftUnits.toFixed(2); shiftYRange.value = layer.shiftY; shiftYRange.step = 0.05;
                 const shiftYNumber = document.createElement('input'); shiftYNumber.type = 'number'; shiftYNumber.min = -maxShiftUnits.toFixed(2); shiftYNumber.max = maxShiftUnits.toFixed(2); shiftYNumber.value = layer.shiftY.toFixed(2); shiftYNumber.step = 0.05;
                 const shiftYUpdate = (val) => {
                     layer.shiftY = val;
-                    shiftYLabel.textContent = `Shift Y (units): ${val.toFixed(2)}`;
+                    shiftYLabel.textContent = `Shift Y: ${val.toFixed(2)}`;
                     invalidateLayerPointCache(layer.id);
                     drawSimulation();
                 };
@@ -623,12 +623,12 @@
             div.appendChild(headerDiv);
 
             div.innerHTML += `
-                <label for="lower-range-${config.id}" style="margin-top:5px;">Min Distance (units):</label>
+                <label for="lower-range-${config.id}" style="margin-top:5px;">Min Distance:</label>
                 <div class="input-group">
                     <input type="range" id="lower-range-${config.id}" value="${config.lowerBound}" min="0" max="20" step="0.1">
                     <input type="number" id="lower-num-${config.id}" value="${config.lowerBound}" min="0" max="20" step="0.1">
                 </div>
-                <label for="upper-range-${config.id}" style="margin-top:5px;">Max Distance (units):</label>
+                <label for="upper-range-${config.id}" style="margin-top:5px;">Max Distance:</label>
                 <div class="input-group">
                     <input type="range" id="upper-range-${config.id}" value="${config.upperBound}" min="0" max="20" step="0.1">
                     <input type="number" id="upper-num-${config.id}" value="${config.upperBound}" min="0" max="20" step="0.1">
@@ -879,7 +879,7 @@
         
         controls.distanceThreshold.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value).toFixed(2); 
-            controls.distanceThresholdLabel.textContent = `Point Distance Threshold (units): ${val}`;
+            controls.distanceThresholdLabel.textContent = `Point Distance Threshold: ${val}`;
             controls.distanceThresholdNumber.value = val;
             drawSimulation();
         });
@@ -889,7 +889,7 @@
             val = Math.max(parseFloat(controls.distanceThreshold.min), Math.min(parseFloat(controls.distanceThreshold.max), val));
             const formattedVal = val.toFixed(2); 
             e.target.value = formattedVal; 
-            controls.distanceThresholdLabel.textContent = `Point Distance Threshold (units): ${formattedVal}`;
+            controls.distanceThresholdLabel.textContent = `Point Distance Threshold: ${formattedVal}`;
             controls.distanceThreshold.value = formattedVal; 
             drawSimulation();
         });
