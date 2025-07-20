@@ -3,21 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lattice Superposition & Interaction Simulation</title>
+    <title>Lattice Superposition & Interaction Simulation (Unit-Based)</title>
+    <!-- Added d3-delaunay library -->
+    <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
             display: flex;
             margin: 0;
             padding: 0;
             height: 100vh;
-            background-color: #f0f0f0;
+            background-color: #f0f2f5;
         }
 
         #controls {
             width: 380px; 
             padding: 20px;
-            background-color: #fff;
+            background-color: #ffffff;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             overflow-y: auto;
             height: 100vh;
@@ -30,7 +32,7 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
-            background-color: #e9e9e9;
+            background-color: #e9eef2;
         }
 
         canvas {
@@ -38,12 +40,14 @@
             background-color: white;
             max-width: 100%;
             max-height: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .control-group {
             margin-bottom: 15px; 
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px; 
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 15px; 
         }
 
         .control-group:last-child {
@@ -53,28 +57,59 @@
             border: 1px solid #ddd;
             padding: 10px;
             margin-bottom: 10px;
-            border-radius: 4px;
+            border-radius: 8px;
             background-color: #f9f9f9;
         }
 
+        details {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9fafb;
+        }
+        details > summary {
+            font-weight: bold;
+            cursor: pointer;
+            color: #333;
+            padding: 5px;
+            list-style: none; /* Remove default marker */
+        }
+        details > summary::-webkit-details-marker {
+            display: none; /* Chrome/Safari */
+        }
+        details > summary::before {
+            content: '▶'; /* Collapsed state */
+            margin-right: 8px;
+            font-size: 0.8em;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        details[open] > summary::before {
+            transform: rotate(90deg); /* Expanded state */
+        }
 
         h3 {
             margin-top: 0;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             color: #333;
+            font-size: 1.2em;
         }
 
-        h4 {
-            margin-top: 15px;
+        h4, details > summary {
+            margin-top: 0;
             margin-bottom: 5px;
             color: #555;
+            font-size: 1.1em;
         }
-         h4 .layer-color-indicator {
+         h4 .layer-color-indicator, .summary-color-indicator {
             display: inline-block;
             width: 12px;
             height: 12px;
             margin-right: 5px;
             border: 1px solid #777;
+            border-radius: 3px;
+            vertical-align: middle;
         }
 
 
@@ -83,7 +118,19 @@
             margin-bottom: 5px;
             font-size: 0.9em;
             color: #666;
+            font-weight: 500;
         }
+        .label-with-icon {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .shape-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: #555;
+        }
+
         .label-inline {
             display: inline-block;
             margin-right: 10px;
@@ -94,15 +141,16 @@
         select,
         button,
         input[type="color"] { 
-            width: calc(100% - 12px);
+            width: 100%;
             padding: 8px; 
             margin-bottom: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
+            background-color: #fff;
         }
         input[type="color"] {
-             width: calc(100% - 22px); 
+             width: 100%; 
              padding: 5px;
              height: 35px; 
         }
@@ -112,6 +160,7 @@
             cursor: pointer;
             font-weight: bold;
             transition: background-color 0.2s ease;
+            border: none;
         }
         button:hover {
             background-color: #0056b3;
@@ -197,16 +246,44 @@
                 <input type="checkbox" id="enableInteractions" checked>
                 <label for="enableInteractions" class="label-inline">Enable Interaction Layer</label>
             </div>
-            <label id="distanceThresholdLabel" for="distanceThresholdNumber" style="margin-top:10px;">Point Distance Threshold: 0.50</label>
+            <label id="distanceThresholdLabel" for="distanceThresholdNumber" style="margin-top:11px;">Interaction Radius: 0.50</label>
              <div class="input-group">
-                <input type="range" id="distanceThreshold" value="0.5" min="0.001" max="1" step="0.001">
-                <input type="number" id="distanceThresholdNumber" value="0.5" min="0.001" max="1" step="0.001">
+                <input type="range" id="distanceThreshold" value="0.5" min="0.01" max="1" step="0.001">
+                <input type="number" id="distanceThresholdNumber" value="0.5" min="0.01" max="1" step="0.001">
             </div>
 
-            <h4>Interaction Edges</h4>
-            <div id="interaction-edge-configs-container">
+            <details>
+                <summary>Advanced Settings</summary>
+                <div style="padding-top: 10px;">
+                    <div class="label-with-icon">
+                        <label for="interactionShape">Interaction Shape:</label>
+                        <span id="shape-icon-display" class="shape-icon"></span>
+                    </div>
+                    <select id="interactionShape">
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                    
+                    <label id="interactionAngleLabel" for="interactionAngle">Shape Rotation: 0°</label>
+                    <div class="input-group">
+                        <input type="range" id="interactionAngle" value="0" min="0" max="360" step="0.1">
+                        <input type="number" id="interactionAngleNumber" value="0" min="0" max="360" step="0.1">
+                    </div>
+
+                    <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                        <label for="edgeMethod">Edge Calculation Method:</label>
+                        <select id="edgeMethod">
+                            <option value="naive" selected>Distance-based (Naive)</option>
+                            <option value="delaunay">Delaunay Triangulation</option>
+                        </select>
+                    </div>
                 </div>
-            <button id="add-edge-config-button" class="add-button">+ Add Edge Type</button>
+            </details>
+
+            <details id="edge-config-panel">
+                <summary>Edge Filters</summary>
+                <div id="interaction-edge-configs-container" style="padding-top:10px;"></div>
+                <button id="add-edge-config-button" class="add-button">+ Add Edge Filter</button>
+            </details>
             
             <button id="exportInteractionPointsButton" style="margin-top: 15px;">Export Interaction Points (TXT)</button>
         </div>
@@ -237,10 +314,18 @@
             enableInteractions: document.getElementById('enableInteractions'),
             exportInteractionPointsButton: document.getElementById('exportInteractionPointsButton'),
             interactionEdgeConfigsContainer: document.getElementById('interaction-edge-configs-container'),
-            addEdgeConfigButton: document.getElementById('add-edge-config-button')
+            addEdgeConfigButton: document.getElementById('add-edge-config-button'),
+            // Advanced controls
+            interactionShape: document.getElementById('interactionShape'),
+            shapeIconDisplay: document.getElementById('shape-icon-display'),
+            interactionAngle: document.getElementById('interactionAngle'),
+            interactionAngleNumber: document.getElementById('interactionAngleNumber'),
+            interactionAngleLabel: document.getElementById('interactionAngleLabel'),
+            edgeMethod: document.getElementById('edgeMethod'),
+            edgeConfigPanel: document.getElementById('edge-config-panel')
         };
 
-        const layerColors = ['red', 'blue', 'green', 'orange'];
+        const layerColors = ['red', 'blue', 'green', 'orange', 'purple', 'magenta', 'yellow', 'pink', 'brown'];
         let layers = [];
         let lastRenderedInteractionPoints = []; 
         let edgeConfigs = [];
@@ -368,6 +453,36 @@
             return getViridisColor(normalized_val);
         }
 
+        function getPolygonSvg(sides) {
+            if (sides == 0) { // Circle
+                return `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>`;
+            }
+            const points = [];
+            const radius = 9;
+            const center = 10;
+            for (let i = 0; i < sides; i++) {
+                const angle = (2 * Math.PI * i / sides) - (Math.PI / 2); // Start from top
+                const x = center + radius * Math.cos(angle);
+                const y = center + radius * Math.sin(angle);
+                points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+            }
+            return `<svg viewBox="0 0 20 20"><polygon points="${points.join(' ')}" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>`;
+        }
+
+        function isPointInPolygon(point, vs) {
+            const x = point.x, y = point.y;
+            let inside = false;
+            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                const xi = vs[i].x, yi = vs[i].y;
+                const xj = vs[j].x, yj = vs[j].y;
+                const intersect = ((yi > y) !== (yj > y))
+                    && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+
         // --- Layer Control Generation ---
         function getDefaultLayer(index, type = 'square') {
              return {
@@ -413,14 +528,20 @@
             controls.layersControlsContainer.innerHTML = ''; 
             const L = parseInt(controls.latticeSize.value);
             const baseSpacing = parseFloat(controls.baseSpacing.value);
-            const maxShiftUnits = baseSpacing > 0 ? 1 : 0; //(L / 2) / baseSpacing
+            const maxShiftUnits = baseSpacing > 0 ? (L / 2) / baseSpacing : 0;
 
             layers.forEach((layer, index) => {
+                const layerDetails = document.createElement('details');
+                layerDetails.className = 'layer-controls';
+                layerDetails.id = `controls-${layer.id}`;
+                
+                const layerSummary = document.createElement('summary');
+                const colorIndicator = `<span class="summary-color-indicator" style="background-color: ${layer.color};"></span>`;
+                layerSummary.innerHTML = `${colorIndicator}Layer ${index + 1}`;
+                layerDetails.appendChild(layerSummary);
+
                 const layerDiv = document.createElement('div');
-                layerDiv.className = 'layer-controls control-group';
-                layerDiv.id = `controls-${layer.id}`;
-                const colorIndicator = `<span class="layer-color-indicator" style="background-color: ${layer.color};"></span>`;
-                layerDiv.innerHTML = `<h4>${colorIndicator}Layer ${index + 1} (${layer.color})</h4>`;
+                layerDiv.style.paddingTop = '10px';
                 
                 const typeLabel = document.createElement('label'); typeLabel.textContent = 'Lattice Type:';
                 const typeSelect = document.createElement('select'); typeSelect.id = `type-${layer.id}`;
@@ -433,12 +554,12 @@
 
                 // Angle
                 const angleGroup = document.createElement('div'); angleGroup.className = 'input-group';
-                const angleLabel = document.createElement('label'); angleLabel.textContent = `Angle: ${layer.angle.toFixed(1)}°`;
-                const angleInput = document.createElement('input'); angleInput.type = 'range'; angleInput.min = -180; angleInput.max = 180; angleInput.value = layer.angle; angleInput.step = 0.1;
-                const angleNumberInput = document.createElement('input'); angleNumberInput.type = 'number'; angleNumberInput.min = -180; angleNumberInput.max = 180; angleNumberInput.value = layer.angle.toFixed(1); angleNumberInput.step = 0.1;
-                const angleUpdate = (val) => { layer.angle = val; angleLabel.textContent = `Angle: ${val.toFixed(1)}°`; invalidateLayerPointCache(layer.id); drawSimulation(); };
-                angleInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); angleNumberInput.value = v.toFixed(1); angleUpdate(v); });
-                angleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(-180, Math.min(180,v)); angleInput.value = cV.toFixed(1); if(v.toFixed(1) !== cV.toFixed(1)) e.target.value = cV.toFixed(1); angleUpdate(cV); });
+                const angleLabel = document.createElement('label'); angleLabel.textContent = `Angle: ${layer.angle.toFixed(2)}°`;
+                const angleInput = document.createElement('input'); angleInput.type = 'range'; angleInput.min = 0; angleInput.max = 180; angleInput.value = layer.angle; angleInput.step = 0.01;
+                const angleNumberInput = document.createElement('input'); angleNumberInput.type = 'number'; angleNumberInput.min = 0; angleNumberInput.max = 180; angleNumberInput.value = layer.angle.toFixed(2); angleNumberInput.step = 0.01;
+                const angleUpdate = (val) => { layer.angle = val; angleLabel.textContent = `Angle: ${val.toFixed(2)}°`; invalidateLayerPointCache(layer.id); drawSimulation(); };
+                angleInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); angleNumberInput.value = v.toFixed(2); angleUpdate(v); });
+                angleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(0, Math.min(180,v)); angleInput.value = cV.toFixed(2); if(v.toFixed(2) !== cV.toFixed(2)) e.target.value = cV.toFixed(2); angleUpdate(cV); });
                 layerDiv.appendChild(angleLabel); angleGroup.appendChild(angleInput); angleGroup.appendChild(angleNumberInput); layerDiv.appendChild(angleGroup);
 
                 // Scale
@@ -453,31 +574,31 @@
                 
                 // Shift X (units)
                 const shiftXGroup = document.createElement('div'); shiftXGroup.className = 'input-group';
-                const shiftXLabel = document.createElement('label'); shiftXLabel.textContent = `Shift X: ${layer.shiftX.toFixed(2)}`;
-                const shiftXRange = document.createElement('input'); shiftXRange.type = 'range'; shiftXRange.min = -maxShiftUnits.toFixed(2); shiftXRange.max = maxShiftUnits.toFixed(2); shiftXRange.value = layer.shiftX; shiftXRange.step = 0.01;
-                const shiftXNumber = document.createElement('input'); shiftXNumber.type = 'number'; shiftXNumber.min = -maxShiftUnits.toFixed(2); shiftXNumber.max = maxShiftUnits.toFixed(2); shiftXNumber.value = layer.shiftX.toFixed(2); shiftXNumber.step = 0.01;
+                const shiftXLabel = document.createElement('label'); shiftXLabel.textContent = `Shift X: ${layer.shiftX.toFixed(3)}`;
+                const shiftXRange = document.createElement('input'); shiftXRange.type = 'range'; shiftXRange.min = 0; shiftXRange.max = maxShiftUnits.toFixed(3); shiftXRange.value = layer.shiftX; shiftXRange.step = 0.001;
+                const shiftXNumber = document.createElement('input'); shiftXNumber.type = 'number'; shiftXNumber.min = 0; shiftXNumber.max = maxShiftUnits.toFixed(3); shiftXNumber.value = layer.shiftX.toFixed(3); shiftXNumber.step = 0.001;
                 const shiftXUpdate = (val) => {
                     layer.shiftX = val;
-                    shiftXLabel.textContent = `Shift X: ${val.toFixed(2)}`;
+                    shiftXLabel.textContent = `Shift X: ${val.toFixed(3)}`;
                     invalidateLayerPointCache(layer.id);
                     drawSimulation();
                 };
-                shiftXRange.addEventListener('input', (e) => { const v = parseFloat(e.target.value); shiftXNumber.value = v.toFixed(2); shiftXUpdate(v); });
+                shiftXRange.addEventListener('input', (e) => { const v = parseFloat(e.target.value); shiftXNumber.value = v.toFixed(3); shiftXUpdate(v); });
                 shiftXNumber.addEventListener('input', (e) => { 
                     let v = parseFloat(e.target.value); if(isNaN(v)) v = 0;
                     v = Math.max(parseFloat(shiftXRange.min), Math.min(parseFloat(shiftXRange.max), v));
-                    e.target.value = v.toFixed(2); shiftXRange.value = v; shiftXUpdate(v); 
+                    e.target.value = v.toFixed(3); shiftXRange.value = v; shiftXUpdate(v); 
                 });
                 layerDiv.appendChild(shiftXLabel); shiftXGroup.appendChild(shiftXRange); shiftXGroup.appendChild(shiftXNumber); layerDiv.appendChild(shiftXGroup);
                 
                 // Shift Y (units)
                 const shiftYGroup = document.createElement('div'); shiftYGroup.className = 'input-group';
-                const shiftYLabel = document.createElement('label'); shiftYLabel.textContent = `Shift Y: ${layer.shiftY.toFixed(2)}`;
-                const shiftYRange = document.createElement('input'); shiftYRange.type = 'range'; shiftYRange.min = -maxShiftUnits.toFixed(2); shiftYRange.max = maxShiftUnits.toFixed(2); shiftYRange.value = layer.shiftY; shiftYRange.step = 0.05;
-                const shiftYNumber = document.createElement('input'); shiftYNumber.type = 'number'; shiftYNumber.min = -maxShiftUnits.toFixed(2); shiftYNumber.max = maxShiftUnits.toFixed(2); shiftYNumber.value = layer.shiftY.toFixed(2); shiftYNumber.step = 0.05;
+                const shiftYLabel = document.createElement('label'); shiftYLabel.textContent = `Shift Y: ${layer.shiftY.toFixed(3)}`;
+                const shiftYRange = document.createElement('input'); shiftYRange.type = 'range'; shiftYRange.min = 0; shiftYRange.max = maxShiftUnits.toFixed(3); shiftYRange.value = layer.shiftY; shiftYRange.step = 0.001;
+                const shiftYNumber = document.createElement('input'); shiftYNumber.type = 'number'; shiftYNumber.min = 0; shiftYNumber.max = maxShiftUnits.toFixed(3); shiftYNumber.value = layer.shiftY.toFixed(3); shiftYNumber.step = 0.001;
                 const shiftYUpdate = (val) => {
                     layer.shiftY = val;
-                    shiftYLabel.textContent = `Shift Y: ${val.toFixed(2)}`;
+                    shiftYLabel.textContent = `Shift Y: ${val.toFixed(3)}`;
                     invalidateLayerPointCache(layer.id);
                     drawSimulation();
                 };
@@ -485,7 +606,7 @@
                 shiftYNumber.addEventListener('input', (e) => { 
                     let v = parseFloat(e.target.value); if(isNaN(v)) v = 0;
                      v = Math.max(parseFloat(shiftYRange.min), Math.min(parseFloat(shiftYRange.max), v));
-                    e.target.value = v.toFixed(2); shiftYRange.value = v; shiftYUpdate(v); 
+                    e.target.value = v.toFixed(3); shiftYRange.value = v; shiftYUpdate(v); 
                 });
                 layerDiv.appendChild(shiftYLabel); shiftYGroup.appendChild(shiftYRange); shiftYGroup.appendChild(shiftYNumber); layerDiv.appendChild(shiftYGroup);
 
@@ -524,7 +645,8 @@
                 interactionLabel.append(' Contributes to Interaction');
                 layerDiv.appendChild(interactionLabel);
                 
-                controls.layersControlsContainer.appendChild(layerDiv);
+                layerDetails.appendChild(layerDiv);
+                controls.layersControlsContainer.appendChild(layerDetails);
             });
         }
         
@@ -555,12 +677,11 @@
                     switch (layerConfig.type) {
                         case 'square': localPts = generateSquareLatticePoints(drawL, baseSpacing); break;
                         case 'triangular': localPts = generateTriangularLatticePoints(drawL, baseSpacing); break;
-                        // For honeycomb, the 'spacing' is the side length.
                         case 'honeycomb': localPts = generateHoneycombPointLatticePoints(drawL, baseSpacing / Math.sqrt(3) * 2 / 2 ); break; 
                         default: localPts = [];
                     }
                     layerConfig.localPointsCache = localPts;
-                    layerConfig.transformedPointsCache = null; // Invalidate transformed cache
+                    layerConfig.transformedPointsCache = null; 
                 }
                 
                 if (!layerConfig.transformedPointsCache) { 
@@ -610,7 +731,7 @@
             const enableLabel = document.createElement('label');
             enableLabel.htmlFor = `enable-${config.id}`;
             enableLabel.className = 'label-inline';
-            enableLabel.textContent = 'Enable this Edge Type';
+            enableLabel.textContent = 'Enable edges';
             enableLabel.style.marginRight = '10px';
 
             const removeButton = document.createElement('button');
@@ -624,12 +745,12 @@
             div.appendChild(headerDiv);
 
             div.innerHTML += `
-                <label for="lower-range-${config.id}" style="margin-top:5px;">Min Distance:</label>
+                <label for="lower-range-${config.id}" style="margin-top:5px;">Min Length:</label>
                 <div class="input-group">
                     <input type="range" id="lower-range-${config.id}" value="${config.lowerBound}" min="0" max="20" step="0.1">
                     <input type="number" id="lower-num-${config.id}" value="${config.lowerBound}" min="0" max="20" step="0.1">
                 </div>
-                <label for="upper-range-${config.id}" style="margin-top:5px;">Max Distance:</label>
+                <label for="upper-range-${config.id}" style="margin-top:5px;">Max Length:</label>
                 <div class="input-group">
                     <input type="range" id="upper-range-${config.id}" value="${config.upperBound}" min="0" max="20" step="0.1">
                     <input type="number" id="upper-num-${config.id}" value="${config.upperBound}" min="0" max="20" step="0.1">
@@ -712,7 +833,7 @@
                 upperBound: 2, // units
                 color: '#'+(Math.random()*0xFFFFFF<<0).toString(16).padStart(6, '0'), 
                 width: 1.5,
-                enabled: false
+                enabled: false // Edges are not plotted by default
             };
             edgeConfigs.push(newConfig);
             const configElement = createEdgeConfigHTML(newConfig);
@@ -747,9 +868,12 @@
                 return;
             }
 
-            const thresholdInUnits = parseFloat(controls.distanceThreshold.value);
-            const thresholdPx = thresholdInUnits * baseSpacing;
+            const radiusInUnits = parseFloat(controls.distanceThreshold.value);
+            const radiusPx = radiusInUnits * baseSpacing;
             const interactionPtSize = parseFloat(controls.interactionPointSize.value);
+            const numSides = parseInt(controls.interactionShape.value);
+            const rotationAngleRad = parseFloat(controls.interactionAngle.value) * Math.PI / 180;
+
             const interactingLayersData = allPrecomputedData.filter(ld => ld.contributesToInteraction && ld.transformedPoints && ld.transformedPoints.length > 0);
             
             if (interactingLayersData.length < 2) { 
@@ -761,69 +885,143 @@
             const otherLayersData = interactingLayersData.slice(1); 
             const currentFrameInteractionPoints = []; 
 
+            // --- Point Generation ---
             redLayerData.transformedPoints.forEach(rp => {
-                let clusterPoints = [rp]; 
                 let participatingNeighbors = [];
                 let minDistanceToOtherLayer = Infinity;
+
+                let polygonVertices = [];
+                if (numSides > 0) {
+                    for (let i = 0; i < numSides; i++) {
+                        const angle = (2 * Math.PI * i / numSides) + rotationAngleRad;
+                        polygonVertices.push({
+                            x: rp.x + radiusPx * Math.cos(angle),
+                            y: rp.y + radiusPx * Math.sin(angle)
+                        });
+                    }
+                }
+
                 otherLayersData.forEach(otherLayer => {
                     let nearestNeighborThisLayer = null;
                     let minDistSqThisLayer = Infinity;
+
                     otherLayer.transformedPoints.forEach(op => {
+                        let isInside = false;
                         const distSq = Math.pow(rp.x - op.x, 2) + Math.pow(rp.y - op.y, 2);
-                        if (distSq < minDistSqThisLayer) {
-                            minDistSqThisLayer = distSq;
-                            nearestNeighborThisLayer = op;
+
+                        if (numSides === 0) { // Circle mode
+                            if (distSq <= radiusPx * radiusPx) isInside = true;
+                        } else { // Polygon mode
+                            if (isPointInPolygon(op, polygonVertices)) isInside = true;
+                        }
+
+                        if (isInside) {
+                            if (distSq < minDistSqThisLayer) {
+                                minDistSqThisLayer = distSq;
+                                nearestNeighborThisLayer = op;
+                            }
                         }
                     });
+                    
                     if (nearestNeighborThisLayer) {
-                        const actualDist = Math.sqrt(minDistSqThisLayer);
-                        if (actualDist <= thresholdPx) { 
-                            participatingNeighbors.push(nearestNeighborThisLayer);
-                            minDistanceToOtherLayer = Math.min(minDistanceToOtherLayer, actualDist);
-                        }
+                        participatingNeighbors.push(nearestNeighborThisLayer);
+                        minDistanceToOtherLayer = Math.min(minDistanceToOtherLayer, Math.sqrt(minDistSqThisLayer));
                     }
                 });
+
                 if (participatingNeighbors.length > 0) {
-                    clusterPoints.push(...participatingNeighbors); 
+                    let clusterPoints = [rp, ...participatingNeighbors]; 
                     let sumX = 0, sumY = 0;
                     clusterPoints.forEach(p => { sumX += p.x; sumY += p.y; });
                     const avgX = sumX / clusterPoints.length;
                     const avgY = sumY / clusterPoints.length;
-                    const color = getColorForDistanceViridisLog(minDistanceToOtherLayer, thresholdPx);
+                    const color = getColorForDistanceViridisLog(minDistanceToOtherLayer, radiusPx);
                     currentFrameInteractionPoints.push({x: avgX, y: avgY, color: color, distance: minDistanceToOtherLayer, id: `ip-${currentFrameInteractionPoints.length}`}); 
-                    ctx.fillStyle = color;
-                    ctx.beginPath();
-                    ctx.arc(avgX, avgY, interactionPtSize, 0, 2 * Math.PI);
-                    ctx.fill();
                 }
             });
+            
+            // --- Draw Points ---
+            currentFrameInteractionPoints.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, interactionPtSize, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
             lastRenderedInteractionPoints = currentFrameInteractionPoints; 
 
-            if (lastRenderedInteractionPoints.length > 1) {
-                edgeConfigs.forEach(config => {
-                    if (config.enabled) {
-                        const lowerBoundPx = config.lowerBound * baseSpacing;
-                        const upperBoundPx = config.upperBound * baseSpacing;
-                        ctx.strokeStyle = config.color;
-                        ctx.lineWidth = config.width;
-                        ctx.globalAlpha = 0.7; 
-                        for (let i = 0; i < lastRenderedInteractionPoints.length; i++) {
-                            for (let j = i + 1; j < lastRenderedInteractionPoints.length; j++) { 
-                                const p1 = lastRenderedInteractionPoints[i];
-                                const p2 = lastRenderedInteractionPoints[j];
-                                const dist = calculateDistance(p1, p2);
-                                if (dist >= lowerBoundPx && dist <= upperBoundPx) {
-                                    ctx.beginPath();
-                                    ctx.moveTo(p1.x, p1.y);
-                                    ctx.lineTo(p2.x, p2.y);
-                                    ctx.stroke();
-                                }
+            // --- Draw Edges ---
+            const anyFilterEnabled = edgeConfigs.some(c => c.enabled);
+            if (!anyFilterEnabled || lastRenderedInteractionPoints.length < 2) {
+                return; // Don't draw any edges if no filters are enabled
+            }
+            
+            const edgeMethod = controls.edgeMethod.value;
+
+            // --- Naive Method ---
+            if (edgeMethod === 'naive') {
+                for (let i = 0; i < lastRenderedInteractionPoints.length; i++) {
+                    for (let j = i + 1; j < lastRenderedInteractionPoints.length; j++) {
+                        const p1 = lastRenderedInteractionPoints[i];
+                        const p2 = lastRenderedInteractionPoints[j];
+                        const distPx = calculateDistance(p1, p2);
+                        const distUnits = baseSpacing > 0 ? distPx / baseSpacing : 0;
+                        
+                        for (const config of edgeConfigs) {
+                            if (config.enabled && distUnits >= config.lowerBound && distUnits <= config.upperBound) {
+                                ctx.strokeStyle = config.color;
+                                ctx.lineWidth = config.width;
+                                ctx.globalAlpha = 0.7;
+                                ctx.beginPath();
+                                ctx.moveTo(p1.x, p1.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                ctx.stroke();
+                                break; 
                             }
                         }
                     }
-                });
-                ctx.globalAlpha = 1.0; 
+                }
             }
+            // --- Delaunay + Filter Method ---
+            else if (edgeMethod === 'delaunay' && lastRenderedInteractionPoints.length > 2) {
+                const points = lastRenderedInteractionPoints.map(p => [p.x, p.y]);
+                const delaunay = d3.Delaunay.from(points);
+                const drawnEdges = new Set();
+                const triangles = delaunay.triangles;
+
+                for (let i = 0; i < triangles.length; i += 3) {
+                    const edgeIndices = [
+                        [triangles[i], triangles[i+1]],
+                        [triangles[i+1], triangles[i+2]],
+                        [triangles[i+2], triangles[i]]
+                    ];
+
+                    for (const [idx1, idx2] of edgeIndices) {
+                        const key = `${Math.min(idx1, idx2)}-${Math.max(idx1, idx2)}`;
+                        if (drawnEdges.has(key) || idx1 === undefined || idx2 === undefined) continue;
+                        
+                        const p1 = lastRenderedInteractionPoints[idx1];
+                        const p2 = lastRenderedInteractionPoints[idx2];
+                        const distPx = calculateDistance(p1, p2);
+                        const distUnits = baseSpacing > 0 ? distPx / baseSpacing : 0;
+
+                        for (const config of edgeConfigs) {
+                            if (config.enabled && distUnits >= config.lowerBound && distUnits <= config.upperBound) {
+                                ctx.strokeStyle = config.color;
+                                ctx.lineWidth = config.width;
+                                ctx.globalAlpha = 0.7;
+                                ctx.beginPath();
+                                ctx.moveTo(p1.x, p1.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                ctx.stroke();
+                                break; 
+                            }
+                        }
+                        drawnEdges.add(key);
+                    }
+                }
+            }
+            ctx.globalAlpha = 1.0;
         }
 
         // --- Export Functionality ---
@@ -846,14 +1044,12 @@
                 return;
             }
 
-            // File 1: Coordinates
             let xyContent = "x_px,y_px\n"; 
             lastRenderedInteractionPoints.forEach(p => {
                 xyContent += `${p.x.toFixed(3)},${p.y.toFixed(3)}\n`;
             });
             downloadFile("interaction_points_xy.txt", xyContent);
 
-            // File 2: Distances
             let distanceContent = "distance_to_nearest_primary_px\n";
             lastRenderedInteractionPoints.forEach(p => {
                 distanceContent += `${p.distance.toFixed(3)}\n`;
@@ -879,8 +1075,8 @@
         controls.interactionPointSize.addEventListener('input', drawSimulation);
         
         controls.distanceThreshold.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value).toFixed(2); 
-            controls.distanceThresholdLabel.textContent = `Point Distance Threshold: ${val}`;
+            const val = parseFloat(e.target.value).toFixed(3); 
+            controls.distanceThresholdLabel.textContent = `Interaction Radius: ${val}`;
             controls.distanceThresholdNumber.value = val;
             drawSimulation();
         });
@@ -888,14 +1084,40 @@
             let val = parseFloat(e.target.value);
             if(isNaN(val)) val = parseFloat(controls.distanceThreshold.min); 
             val = Math.max(parseFloat(controls.distanceThreshold.min), Math.min(parseFloat(controls.distanceThreshold.max), val));
-            const formattedVal = val.toFixed(2); 
+            const formattedVal = val.toFixed(3); 
             e.target.value = formattedVal; 
-            controls.distanceThresholdLabel.textContent = `Point Distance Threshold: ${formattedVal}`;
+            controls.distanceThresholdLabel.textContent = `Interaction Radius: ${formattedVal}`;
             controls.distanceThreshold.value = formattedVal; 
             drawSimulation();
         });
         controls.enableInteractions.addEventListener('change', drawSimulation);
         controls.addEdgeConfigButton.addEventListener('click', addNewEdgeConfig);
+
+        // --- Event Listeners for Advanced Controls ---
+        function updateShapeIcon() {
+            const sides = parseInt(controls.interactionShape.value, 10);
+            controls.shapeIconDisplay.innerHTML = getPolygonSvg(sides);
+        }
+        controls.interactionShape.addEventListener('change', () => {
+            updateShapeIcon();
+            drawSimulation();
+        });
+        controls.interactionAngle.addEventListener('input', (e) => {
+            const val = e.target.value;
+            controls.interactionAngleLabel.textContent = `Shape Rotation: ${val}°`;
+            controls.interactionAngleNumber.value = val;
+            drawSimulation();
+        });
+        controls.interactionAngleNumber.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value, 10);
+            if(isNaN(val)) val = 0;
+            val = Math.max(0, Math.min(360, val));
+            e.target.value = val;
+            controls.interactionAngleLabel.textContent = `Shape Rotation: ${val}°`;
+            controls.interactionAngle.value = val;
+            drawSimulation();
+        });
+        controls.edgeMethod.addEventListener('change', drawSimulation);
 
 
         function resizeCanvasContainer() {
@@ -918,13 +1140,39 @@
         }
 
         // --- Initial Setup ---
-        window.addEventListener('resize', () => { 
-            resizeCanvasContainer(); 
-        });
+        function populateInteractionShapes() {
+            const shapes = [
+                { name: 'Circle', sides: 0 },
+                { name: 'Pentagon', sides: 5 },
+                { name: 'Hexagon', sides: 6 },
+                { name: 'Heptagon', sides: 7 },
+                { name: 'Octagon', sides: 8 },
+                { name: 'Nonagon', sides: 9 },
+                { name: 'Decagon', sides: 10 },
+                { name: 'Hendecagon', sides: 11 },
+                { name: 'Dodecagon', sides: 12 }
+            ];
+            const select = controls.interactionShape;
+            select.innerHTML = ''; // Clear existing options
+            shapes.forEach(shape => {
+                const option = document.createElement('option');
+                option.value = shape.sides;
+                option.textContent = shape.sides === 0 ? `${shape.name} (Default)` : `${shape.name} (${shape.sides})`;
+                select.appendChild(option);
+            });
+        }
+
+        function initialSetup() {
+            controls.distanceThresholdLabel.textContent = `Interaction Radius: ${parseFloat(controls.distanceThreshold.value).toFixed(3)}`;
+            populateInteractionShapes();
+            updateShapeIcon();
+            updateNumberOfLayers(); 
+            initializeEdgeConfigs(); 
+            resizeCanvasContainer();
+        }
         
-        updateNumberOfLayers(); 
-        initializeEdgeConfigs(); 
-        resizeCanvasContainer(); 
+        window.addEventListener('resize', resizeCanvasContainer);
+        window.addEventListener('load', initialSetup);
         
     </script></body>
 </html>
