@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lattice Superposition & Interaction Simulation (Unit-Based)</title>
+    <title>Tiling by Near Coincidence Simulation</title>
     <!-- Added d3-delaunay library -->
     <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
     <style>
@@ -543,7 +543,7 @@
                 const layerDiv = document.createElement('div');
                 layerDiv.style.paddingTop = '10px';
                 
-                const typeLabel = document.createElement('label'); typeLabel.textContent = 'Lattice Type:';
+                const typeLabel = document.createElement('label'); typeLabel.textContent = 'Layer Type:';
                 const typeSelect = document.createElement('select'); typeSelect.id = `type-${layer.id}`;
                 ['square', 'triangular', 'honeycomb'].forEach(type => {
                     const option = document.createElement('option'); option.value = type; option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
@@ -1109,7 +1109,7 @@
             drawSimulation();
         });
         controls.interactionAngleNumber.addEventListener('input', (e) => {
-            let val = parseInt(e.target.value, 10);
+            const val = parseFloat(e.target.value).toFixed(3); 
             if(isNaN(val)) val = 0;
             val = Math.max(0, Math.min(360, val));
             e.target.value = val;
@@ -1143,6 +1143,7 @@
         function populateInteractionShapes() {
             const shapes = [
                 { name: 'Circle', sides: 0 },
+                { name: 'Square', sides: 4 },
                 { name: 'Pentagon', sides: 5 },
                 { name: 'Hexagon', sides: 6 },
                 { name: 'Heptagon', sides: 7 },
