@@ -564,12 +564,12 @@
 
                 // Scale
                 const scaleGroup = document.createElement('div'); scaleGroup.className = 'input-group';
-                const scaleLabel = document.createElement('label'); scaleLabel.textContent = `Scale: ${layer.scale.toFixed(2)}`;
-                const scaleInput = document.createElement('input'); scaleInput.type = 'range'; scaleInput.min = 0.1; scaleInput.max = 3; scaleInput.value = layer.scale; scaleInput.step = 0.01;
-                const scaleNumberInput = document.createElement('input'); scaleNumberInput.type = 'number'; scaleNumberInput.min = 0.1; scaleNumberInput.max = 3; scaleNumberInput.value = layer.scale.toFixed(2); scaleNumberInput.step = 0.01;
-                const scaleUpdate = (val) => { layer.scale = val; scaleLabel.textContent = `Scale: ${val.toFixed(2)}`; invalidateLayerPointCache(layer.id); drawSimulation(); };
-                scaleInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); scaleNumberInput.value = v.toFixed(2); scaleUpdate(v); });
-                scaleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(0.1, Math.min(3,v)); scaleInput.value = cV.toFixed(2); if(v.toFixed(2) !== cV.toFixed(2)) e.target.value = cV.toFixed(2); scaleUpdate(cV); });
+                const scaleLabel = document.createElement('label'); scaleLabel.textContent = `Scale: ${layer.scale.toFixed(3)}`;
+                const scaleInput = document.createElement('input'); scaleInput.type = 'range'; scaleInput.min = 0.1; scaleInput.max = 3; scaleInput.value = layer.scale; scaleInput.step = 0.001;
+                const scaleNumberInput = document.createElement('input'); scaleNumberInput.type = 'number'; scaleNumberInput.min = 0.1; scaleNumberInput.max = 3; scaleNumberInput.value = layer.scale.toFixed(3); scaleNumberInput.step = 0.001;
+                const scaleUpdate = (val) => { layer.scale = val; scaleLabel.textContent = `Scale: ${val.toFixed(3)}`; invalidateLayerPointCache(layer.id); drawSimulation(); };
+                scaleInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); scaleNumberInput.value = v.toFixed(3); scaleUpdate(v); });
+                scaleNumberInput.addEventListener('input', (e) => { const v = parseFloat(e.target.value); if(isNaN(v)) return; const cV = Math.max(0.1, Math.min(3,v)); scaleInput.value = cV.toFixed(3); if(v.toFixed(3) !== cV.toFixed(3)) e.target.value = cV.toFixed(3); scaleUpdate(cV); });
                 layerDiv.appendChild(scaleLabel); scaleGroup.appendChild(scaleInput); scaleGroup.appendChild(scaleNumberInput); layerDiv.appendChild(scaleGroup);
                 
                 // Shift X (units)
@@ -747,13 +747,13 @@
             div.innerHTML += `
                 <label for="lower-range-${config.id}" style="margin-top:5px;">Min Length:</label>
                 <div class="input-group">
-                    <input type="range" id="lower-range-${config.id}" value="${config.lowerBound}" min="0" max="20" step="0.1">
-                    <input type="number" id="lower-num-${config.id}" value="${config.lowerBound}" min="0" max="20" step="0.1">
+                    <input type="range" id="lower-range-${config.id}" value="${config.lowerBound}" min="0" max="20" step="0.01">
+                    <input type="number" id="lower-num-${config.id}" value="${config.lowerBound}" min="0" max="20" step="0.01">
                 </div>
                 <label for="upper-range-${config.id}" style="margin-top:5px;">Max Length:</label>
                 <div class="input-group">
-                    <input type="range" id="upper-range-${config.id}" value="${config.upperBound}" min="0" max="20" step="0.1">
-                    <input type="number" id="upper-num-${config.id}" value="${config.upperBound}" min="0" max="20" step="0.1">
+                    <input type="range" id="upper-range-${config.id}" value="${config.upperBound}" min="0" max="20" step="0.01">
+                    <input type="number" id="upper-num-${config.id}" value="${config.upperBound}" min="0" max="20" step="0.01">
                 </div>
                 <label for="color-${config.id}">Edge Color:</label>
                 <input type="color" id="color-${config.id}" value="${config.color}">
@@ -779,37 +779,37 @@
                 config.upperBound = upperVal;
                 if(config.lowerBound > config.upperBound) {
                     config.upperBound = config.lowerBound;
-                    upperRange.value = config.upperBound.toFixed(1);
-                    upperNum.value = config.upperBound.toFixed(1);
+                    upperRange.value = config.upperBound.toFixed(2);
+                    upperNum.value = config.upperBound.toFixed(2);
                 }
                 if(config.upperBound < config.lowerBound) {
                     config.lowerBound = config.upperBound;
-                    lowerRange.value = config.lowerBound.toFixed(1);
-                    lowerNum.value = config.lowerBound.toFixed(1);
+                    lowerRange.value = config.lowerBound.toFixed(2);
+                    lowerNum.value = config.lowerBound.toFixed(2);
                 }
                 drawSimulation();
             };
 
             lowerRange.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value);
-                lowerNum.value = val.toFixed(1);
+                lowerNum.value = val.toFixed(2);
                 syncBounds(val, config.upperBound);
             });
             lowerNum.addEventListener('input', (e) => {
                 let val = parseFloat(e.target.value); if (isNaN(val)) val = 0;
-                val = Math.max(0, Math.min(20, val)); e.target.value = val.toFixed(1);
-                lowerRange.value = val.toFixed(1);
+                val = Math.max(0, Math.min(20, val)); e.target.value = val.toFixed(2);
+                lowerRange.value = val.toFixed(2);
                 syncBounds(val, config.upperBound);
             });
              upperRange.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value);
-                upperNum.value = val.toFixed(1);
+                upperNum.value = val.toFixed(2);
                 syncBounds(config.lowerBound, val);
             });
             upperNum.addEventListener('input', (e) => {
                 let val = parseFloat(e.target.value); if (isNaN(val)) val = 0;
-                val = Math.max(0, Math.min(20, val)); e.target.value = val.toFixed(1);
-                upperRange.value = val.toFixed(1);
+                val = Math.max(0, Math.min(20, val)); e.target.value = val.toFixed(2);
+                upperRange.value = val.toFixed(2);
                 syncBounds(config.lowerBound, val);
             });
 
@@ -819,7 +819,7 @@
             });
             div.querySelector(`#width-${config.id}`).addEventListener('input', (e) => {
                 let val = parseFloat(e.target.value); if(isNaN(val)) val = 0.1;
-                val = Math.max(0.1, Math.min(10, val)); e.target.value = val.toFixed(1);
+                val = Math.max(0.1, Math.min(10, val)); e.target.value = val.toFixed(2);
                 config.width = val;
                 drawSimulation();
             });
