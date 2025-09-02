@@ -183,6 +183,12 @@
         button.remove-button:hover {
             background-color: #c82333;
         }
+        button.secondary-button { /* New for restore button */
+            background-color: #6c757d;
+        }
+        button.secondary-button:hover {
+            background-color: #5a6268;
+        }
         
         .input-group {
             display: flex;
@@ -217,6 +223,10 @@
 </head>
 <body>
     <div id="controls">
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button id="exportSettingsButton">Export Settings</button>
+            <button id="importSettingsButton">Import Settings</button>
+        </div>
         <div class="control-group">
             <h3>Global Settings</h3>
             <label for="latticeSize">Lattice Area Size (L x L pixels):</label>
@@ -283,6 +293,7 @@
                 <summary>Edge Filters</summary>
                 <div id="interaction-edge-configs-container" style="padding-top:10px;"></div>
                 <button id="add-edge-config-button" class="add-button">+ Add Edge Filter</button>
+                <button id="restoreEdgesButton" class="secondary-button" style="margin-top: 10px; width: 100%;">Restore Removed Edges</button>
             </details>
             
             <button id="exportInteractionPointsButton" style="margin-top: 15px;">Export Interaction Points (TXT)</button>
@@ -322,7 +333,10 @@
             interactionAngleNumber: document.getElementById('interactionAngleNumber'),
             interactionAngleLabel: document.getElementById('interactionAngleLabel'),
             edgeMethod: document.getElementById('edgeMethod'),
-            edgeConfigPanel: document.getElementById('edge-config-panel')
+            edgeConfigPanel: document.getElementById('edge-config-panel'),
+            // New buttons
+            exportSettingsButton: document.getElementById('exportSettingsButton'),
+            importSettingsButton: document.getElementById('importSettingsButton')
         };
 
         const layerColors = ['red', 'blue', 'green', 'orange', 'purple', 'magenta', 'yellow', 'pink', 'brown'];
@@ -330,6 +344,8 @@
         let lastRenderedInteractionPoints = []; 
         let edgeConfigs = [];
         let edgeConfigCounter = 0; 
+        let removedEdges = new Set();
+        let allDrawableEdges = []; // Used for click detection on edges
 
         // --- Viridis Colormap ---
         const viridisColormap = [
@@ -453,6 +469,7 @@
             return getViridisColor(normalized_val);
         }
 
+
         function getPolygonSvg(sides) {
             if (sides == 0) { // Circle
                 return `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>`;
@@ -480,6 +497,18 @@
                 if (intersect) inside = !inside;
             }
             return inside;
+        }
+
+        function getDistanceToSegment(clickPoint, p1, p2) {
+            const l2 = Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2);
+            if (l2 === 0) return calculateDistance(clickPoint, p1);
+            let t = ((clickPoint.x - p1.x) * (p2.x - p1.x) + (clickPoint.y - p1.y) * (p2.y - p1.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            const closestPointOnSegment = {
+                x: p1.x + t * (p2.x - p1.x),
+                y: p1.y + t * (p2.y - p1.y)
+            };
+            return calculateDistance(clickPoint, closestPointOnSegment);
         }
 
 
@@ -940,7 +969,82 @@
                 }
             });
             
-            // --- Draw Points ---
+            // --- DRAWING LOGIC ---
+
+            // 1. Prepare a list of all edges that should be drawn based on filters
+            allDrawableEdges = []; // Reset for the current frame
+            const anyFilterEnabled = edgeConfigs.some(c => c.enabled);
+
+            if (anyFilterEnabled && currentFrameInteractionPoints.length >= 2) {
+                const edgeMethod = controls.edgeMethod.value;
+                
+                // Using an IIFE to get potential edge index pairs from the chosen method (naive or Delaunay)
+                const potentialEdgeIndices = (() => {
+                    const indices = [];
+                    if (edgeMethod === 'naive') {
+                        for (let i = 0; i < currentFrameInteractionPoints.length; i++) {
+                            for (let j = i + 1; j < currentFrameInteractionPoints.length; j++) {
+                                indices.push([i, j]);
+                            }
+                        }
+                    } else if (edgeMethod === 'delaunay' && currentFrameInteractionPoints.length > 2) {
+                        const points = currentFrameInteractionPoints.map(p => [p.x, p.y]);
+                        const delaunay = d3.Delaunay.from(points);
+                        const drawnEdges = new Set();
+                        const triangles = delaunay.triangles;
+                        for (let i = 0; i < triangles.length; i += 3) {
+                            const edgeGroup = [[triangles[i], triangles[i + 1]], [triangles[i + 1], triangles[i + 2]], [triangles[i + 2], triangles[i]]];
+                            for (const [idx1, idx2] of edgeGroup) {
+                                if (idx1 === undefined || idx2 === undefined) continue;
+                                const key = `${Math.min(idx1, idx2)}-${Math.max(idx1, idx2)}`;
+                                if (!drawnEdges.has(key)) {
+                                    indices.push([idx1, idx2]);
+                                    drawnEdges.add(key);
+                                }
+                            }
+                        }
+                    }
+                    return indices;
+                })();
+
+                // Filter potential edges by length and check against the `removedEdges` set
+                potentialEdgeIndices.forEach(([idx1, idx2]) => {
+                    const p1 = currentFrameInteractionPoints[idx1];
+                    const p2 = currentFrameInteractionPoints[idx2];
+
+                    const id1_num = parseInt(p1.id.split('-')[1]);
+                    const id2_num = parseInt(p2.id.split('-')[1]);
+                    const edgeKey = `${Math.min(id1_num, id2_num)}-${Math.max(id1_num, id2_num)}`;
+
+                    // Skip this edge if it was manually removed
+                    if (removedEdges.has(edgeKey)) return;
+
+                    const distPx = calculateDistance(p1, p2);
+                    const distUnits = baseSpacing > 0 ? distPx / baseSpacing : 0;
+
+                    for (const config of edgeConfigs) {
+                        if (config.enabled && distUnits >= config.lowerBound && distUnits <= config.upperBound) {
+                            // Store the drawable edge along with its key for the click handler
+                            allDrawableEdges.push({ p1, p2, config, key: edgeKey });
+                            break; // An edge is drawn only once by the first matching filter
+                        }
+                    }
+                });
+            }
+
+            // 2. Draw the Edges first
+            ctx.globalAlpha = 0.7;
+            allDrawableEdges.forEach(({ p1, p2, config }) => {
+                ctx.strokeStyle = config.color;
+                ctx.lineWidth = config.width;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            });
+            ctx.globalAlpha = 1.0;
+
+            // 3. Draw the Interaction Points on top to ensure they are solid and visible above edges
             currentFrameInteractionPoints.forEach(p => {
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
@@ -948,80 +1052,7 @@
                 ctx.fill();
             });
 
-            lastRenderedInteractionPoints = currentFrameInteractionPoints; 
-
-            // --- Draw Edges ---
-            const anyFilterEnabled = edgeConfigs.some(c => c.enabled);
-            if (!anyFilterEnabled || lastRenderedInteractionPoints.length < 2) {
-                return; // Don't draw any edges if no filters are enabled
-            }
-            
-            const edgeMethod = controls.edgeMethod.value;
-
-            // --- Naive Method ---
-            if (edgeMethod === 'naive') {
-                for (let i = 0; i < lastRenderedInteractionPoints.length; i++) {
-                    for (let j = i + 1; j < lastRenderedInteractionPoints.length; j++) {
-                        const p1 = lastRenderedInteractionPoints[i];
-                        const p2 = lastRenderedInteractionPoints[j];
-                        const distPx = calculateDistance(p1, p2);
-                        const distUnits = baseSpacing > 0 ? distPx / baseSpacing : 0;
-                        
-                        for (const config of edgeConfigs) {
-                            if (config.enabled && distUnits >= config.lowerBound && distUnits <= config.upperBound) {
-                                ctx.strokeStyle = config.color;
-                                ctx.lineWidth = config.width;
-                                ctx.globalAlpha = 0.7;
-                                ctx.beginPath();
-                                ctx.moveTo(p1.x, p1.y);
-                                ctx.lineTo(p2.x, p2.y);
-                                ctx.stroke();
-                                break; 
-                            }
-                        }
-                    }
-                }
-            }
-            // --- Delaunay + Filter Method ---
-            else if (edgeMethod === 'delaunay' && lastRenderedInteractionPoints.length > 2) {
-                const points = lastRenderedInteractionPoints.map(p => [p.x, p.y]);
-                const delaunay = d3.Delaunay.from(points);
-                const drawnEdges = new Set();
-                const triangles = delaunay.triangles;
-
-                for (let i = 0; i < triangles.length; i += 3) {
-                    const edgeIndices = [
-                        [triangles[i], triangles[i+1]],
-                        [triangles[i+1], triangles[i+2]],
-                        [triangles[i+2], triangles[i]]
-                    ];
-
-                    for (const [idx1, idx2] of edgeIndices) {
-                        const key = `${Math.min(idx1, idx2)}-${Math.max(idx1, idx2)}`;
-                        if (drawnEdges.has(key) || idx1 === undefined || idx2 === undefined) continue;
-                        
-                        const p1 = lastRenderedInteractionPoints[idx1];
-                        const p2 = lastRenderedInteractionPoints[idx2];
-                        const distPx = calculateDistance(p1, p2);
-                        const distUnits = baseSpacing > 0 ? distPx / baseSpacing : 0;
-
-                        for (const config of edgeConfigs) {
-                            if (config.enabled && distUnits >= config.lowerBound && distUnits <= config.upperBound) {
-                                ctx.strokeStyle = config.color;
-                                ctx.lineWidth = config.width;
-                                ctx.globalAlpha = 0.7;
-                                ctx.beginPath();
-                                ctx.moveTo(p1.x, p1.y);
-                                ctx.lineTo(p2.x, p2.y);
-                                ctx.stroke();
-                                break; 
-                            }
-                        }
-                        drawnEdges.add(key);
-                    }
-                }
-            }
-            ctx.globalAlpha = 1.0;
+            lastRenderedInteractionPoints = currentFrameInteractionPoints;
         }
 
         // --- Export Functionality ---
@@ -1040,7 +1071,9 @@
 
         function exportInteractionPoints() {
             if (lastRenderedInteractionPoints.length === 0) {
-                alert("No interaction points to export. Ensure 'Enable Interaction Layer' is checked and layers are configured for interaction.");
+                // Use a simple modal-like alert instead of a system alert()
+                const message = "No interaction points to export. Ensure 'Enable Interaction Layer' is checked and layers are configured for interaction.";
+                showModalMessage(message);
                 return;
             }
 
@@ -1056,12 +1089,144 @@
             });
             downloadFile("interaction_points_distances.txt", distanceContent);
         }
-        controls.exportInteractionPointsButton.addEventListener('click', exportInteractionPoints);
+        
+        // --- Settings Export/Import ---
+        function exportSettings() {
+            const settings = {
+                globalSettings: {
+                    latticeSize: controls.latticeSize.value,
+                    baseSpacing: controls.baseSpacing.value,
+                    numLayers: controls.numLayers.value,
+                    pointSize: controls.pointSize.value,
+                    interactionPointSize: controls.interactionPointSize.value,
+                    enableInteractions: controls.enableInteractions.checked,
+                    distanceThreshold: controls.distanceThreshold.value,
+                    interactionShape: controls.interactionShape.value,
+                    interactionAngle: controls.interactionAngle.value,
+                    edgeMethod: controls.edgeMethod.value,
+                },
+                layers: layers.map(l => {
+                    const cleanLayer = { ...l };
+                    // Exclude cached data to keep the file size small
+                    delete cleanLayer.localPointsCache;
+                    delete cleanLayer.transformedPointsCache;
+                    return cleanLayer;
+                }),
+                edgeConfigs: edgeConfigs
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(settings, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "tiling_settings.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importSettings() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json';
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const importedSettings = JSON.parse(event.target.result);
+                        loadSettings(importedSettings);
+                        showModalMessage("Settings loaded successfully!");
+                    } catch (error) {
+                        console.error("Failed to parse settings file:", error);
+                        showModalMessage("Error: Could not load settings. The file may be corrupted or invalid.");
+                    } finally {
+                        fileInput.remove();
+                    }
+                };
+                reader.onerror = () => {
+                    showModalMessage("Error reading file.");
+                    fileInput.remove();
+                };
+                reader.readAsText(file);
+            });
+            fileInput.click();
+        }
+
+        function loadSettings(settings) {
+            // Load global settings
+            const global = settings.globalSettings;
+            if (global) {
+                controls.latticeSize.value = global.latticeSize;
+                controls.baseSpacing.value = global.baseSpacing;
+                controls.numLayers.value = global.numLayers;
+                controls.pointSize.value = global.pointSize;
+                controls.interactionPointSize.value = global.interactionPointSize;
+                controls.enableInteractions.checked = global.enableInteractions;
+                controls.distanceThreshold.value = global.distanceThreshold;
+                controls.distanceThresholdNumber.value = global.distanceThreshold;
+                controls.interactionShape.value = global.interactionShape;
+                controls.interactionAngle.value = global.interactionAngle;
+                controls.interactionAngleNumber.value = global.interactionAngle;
+                controls.edgeMethod.value = global.edgeMethod;
+                controls.distanceThresholdLabel.textContent = `Interaction Radius: ${parseFloat(global.distanceThreshold).toFixed(3)}`;
+                controls.interactionAngleLabel.textContent = `Shape Rotation: ${parseFloat(global.interactionAngle).toFixed(2)}°`;
+                updateShapeIcon();
+            }
+
+            // Load layers
+            if (settings.layers && Array.isArray(settings.layers)) {
+                layers = settings.layers.map((l, index) => ({
+                    ...getDefaultLayer(index),
+                    ...l,
+                    // Ensure that the caches are cleared on load
+                    localPointsCache: null,
+                    transformedPointsCache: null
+                }));
+            } else {
+                layers = [];
+                // Re-initialize to default if layers data is invalid
+                updateNumberOfLayers();
+            }
+
+            // Load edge configs
+            if (settings.edgeConfigs && Array.isArray(settings.edgeConfigs)) {
+                edgeConfigs = settings.edgeConfigs;
+                edgeConfigCounter = edgeConfigs.length > 0 ? Math.max(...edgeConfigs.map(c => parseInt(c.id.split('-')[1]))) + 1 : 0;
+            } else {
+                edgeConfigs = [];
+            }
+            
+            // Re-render controls and simulation
+            handleSettingsChange();
+        }
+
+        // --- Custom Modal Functionality (to replace alert()) ---
+        function showModalMessage(message) {
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '50%';
+            modal.style.left = '50%';
+            modal.style.transform = 'translate(-50%, -50%)';
+            modal.style.backgroundColor = 'white';
+            modal.style.padding = '20px';
+            modal.style.borderRadius = '8px';
+            modal.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+            modal.style.zIndex = '1000';
+            modal.style.maxWidth = '300px';
+            modal.style.textAlign = 'center';
+            modal.innerHTML = `<p>${message}</p><button onclick="this.parentNode.remove()" style="margin-top: 15px;">OK</button>`;
+            document.body.appendChild(modal);
+        }
 
         // --- Event Listeners for Global Controls ---
         const handleSettingsChange = () => {
             invalidateAllPointCaches(); 
             generateLayerControls(); 
+            initializeEdgeConfigs();
             drawSimulation();
         };
 
@@ -1119,6 +1284,40 @@
         });
         controls.edgeMethod.addEventListener('change', drawSimulation);
 
+        // --- Edge Removal and Restore Logic ---
+        function handleCanvasClick(event) {
+            // Only act on Ctrl + Left Click
+            if (!event.ctrlKey || event.button !== 0) return;
+
+            event.preventDefault();
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const clickPoint = {
+                x: (event.clientX - rect.left) * scaleX,
+                y: (event.clientY - rect.top) * scaleY
+            };
+
+            let closestEdge = null;
+            let minDistance = Infinity;
+            const clickThreshold = 5; // Click precision in pixels
+
+            allDrawableEdges.forEach(edge => {
+                const distance = getDistanceToSegment(clickPoint, edge.p1, edge.p2);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestEdge = edge;
+                }
+            });
+
+            // If we found an edge within the threshold, remove it and redraw
+            if (closestEdge && minDistance < clickThreshold) {
+                removedEdges.add(closestEdge.key);
+                drawSimulation();
+            }
+        }
 
         function resizeCanvasContainer() {
             const controlPanelWidth = document.getElementById('controls').offsetWidth;
@@ -1170,8 +1369,20 @@
             updateNumberOfLayers(); 
             initializeEdgeConfigs(); 
             resizeCanvasContainer();
+
+            // Add listeners for new functionality
+            document.getElementById('restoreEdgesButton').addEventListener('click', () => {
+                removedEdges.clear();
+                drawSimulation();
+            });
+            canvas.addEventListener('click', handleCanvasClick);
         }
         
+        // Add new event listeners for export/import
+        controls.exportSettingsButton.addEventListener('click', exportSettings);
+        controls.importSettingsButton.addEventListener('click', importSettings);
+        controls.exportInteractionPointsButton.addEventListener('click', exportInteractionPoints);
+
         window.addEventListener('resize', resizeCanvasContainer);
         window.addEventListener('load', initialSetup);
         
