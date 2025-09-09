@@ -219,6 +219,18 @@
             width: auto;
             margin-right: 5px;
         }
+        .orientation-canvas {
+            border: 1px solid #ccc;
+            margin: 5px;
+            display: inline-block;
+            vertical-align: middle;
+            border-radius: 4px;
+        }
+        .shape-control-container {
+            border-top: 1px solid #eee;
+            margin-top: 15px;
+            padding-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -265,18 +277,43 @@
             <details>
                 <summary>Advanced Settings</summary>
                 <div style="padding-top: 10px;">
+                    <!-- Shape 1 Controls -->
                     <div class="label-with-icon">
-                        <label for="interactionShape">Interaction Shape:</label>
-                        <span id="shape-icon-display" class="shape-icon"></span>
+                        <label for="interactionShape1">Interaction Shape 1:</label>
                     </div>
-                    <select id="interactionShape">
+                    <select id="interactionShape1">
                         <!-- Options will be populated by JavaScript -->
                     </select>
-                    
-                    <label id="interactionAngleLabel" for="interactionAngle">Shape Rotation: 0°</label>
+                    <label id="interactionAngleLabel1" for="interactionAngle1">Shape 1 Rotation: 0°</label>
                     <div class="input-group">
-                        <input type="range" id="interactionAngle" value="0" min="0" max="360" step="0.1">
-                        <input type="number" id="interactionAngleNumber" value="0" min="0" max="360" step="0.1">
+                        <input type="range" id="interactionAngle1" value="0" min="0" max="360" step="0.1">
+                        <input type="number" id="interactionAngleNumber1" value="0" min="0" max="360" step="0.1">
+                    </div>
+
+                    <!-- Shape 2 Controls -->
+                    <div class="shape-control-container">
+                        <div>
+                             <input type="checkbox" id="enableShape2">
+                             <label for="enableShape2" class="label-inline">Enable Second Shape</label>
+                        </div>
+                        <div id="shape2-controls" style="display: none;">
+                             <label for="interactionShape2" style="margin-top:10px;">Interaction Shape 2:</label>
+                             <select id="interactionShape2">
+                                 <!-- Options will be populated by JavaScript -->
+                             </select>
+                             <label id="interactionAngleLabel2" for="interactionAngle2">Shape 2 Rotation: 0°</label>
+                             <div class="input-group">
+                                 <input type="range" id="interactionAngle2" value="0" min="0" max="360" step="0.1">
+                                 <input type="number" id="interactionAngleNumber2" value="0" min="0" max="360" step="0.1">
+                             </div>
+                        </div>
+                    </div>
+                     <div style="text-align: center; margin-top: 10px;">
+                        <label>Shape Orientations</label>
+                        <div>
+                            <canvas id="orientationCanvas1" width="80" height="80" class="orientation-canvas"></canvas>
+                            <canvas id="orientationCanvas2" width="80" height="80" class="orientation-canvas"></canvas>
+                        </div>
                     </div>
 
                     <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
@@ -327,14 +364,20 @@
             interactionEdgeConfigsContainer: document.getElementById('interaction-edge-configs-container'),
             addEdgeConfigButton: document.getElementById('add-edge-config-button'),
             // Advanced controls
-            interactionShape: document.getElementById('interactionShape'),
-            shapeIconDisplay: document.getElementById('shape-icon-display'),
-            interactionAngle: document.getElementById('interactionAngle'),
-            interactionAngleNumber: document.getElementById('interactionAngleNumber'),
-            interactionAngleLabel: document.getElementById('interactionAngleLabel'),
+            interactionShape1: document.getElementById('interactionShape1'),
+            interactionAngle1: document.getElementById('interactionAngle1'),
+            interactionAngleNumber1: document.getElementById('interactionAngleNumber1'),
+            interactionAngleLabel1: document.getElementById('interactionAngleLabel1'),
+            // Shape 2 controls
+            enableShape2: document.getElementById('enableShape2'),
+            shape2Controls: document.getElementById('shape2-controls'),
+            interactionShape2: document.getElementById('interactionShape2'),
+            interactionAngle2: document.getElementById('interactionAngle2'),
+            interactionAngleNumber2: document.getElementById('interactionAngleNumber2'),
+            interactionAngleLabel2: document.getElementById('interactionAngleLabel2'),
+            
             edgeMethod: document.getElementById('edgeMethod'),
             edgeConfigPanel: document.getElementById('edge-config-panel'),
-            // New buttons
             exportSettingsButton: document.getElementById('exportSettingsButton'),
             importSettingsButton: document.getElementById('importSettingsButton')
         };
@@ -467,23 +510,6 @@
             let normalized_val = (val_max === val_min) ? 0.5 : (val - val_min) / (val_max - val_min);
             normalized_val = 1 - Math.max(0, Math.min(1, normalized_val)); 
             return getViridisColor(normalized_val);
-        }
-
-
-        function getPolygonSvg(sides) {
-            if (sides == 0) { // Circle
-                return `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>`;
-            }
-            const points = [];
-            const radius = 9;
-            const center = 10;
-            for (let i = 0; i < sides; i++) {
-                const angle = (2 * Math.PI * i / sides) - (Math.PI / 2); // Start from top
-                const x = center + radius * Math.cos(angle);
-                const y = center + radius * Math.sin(angle);
-                points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
-            }
-            return `<svg viewBox="0 0 20 20"><polygon points="${points.join(' ')}" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>`;
         }
 
         function isPointInPolygon(point, vs) {
@@ -900,8 +926,13 @@
             const radiusInUnits = parseFloat(controls.distanceThreshold.value);
             const radiusPx = radiusInUnits * baseSpacing;
             const interactionPtSize = parseFloat(controls.interactionPointSize.value);
-            const numSides = parseInt(controls.interactionShape.value);
-            const rotationAngleRad = parseFloat(controls.interactionAngle.value) * Math.PI / 180;
+            
+            const numSides1 = parseInt(controls.interactionShape1.value);
+            const rotationAngleRad1 = (parseFloat(controls.interactionAngle1.value) * Math.PI / 180) - (Math.PI / 2);
+
+            const shape2Enabled = controls.enableShape2.checked;
+            const numSides2 = parseInt(controls.interactionShape2.value);
+            const rotationAngleRad2 = (parseFloat(controls.interactionAngle2.value) * Math.PI / 180) - (Math.PI / 2);
 
             const interactingLayersData = allPrecomputedData.filter(ld => ld.contributesToInteraction && ld.transformedPoints && ld.transformedPoints.length > 0);
             
@@ -919,14 +950,19 @@
                 let participatingNeighbors = [];
                 let minDistanceToOtherLayer = Infinity;
 
-                let polygonVertices = [];
-                if (numSides > 0) {
-                    for (let i = 0; i < numSides; i++) {
-                        const angle = (2 * Math.PI * i / numSides) + rotationAngleRad;
-                        polygonVertices.push({
-                            x: rp.x + radiusPx * Math.cos(angle),
-                            y: rp.y + radiusPx * Math.sin(angle)
-                        });
+                let polygonVertices1 = [];
+                if (numSides1 > 0) {
+                    for (let i = 0; i < numSides1; i++) {
+                        const angle = (2 * Math.PI * i / numSides1) + rotationAngleRad1;
+                        polygonVertices1.push({ x: rp.x + radiusPx * Math.cos(angle), y: rp.y + radiusPx * Math.sin(angle) });
+                    }
+                }
+                
+                let polygonVertices2 = [];
+                if (shape2Enabled && numSides2 > 0) {
+                    for (let i = 0; i < numSides2; i++) {
+                        const angle = (2 * Math.PI * i / numSides2) + rotationAngleRad2;
+                        polygonVertices2.push({ x: rp.x + radiusPx * Math.cos(angle), y: rp.y + radiusPx * Math.sin(angle) });
                     }
                 }
 
@@ -935,13 +971,23 @@
                     let minDistSqThisLayer = Infinity;
 
                     otherLayer.transformedPoints.forEach(op => {
-                        let isInside = false;
                         const distSq = Math.pow(rp.x - op.x, 2) + Math.pow(rp.y - op.y, 2);
+                        let isInside = false;
 
-                        if (numSides === 0) { // Circle mode
-                            if (distSq <= radiusPx * radiusPx) isInside = true;
-                        } else { // Polygon mode
-                            if (isPointInPolygon(op, polygonVertices)) isInside = true;
+                        // Check shape 1
+                        if (numSides1 === 0) { // Circle
+                           if (distSq <= radiusPx * radiusPx) isInside = true;
+                        } else { // Polygon
+                           if (isPointInPolygon(op, polygonVertices1)) isInside = true;
+                        }
+                        
+                        // Check shape 2 if enabled and not already inside
+                        if (!isInside && shape2Enabled) {
+                            if (numSides2 === 0) { // Circle
+                                if (distSq <= radiusPx * radiusPx) isInside = true;
+                            } else { // Polygon
+                                if (isPointInPolygon(op, polygonVertices2)) isInside = true;
+                            }
                         }
 
                         if (isInside) {
@@ -970,15 +1016,11 @@
             });
             
             // --- DRAWING LOGIC ---
-
-            // 1. Prepare a list of all edges that should be drawn based on filters
-            allDrawableEdges = []; // Reset for the current frame
+            allDrawableEdges = []; 
             const anyFilterEnabled = edgeConfigs.some(c => c.enabled);
 
             if (anyFilterEnabled && currentFrameInteractionPoints.length >= 2) {
                 const edgeMethod = controls.edgeMethod.value;
-                
-                // Using an IIFE to get potential edge index pairs from the chosen method (naive or Delaunay)
                 const potentialEdgeIndices = (() => {
                     const indices = [];
                     if (edgeMethod === 'naive') {
@@ -1007,32 +1049,24 @@
                     return indices;
                 })();
 
-                // Filter potential edges by length and check against the `removedEdges` set
                 potentialEdgeIndices.forEach(([idx1, idx2]) => {
                     const p1 = currentFrameInteractionPoints[idx1];
                     const p2 = currentFrameInteractionPoints[idx2];
-
                     const id1_num = parseInt(p1.id.split('-')[1]);
                     const id2_num = parseInt(p2.id.split('-')[1]);
                     const edgeKey = `${Math.min(id1_num, id2_num)}-${Math.max(id1_num, id2_num)}`;
-
-                    // Skip this edge if it was manually removed
                     if (removedEdges.has(edgeKey)) return;
-
                     const distPx = calculateDistance(p1, p2);
                     const distUnits = baseSpacing > 0 ? distPx / baseSpacing : 0;
-
                     for (const config of edgeConfigs) {
                         if (config.enabled && distUnits >= config.lowerBound && distUnits <= config.upperBound) {
-                            // Store the drawable edge along with its key for the click handler
                             allDrawableEdges.push({ p1, p2, config, key: edgeKey });
-                            break; // An edge is drawn only once by the first matching filter
+                            break;
                         }
                     }
                 });
             }
 
-            // 2. Draw the Edges first
             ctx.globalAlpha = 0.7;
             allDrawableEdges.forEach(({ p1, p2, config }) => {
                 ctx.strokeStyle = config.color;
@@ -1044,7 +1078,6 @@
             });
             ctx.globalAlpha = 1.0;
 
-            // 3. Draw the Interaction Points on top to ensure they are solid and visible above edges
             currentFrameInteractionPoints.forEach(p => {
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
@@ -1071,22 +1104,14 @@
 
         function exportInteractionPoints() {
             if (lastRenderedInteractionPoints.length === 0) {
-                // Use a simple modal-like alert instead of a system alert()
-                const message = "No interaction points to export. Ensure 'Enable Interaction Layer' is checked and layers are configured for interaction.";
-                showModalMessage(message);
+                showModalMessage("No interaction points to export. Ensure 'Enable Interaction Layer' is checked and layers are configured for interaction.");
                 return;
             }
-
             let xyContent = "x_px,y_px\n"; 
-            lastRenderedInteractionPoints.forEach(p => {
-                xyContent += `${p.x.toFixed(3)},${p.y.toFixed(3)}\n`;
-            });
+            lastRenderedInteractionPoints.forEach(p => { xyContent += `${p.x.toFixed(3)},${p.y.toFixed(3)}\n`; });
             downloadFile("interaction_points_xy.txt", xyContent);
-
             let distanceContent = "distance_to_nearest_primary_px\n";
-            lastRenderedInteractionPoints.forEach(p => {
-                distanceContent += `${p.distance.toFixed(3)}\n`;
-            });
+            lastRenderedInteractionPoints.forEach(p => { distanceContent += `${p.distance.toFixed(3)}\n`; });
             downloadFile("interaction_points_distances.txt", distanceContent);
         }
         
@@ -1101,18 +1126,21 @@
                     interactionPointSize: controls.interactionPointSize.value,
                     enableInteractions: controls.enableInteractions.checked,
                     distanceThreshold: controls.distanceThreshold.value,
-                    interactionShape: controls.interactionShape.value,
-                    interactionAngle: controls.interactionAngle.value,
+                    interactionShape1: controls.interactionShape1.value,
+                    interactionAngle1: controls.interactionAngle1.value,
+                    enableShape2: controls.enableShape2.checked,
+                    interactionShape2: controls.interactionShape2.value,
+                    interactionAngle2: controls.interactionAngle2.value,
                     edgeMethod: controls.edgeMethod.value,
                 },
                 layers: layers.map(l => {
                     const cleanLayer = { ...l };
-                    // Exclude cached data to keep the file size small
                     delete cleanLayer.localPointsCache;
                     delete cleanLayer.transformedPointsCache;
                     return cleanLayer;
                 }),
-                edgeConfigs: edgeConfigs
+                edgeConfigs: edgeConfigs,
+                removedEdges: Array.from(removedEdges)
             };
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(settings, null, 2));
             const downloadAnchorNode = document.createElement('a');
@@ -1157,42 +1185,39 @@
         }
 
         function loadSettings(settings) {
-            // Load global settings
             const global = settings.globalSettings;
             if (global) {
-                controls.latticeSize.value = global.latticeSize;
-                controls.baseSpacing.value = global.baseSpacing;
-                controls.numLayers.value = global.numLayers;
-                controls.pointSize.value = global.pointSize;
-                controls.interactionPointSize.value = global.interactionPointSize;
-                controls.enableInteractions.checked = global.enableInteractions;
-                controls.distanceThreshold.value = global.distanceThreshold;
-                controls.distanceThresholdNumber.value = global.distanceThreshold;
-                controls.interactionShape.value = global.interactionShape;
-                controls.interactionAngle.value = global.interactionAngle;
-                controls.interactionAngleNumber.value = global.interactionAngle;
-                controls.edgeMethod.value = global.edgeMethod;
-                controls.distanceThresholdLabel.textContent = `Interaction Radius: ${parseFloat(global.distanceThreshold).toFixed(3)}`;
-                controls.interactionAngleLabel.textContent = `Shape Rotation: ${parseFloat(global.interactionAngle).toFixed(2)}°`;
-                updateShapeIcon();
+                controls.latticeSize.value = global.latticeSize || 500;
+                controls.baseSpacing.value = global.baseSpacing || 40;
+                controls.numLayers.value = global.numLayers || 2;
+                controls.pointSize.value = global.pointSize || 3;
+                controls.interactionPointSize.value = global.interactionPointSize || 4;
+                controls.enableInteractions.checked = global.enableInteractions !== false;
+                controls.distanceThreshold.value = global.distanceThreshold || 0.5;
+                controls.distanceThresholdNumber.value = global.distanceThreshold || 0.5;
+                
+                controls.interactionShape1.value = global.interactionShape1 || 0;
+                controls.interactionAngle1.value = global.interactionAngle1 || 0;
+                controls.interactionAngleNumber1.value = global.interactionAngle1 || 0;
+                
+                controls.enableShape2.checked = global.enableShape2 || false;
+                controls.shape2Controls.style.display = controls.enableShape2.checked ? 'block' : 'none';
+                controls.interactionShape2.value = global.interactionShape2 || 0;
+                controls.interactionAngle2.value = global.interactionAngle2 || 0;
+                controls.interactionAngleNumber2.value = global.interactionAngle2 || 0;
+                
+                controls.edgeMethod.value = global.edgeMethod || 'naive';
+                controls.distanceThresholdLabel.textContent = `Interaction Radius: ${parseFloat(global.distanceThreshold || 0.5).toFixed(3)}`;
+                controls.interactionAngleLabel1.textContent = `Shape 1 Rotation: ${parseFloat(global.interactionAngle1 || 0).toFixed(2)}°`;
+                controls.interactionAngleLabel2.textContent = `Shape 2 Rotation: ${parseFloat(global.interactionAngle2 || 0).toFixed(2)}°`;
             }
 
-            // Load layers
             if (settings.layers && Array.isArray(settings.layers)) {
-                layers = settings.layers.map((l, index) => ({
-                    ...getDefaultLayer(index),
-                    ...l,
-                    // Ensure that the caches are cleared on load
-                    localPointsCache: null,
-                    transformedPointsCache: null
-                }));
+                layers = settings.layers.map((l, index) => ({...getDefaultLayer(index), ...l, localPointsCache: null, transformedPointsCache: null }));
             } else {
-                layers = [];
-                // Re-initialize to default if layers data is invalid
-                updateNumberOfLayers();
+                layers = []; updateNumberOfLayers();
             }
 
-            // Load edge configs
             if (settings.edgeConfigs && Array.isArray(settings.edgeConfigs)) {
                 edgeConfigs = settings.edgeConfigs;
                 edgeConfigCounter = edgeConfigs.length > 0 ? Math.max(...edgeConfigs.map(c => parseInt(c.id.split('-')[1]))) + 1 : 0;
@@ -1200,11 +1225,12 @@
                 edgeConfigs = [];
             }
             
-            // Re-render controls and simulation
+            removedEdges = new Set(settings.removedEdges || []);
+            
             handleSettingsChange();
+            drawAllOrientations();
         }
 
-        // --- Custom Modal Functionality (to replace alert()) ---
         function showModalMessage(message) {
             const modal = document.createElement('div');
             modal.style.position = 'fixed';
@@ -1222,7 +1248,6 @@
             document.body.appendChild(modal);
         }
 
-        // --- Event Listeners for Global Controls ---
         const handleSettingsChange = () => {
             invalidateAllPointCaches(); 
             generateLayerControls(); 
@@ -1258,61 +1283,90 @@
         controls.enableInteractions.addEventListener('change', drawSimulation);
         controls.addEdgeConfigButton.addEventListener('click', addNewEdgeConfig);
 
-        // --- Event Listeners for Advanced Controls ---
-        function updateShapeIcon() {
-            const sides = parseInt(controls.interactionShape.value, 10);
-            controls.shapeIconDisplay.innerHTML = getPolygonSvg(sides);
+        function drawOrientationVisualization(vizCanvas, shapeSelect, angleInput) {
+            const vizCtx = vizCanvas.getContext('2d');
+            const w = vizCanvas.width, h = vizCanvas.height;
+            const centerX = w / 2, centerY = h / 2, radius = w * 0.4;
+            const numSides = parseInt(shapeSelect.value);
+            const rotationAngleRad = parseFloat(angleInput.value) * Math.PI / 180;
+            vizCtx.clearRect(0, 0, w, h);
+            vizCtx.strokeStyle = '#e0e0e0'; vizCtx.lineWidth = 1;
+            vizCtx.beginPath(); vizCtx.moveTo(0, centerY); vizCtx.lineTo(w, centerY);
+            vizCtx.moveTo(centerX, 0); vizCtx.lineTo(centerX, h); vizCtx.stroke();
+            
+            if (numSides === 0) {
+                vizCtx.strokeStyle = '#333'; vizCtx.lineWidth = 2;
+                vizCtx.beginPath(); vizCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI); vizCtx.stroke();
+            } else if (numSides > 2) {
+                vizCtx.strokeStyle = '#333'; vizCtx.lineWidth = 2;
+                vizCtx.beginPath();
+                for (let i = 0; i <= numSides; i++) {
+                    const angle = (2 * Math.PI * i / numSides) + rotationAngleRad - (Math.PI / 2);
+                    const x = centerX + radius * Math.cos(angle); const y = centerY + radius * Math.sin(angle);
+                    if (i === 0) vizCtx.moveTo(x, y); else vizCtx.lineTo(x, y);
+                }
+                vizCtx.stroke();
+                const firstVertexAngle = rotationAngleRad - (Math.PI / 2);
+                const firstVertexX = centerX + radius * Math.cos(firstVertexAngle);
+                const firstVertexY = centerY + radius * Math.sin(firstVertexAngle);
+                vizCtx.strokeStyle = 'red'; vizCtx.lineWidth = 2;
+                vizCtx.beginPath(); vizCtx.moveTo(centerX, centerY); vizCtx.lineTo(firstVertexX, firstVertexY); vizCtx.stroke();
+            }
         }
-        controls.interactionShape.addEventListener('change', () => {
-            updateShapeIcon();
-            drawSimulation();
-        });
-        controls.interactionAngle.addEventListener('input', (e) => {
+        
+        const drawAllOrientations = () => {
+            drawOrientationVisualization(document.getElementById('orientationCanvas1'), controls.interactionShape1, controls.interactionAngle1);
+            drawOrientationVisualization(document.getElementById('orientationCanvas2'), controls.interactionShape2, controls.interactionAngle2);
+        };
+        
+        controls.interactionShape1.addEventListener('change', () => { drawAllOrientations(); drawSimulation(); });
+        controls.interactionAngle1.addEventListener('input', (e) => {
             const val = e.target.value;
-            controls.interactionAngleLabel.textContent = `Shape Rotation: ${val}°`;
-            controls.interactionAngleNumber.value = val;
-            drawSimulation();
+            controls.interactionAngleLabel1.textContent = `Shape 1 Rotation: ${parseFloat(val).toFixed(1)}°`;
+            controls.interactionAngleNumber1.value = parseFloat(val).toFixed(1);
+            drawAllOrientations(); drawSimulation();
         });
-        controls.interactionAngleNumber.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value).toFixed(3); 
-            if(isNaN(val)) val = 0;
-            val = Math.max(0, Math.min(360, val));
-            e.target.value = val;
-            controls.interactionAngleLabel.textContent = `Shape Rotation: ${val}°`;
-            controls.interactionAngle.value = val;
-            drawSimulation();
+        controls.interactionAngleNumber1.addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value); if(isNaN(val)) val=0;
+            val = Math.max(0, Math.min(360, val)); e.target.value = val.toFixed(1);
+            controls.interactionAngleLabel1.textContent = `Shape 1 Rotation: ${val.toFixed(1)}°`;
+            controls.interactionAngle1.value = val;
+            drawAllOrientations(); drawSimulation();
         });
+
+        controls.enableShape2.addEventListener('change', (e) => {
+            controls.shape2Controls.style.display = e.target.checked ? 'block' : 'none';
+            drawAllOrientations(); drawSimulation();
+        });
+        controls.interactionShape2.addEventListener('change', () => { drawAllOrientations(); drawSimulation(); });
+        controls.interactionAngle2.addEventListener('input', (e) => {
+            const val = e.target.value;
+            controls.interactionAngleLabel2.textContent = `Shape 2 Rotation: ${parseFloat(val).toFixed(1)}°`;
+            controls.interactionAngleNumber2.value = parseFloat(val).toFixed(1);
+            drawAllOrientations(); drawSimulation();
+        });
+        controls.interactionAngleNumber2.addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value); if(isNaN(val)) val=0;
+            val = Math.max(0, Math.min(360, val)); e.target.value = val.toFixed(1);
+            controls.interactionAngleLabel2.textContent = `Shape 2 Rotation: ${val.toFixed(1)}°`;
+            controls.interactionAngle2.value = val;
+            drawAllOrientations(); drawSimulation();
+        });
+
         controls.edgeMethod.addEventListener('change', drawSimulation);
 
-        // --- Edge Removal and Restore Logic ---
         function handleCanvasClick(event) {
-            // Only act on Ctrl + Left Click
             if (!event.ctrlKey || event.button !== 0) return;
-
             event.preventDefault();
-
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            const clickPoint = {
-                x: (event.clientX - rect.left) * scaleX,
-                y: (event.clientY - rect.top) * scaleY
-            };
-
-            let closestEdge = null;
-            let minDistance = Infinity;
-            const clickThreshold = 5; // Click precision in pixels
-
+            const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+            const clickPoint = { x: (event.clientX - rect.left) * scaleX, y: (event.clientY - rect.top) * scaleY };
+            let closestEdge = null, minDistance = Infinity;
+            const clickThreshold = 5;
             allDrawableEdges.forEach(edge => {
                 const distance = getDistanceToSegment(clickPoint, edge.p1, edge.p2);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestEdge = edge;
-                }
+                if (distance < minDistance) { minDistance = distance; closestEdge = edge; }
             });
-
-            // If we found an edge within the threshold, remove it and redraw
             if (closestEdge && minDistance < clickThreshold) {
                 removedEdges.add(closestEdge.key);
                 drawSimulation();
@@ -1338,39 +1392,32 @@
             canvas.style.height = (L * displayScale) + 'px';
         }
 
-        // --- Initial Setup ---
-        function populateInteractionShapes() {
+        function populateInteractionShapes(selectElement) {
             const shapes = [
-                { name: 'Circle', sides: 0 },
-                { name: 'Square', sides: 4 },
-                { name: 'Pentagon', sides: 5 },
-                { name: 'Hexagon', sides: 6 },
-                { name: 'Heptagon', sides: 7 },
-                { name: 'Octagon', sides: 8 },
-                { name: 'Nonagon', sides: 9 },
-                { name: 'Decagon', sides: 10 },
-                { name: 'Hendecagon', sides: 11 },
-                { name: 'Dodecagon', sides: 12 }
+                { name: 'Circle', sides: 0 }, { name: 'Square', sides: 4 },
+                { name: 'Pentagon', sides: 5 }, { name: 'Hexagon', sides: 6 },
+                { name: 'Heptagon', sides: 7 }, { name: 'Octagon', sides: 8 },
+                { name: 'Nonagon', sides: 9 }, { name: 'Decagon', sides: 10 },
+                { name: 'Hendecagon', sides: 11 }, { name: 'Dodecagon', sides: 12 }
             ];
-            const select = controls.interactionShape;
-            select.innerHTML = ''; // Clear existing options
+            selectElement.innerHTML = '';
             shapes.forEach(shape => {
                 const option = document.createElement('option');
                 option.value = shape.sides;
                 option.textContent = shape.sides === 0 ? `${shape.name} (Default)` : `${shape.name} (${shape.sides})`;
-                select.appendChild(option);
+                selectElement.appendChild(option);
             });
         }
 
         function initialSetup() {
             controls.distanceThresholdLabel.textContent = `Interaction Radius: ${parseFloat(controls.distanceThreshold.value).toFixed(3)}`;
-            populateInteractionShapes();
-            updateShapeIcon();
+            populateInteractionShapes(controls.interactionShape1);
+            populateInteractionShapes(controls.interactionShape2);
             updateNumberOfLayers(); 
             initializeEdgeConfigs(); 
             resizeCanvasContainer();
+            drawAllOrientations();
 
-            // Add listeners for new functionality
             document.getElementById('restoreEdgesButton').addEventListener('click', () => {
                 removedEdges.clear();
                 drawSimulation();
@@ -1378,7 +1425,6 @@
             canvas.addEventListener('click', handleCanvasClick);
         }
         
-        // Add new event listeners for export/import
         controls.exportSettingsButton.addEventListener('click', exportSettings);
         controls.importSettingsButton.addEventListener('click', importSettings);
         controls.exportInteractionPointsButton.addEventListener('click', exportInteractionPoints);
@@ -1388,3 +1434,4 @@
         
     </script></body>
 </html>
+
