@@ -261,6 +261,7 @@
 </head>
 <body>
     <div id="controls">
+	<h3>Tiling by Near Coincidence</h3>
         <button id="infoButton" class="secondary-button" style="width: 100%; margin-bottom: 15px;">How to use this app?</button>
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <button id="exportSettingsButton">Export Settings</button>
@@ -288,12 +289,16 @@
             <label for="interactionPointSize">Interaction Point Size (radius, px):</label>
             <input type="number" id="interactionPointSize" value="4" min="0.5" max="10" step="0.5">
 
-            <label id="colormapGammaLabel" for="colormapGamma" style="margin-top:11px;">Colormap Sensitivity (γ): 1.00</label>
-            <div class="input-group">
-                <input type="range" id="colormapGamma" value="1" min="0.1" max="5" step="0.01">
-                <input type="number" id="colormapGammaNumber" value="1" min="0.1" max="5" step="0.01">
-            </div>
-            <canvas id="colormapCanvas" width="340" height="50" style="border: 1px solid #ddd; border-radius: 4px; margin-top: -5px;"></canvas>
+            <details style="margin-top: 11px;">
+                <summary id="colormapGammaLabel">Colormap Sensitivity: 1.00</summary>
+                <div style="padding-top: 10px;">
+                    <div class="input-group">
+                        <input type="range" id="colormapGamma" value="1" min="0.1" max="5" step="0.01">
+                        <input type="number" id="colormapGammaNumber" value="1" min="0.1" max="5" step="0.01">
+                    </div>
+                    <canvas id="colormapCanvas" width="340" height="50" style="border: 1px solid #ddd; border-radius: 4px;"></canvas>
+                </div>
+            </details>
 
         </div>
         
@@ -1509,7 +1514,7 @@
                 
                 controls.edgeMethod.value = global.edgeMethod || 'naive';
                 controls.distanceThresholdLabel.textContent = `Interaction Radius: ${parseFloat(global.distanceThreshold || 0.5).toFixed(3)}`;
-                controls.colormapGammaLabel.textContent = `Colormap Sensitivity (γ): ${parseFloat(global.colormapGamma || 1.0).toFixed(2)}`;
+                controls.colormapGammaLabel.textContent = `Colormap Sensitivity: ${parseFloat(global.colormapGamma || 1.0).toFixed(2)}`;
                 controls.interactionAngleLabel1.textContent = `Shape 1 Rotation: ${parseFloat(global.interactionAngle1 || 0).toFixed(1)}°`;
                 controls.interactionShiftXLabel1.textContent = `Shape 1 Shift X: ${parseFloat(global.interactionShiftX1 || 0).toFixed(3)}`;
                 controls.interactionShiftYLabel1.textContent = `Shape 1 Shift Y: ${parseFloat(global.interactionShiftY1 || 0).toFixed(3)}`;
@@ -1607,7 +1612,7 @@
 
         // Colormap Gamma Control
         const updateGamma = (val) => {
-            controls.colormapGammaLabel.textContent = `Colormap Sensitivity (γ): ${parseFloat(val).toFixed(2)}`;
+            controls.colormapGammaLabel.textContent = `Colormap Sensitivity: ${parseFloat(val).toFixed(2)}`;
             drawColormapVisualization();
             drawSimulation();
         }
@@ -1833,7 +1838,7 @@
 
             content.innerHTML = `
                 <h2>About This Simulation</h2>
-                <p>This tool visualizes the Moiré-like patterns that emerge from overlapping periodic tilings or point sets, and implements the "near coincidence method to generate quasiperiodic tilings."</p>
+                <p>This tool visualizes the Moiré-like patterns that emerge from overlapping periodic tilings or point sets, and implements the "near coincidence" method to generate quasiperiodic tilings.</p>
                 <h3>Core Concepts</h3>
                 <ul>
                     <li><strong>Layers:</strong> Each colored layer (red, blue, etc.) is a 2D set of points (square, triangular, or honeycomb). You can control each layer's rotation, scale, and shift.</li>
@@ -1841,7 +1846,7 @@
                 </ul>
                 <h3>Key Controls</h3>
                 <ul>
-                    <li><strong>Global Settings:</strong> Control the overall size, spacing, and the sensitivity of the interaction point colormap (the γ slider).</li>
+                    <li><strong>Global Settings:</strong> Control the overall size, spacing, and the sensitivity of the interaction point colormap.</li>
                     <li><strong>Interaction Layer Settings:</strong> The "Interaction Radius" defines how close points must be to be considered for an interaction. The "Advanced Settings" allow you to define the shape (circle, polygon, etc.) and position of the search area around each point of the first layer.</li>
                     <li><strong>Edge Filters:</strong> These allow you to draw lines connecting interaction points that are within a specific distance range from each other. This is a powerful tool for revealing the new periodic or quasi-periodic tilings formed by the interaction points.</li>
                 </ul>
