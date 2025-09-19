@@ -932,7 +932,7 @@
                     switch (layerConfig.type) {
                         case 'square': localPts = generateSquareLatticePoints(drawL, baseSpacing); break;
                         case 'triangular': localPts = generateTriangularLatticePoints(drawL, baseSpacing); break;
-                        case 'honeycomb': localPts = generateHoneycombPointLatticePoints(drawL, baseSpacing / Math.sqrt(3) * 2 / 2 ); break; 
+                        case 'honeycomb': localPts = generateHoneycombPointLatticePoints(drawL, baseSpacing); break; 
                         default: localPts = [];
                     }
                     layerConfig.localPointsCache = localPts;
@@ -1195,7 +1195,7 @@
 
         function drawInteractionLayer(L, allPrecomputedData, baseSpacing) {
             if (!controls.enableInteractions.checked) {
-                lastRenderedInteractionPoints = []; 
+                lastRenderedInteractionPoints = [];
                 return;
             }
 
@@ -1203,7 +1203,7 @@
             const radiusPx = radiusInUnits * baseSpacing;
             const interactionPtSize = parseFloat(controls.interactionPointSize.value);
             const gamma = parseFloat(controls.colormapGamma.value);
-            
+
             const numSides1 = parseInt(controls.interactionShape1.value);
             const rotationAngleRad1 = -(parseFloat(controls.interactionAngle1.value) * Math.PI / 180);
             const shiftX1 = parseFloat(controls.interactionShiftX1.value);
@@ -1220,92 +1220,109 @@
             const shiftY2_px = shiftY2 * radiusPx;
 
             const interactingLayersData = allPrecomputedData.filter(ld => ld.contributesToInteraction && ld.transformedPoints && ld.transformedPoints.length > 0);
-            
-            if (interactingLayersData.length < 2) { 
-                 lastRenderedInteractionPoints = [];
-                 return;
+
+            if (interactingLayersData.length < 2) {
+                lastRenderedInteractionPoints = [];
+                return;
             }
 
-            const redLayerData = interactingLayersData[0]; 
-            const otherLayersData = interactingLayersData.slice(1); 
-            const currentFrameInteractionPoints = []; 
+            const redLayerData = interactingLayersData[0];
+            const otherLayersData = interactingLayersData.slice(1);
+            const currentFrameInteractionPoints = [];
 
             // --- Point Generation ---
             redLayerData.transformedPoints.forEach(rp => {
                 let participatingNeighbors = [];
-                let minDistanceToOtherLayer = Infinity;
+                let minDistanceForColoring = Infinity;
 
                 let polygonVertices1 = [];
                 if (numSides1 > 0) {
                     const centerX1 = rp.x + shiftX1_px;
-                    const centerY1 = rp.y - shiftY1_px; // FIX: Subtract to move up
+                    const centerY1 = rp.y - shiftY1_px; 
+                    let initialRotationOffset1 = (numSides1 % 2 !== 0) ? (3 * Math.PI / 2) : (Math.PI / numSides1);
                     for (let i = 0; i < numSides1; i++) {
-                        const angle = (2 * Math.PI * i / numSides1) + rotationAngleRad1;
+                        const angle = (2 * Math.PI * i / numSides1) + rotationAngleRad1 + initialRotationOffset1;
                         polygonVertices1.push({ x: centerX1 + radiusPx * Math.cos(angle), y: centerY1 + radiusPx * Math.sin(angle) });
                     }
                 }
-                
+
                 let polygonVertices2 = [];
                 if (shape2Enabled && numSides2 > 0) {
                     const centerX2 = rp.x + shiftX2_px;
-                    const centerY2 = rp.y - shiftY2_px; // FIX: Subtract to move up
+                    const centerY2 = rp.y - shiftY2_px;
+                    let initialRotationOffset2 = (numSides2 % 2 !== 0) ? (3 * Math.PI / 2) : (Math.PI / numSides2);
                     for (let i = 0; i < numSides2; i++) {
-                        const angle = (2 * Math.PI * i / numSides2) + rotationAngleRad2;
+                        const angle = (2 * Math.PI * i / numSides2) + rotationAngleRad2 + initialRotationOffset2;
                         polygonVertices2.push({ x: centerX2 + radiusPx * Math.cos(angle), y: centerY2 + radiusPx * Math.sin(angle) });
                     }
                 }
 
                 otherLayersData.forEach(otherLayer => {
                     let nearestNeighborThisLayer = null;
-                    let minDistSqThisLayer = Infinity;
+                    let minDistSqToPrimaryPoint = Infinity;
+                    let coloringDistSqForNearest = Infinity;
 
                     otherLayer.transformedPoints.forEach(op => {
                         let isInside = false;
+                        let currentDistSqForColoring = Infinity;
 
                         // Check shape 1
+                        const distSqFromShape1Center = Math.pow((rp.x + shiftX1_px) - op.x, 2) + Math.pow((rp.y - shiftY1_px) - op.y, 2);
                         if (numSides1 === 0) { // Circle
-                           const distSq = Math.pow((rp.x + shiftX1_px) - op.x, 2) + Math.pow((rp.y - shiftY1_px) - op.y, 2); // FIX: Subtract to move up
-                           if (distSq <= radiusPx * radiusPx) isInside = true;
+                            if (distSqFromShape1Center <= radiusPx * radiusPx) {
+                                isInside = true;
+                                currentDistSqForColoring = distSqFromShape1Center;
+                            }
                         } else { // Polygon
-                           if (isPointInPolygon(op, polygonVertices1)) isInside = true;
+                            if (isPointInPolygon(op, polygonVertices1)) {
+                                isInside = true;
+                                currentDistSqForColoring = distSqFromShape1Center;
+                            }
                         }
-                        
+
                         // Check shape 2 if enabled and not already inside
                         if (!isInside && shape2Enabled) {
+                            const distSqFromShape2Center = Math.pow((rp.x + shiftX2_px) - op.x, 2) + Math.pow((rp.y - shiftY2_px) - op.y, 2);
                             if (numSides2 === 0) { // Circle
-                                const distSq = Math.pow((rp.x + shiftX2_px) - op.x, 2) + Math.pow((rp.y - shiftY2_px) - op.y, 2); // FIX: Subtract to move up
-                                if (distSq <= radiusPx * radiusPx) isInside = true;
+                                if (distSqFromShape2Center <= radiusPx * radiusPx) {
+                                    isInside = true;
+                                    currentDistSqForColoring = distSqFromShape2Center;
+                                }
                             } else { // Polygon
-                                if (isPointInPolygon(op, polygonVertices2)) isInside = true;
+                                if (isPointInPolygon(op, polygonVertices2)) {
+                                    isInside = true;
+                                    currentDistSqForColoring = distSqFromShape2Center;
+                                }
                             }
                         }
 
                         if (isInside) {
-                            const distSqToCenter = Math.pow(rp.x - op.x, 2) + Math.pow(rp.y - op.y, 2);
-                            if (distSqToCenter < minDistSqThisLayer) {
-                                minDistSqThisLayer = distSqToCenter;
+                            const distSqToPrimary = Math.pow(rp.x - op.x, 2) + Math.pow(rp.y - op.y, 2);
+                            if (distSqToPrimary < minDistSqToPrimaryPoint) {
+                                minDistSqToPrimaryPoint = distSqToPrimary;
                                 nearestNeighborThisLayer = op;
+                                coloringDistSqForNearest = currentDistSqForColoring;
                             }
                         }
                     });
-                    
+
                     if (nearestNeighborThisLayer) {
                         participatingNeighbors.push(nearestNeighborThisLayer);
-                        minDistanceToOtherLayer = Math.min(minDistanceToOtherLayer, Math.sqrt(minDistSqThisLayer));
+                        minDistanceForColoring = Math.min(minDistanceForColoring, Math.sqrt(coloringDistSqForNearest));
                     }
                 });
 
                 if (participatingNeighbors.length > 0) {
-                    let clusterPoints = [rp, ...participatingNeighbors]; 
+                    let clusterPoints = [rp, ...participatingNeighbors];
                     let sumX = 0, sumY = 0;
                     clusterPoints.forEach(p => { sumX += p.x; sumY += p.y; });
                     const avgX = sumX / clusterPoints.length;
                     const avgY = sumY / clusterPoints.length;
-                    const color = getColorForDistance(minDistanceToOtherLayer, radiusPx, gamma);
-                    currentFrameInteractionPoints.push({x: avgX, y: avgY, color: color, distance: minDistanceToOtherLayer, id: `ip-${currentFrameInteractionPoints.length}`}); 
+                    const color = getColorForDistance(minDistanceForColoring, radiusPx, gamma);
+                    currentFrameInteractionPoints.push({ x: avgX, y: avgY, color: color, distance: minDistanceForColoring, id: `ip-${currentFrameInteractionPoints.length}` });
                 }
             });
-            
+
             // --- DRAWING LOGIC ---
             allDrawableEdges = []; 
             const anyFilterEnabled = edgeConfigs.some(c => c.enabled);
@@ -1379,6 +1396,7 @@
             lastRenderedInteractionPoints = currentFrameInteractionPoints;
         }
 
+
         // --- Export Functionality ---
         function downloadFile(filename, content) {
             const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -1398,10 +1416,10 @@
                 showModalMessage("No interaction points to export. Ensure 'Enable Interaction Layer' is checked and layers are configured for interaction.");
                 return;
             }
-            let xyContent = "x_px,y_px\n"; 
+            let xyContent = "x_px,y_px\n";
             lastRenderedInteractionPoints.forEach(p => { xyContent += `${p.x.toFixed(3)},${p.y.toFixed(3)}\n`; });
             downloadFile("interaction_points_xy.txt", xyContent);
-            let distanceContent = "distance_to_nearest_primary_px\n";
+            let distanceContent = "distance_to_shape_center_px\n";
             lastRenderedInteractionPoints.forEach(p => { distanceContent += `${p.distance.toFixed(3)}\n`; });
             downloadFile("interaction_points_distances.txt", distanceContent);
         }
@@ -1697,19 +1715,25 @@
             } else if (numSides > 0) { // Polygon
                 vizCtx.strokeStyle = '#333'; vizCtx.lineWidth = 2;
                 vizCtx.beginPath();
+                let initialRotationOffset = 0;
+                if (numSides % 2 !== 0) { // If N is odd, rotate by 90 degrees
+                    initialRotationOffset = 3*Math.PI / 2;
+                } else { // If N is even, rotate by pi/N
+                    initialRotationOffset = Math.PI / numSides;
+                }
                 for (let i = 0; i <= numSides; i++) {
-                    const angle = (2 * Math.PI * i / numSides) + rotationAngleRad;
+                    const angle = (2 * Math.PI * i / numSides) + rotationAngleRad + initialRotationOffset;
                     const x = finalCenterX + radius * Math.cos(angle); const y = finalCenterY + radius * Math.sin(angle);
                     if (i === 0) vizCtx.moveTo(x, y); else vizCtx.lineTo(x, y);
                 }
                 vizCtx.stroke();
                 
-                // Draw line from center to first vertex
-                const firstVertexAngle = rotationAngleRad;
-                const firstVertexX = finalCenterX + radius * Math.cos(firstVertexAngle);
-                const firstVertexY = finalCenterY + radius * Math.sin(firstVertexAngle);
+                // Draw line indicating the user-controlled rotation angle (0 degrees = positive x-axis)
+                const rotationIndicatorAngle = rotationAngleRad;
+                const indicatorX = finalCenterX + radius * Math.cos(rotationIndicatorAngle);
+                const indicatorY = finalCenterY + radius * Math.sin(rotationIndicatorAngle);
                 vizCtx.strokeStyle = 'red'; vizCtx.lineWidth = 2;
-                vizCtx.beginPath(); vizCtx.moveTo(finalCenterX, finalCenterY); vizCtx.lineTo(firstVertexX, firstVertexY); vizCtx.stroke();
+                vizCtx.beginPath(); vizCtx.moveTo(finalCenterX, finalCenterY); vizCtx.lineTo(indicatorX, indicatorY); vizCtx.stroke();
             }
         }
         
