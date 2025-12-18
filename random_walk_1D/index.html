@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1D Random Walk - Diffusion Analysis</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f4f9; }
+        h1 { text-align: center; margin-bottom: 10px; }
+        
+        /* Layout */
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .visual-container {
+            grid-column: 1 / -1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        #walker-canvas {
+            border: 1px solid #ddd;
+            background: #fafafa;
+            margin-top: 10px;
+            width: 100%;
+            height: 60px;
+        }
+
+        .plot-box {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            min-height: 400px;
+        }
+
+        .controls {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        .btn-analyze { background-color: #28a745; }
+        .btn-analyze:hover { background-color: #218838; }
+
+        .stats { font-weight: bold; margin-top: 10px; }
+
+        /* Popup Modal Styles */
+        .modal-overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            position: relative;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px; right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>1D Random Walk (N=10,001) with Analysis</h1>
+
+    <div class="container">
+        <div class="controls">
+            <button id="startBtn" onclick="startSimulation()">Start Simulation</button>
+            <button id="analyzeBtn" class="btn-analyze" onclick="showAnalysis()" disabled>Analyze Diffusion (D)</button>
+            <div class="stats">
+                Time Step: <span id="timeDisplay">0</span> / 10001 <br>
+                Current MSD: <span id="msdDisplay">0</span>
+            </div>
+        </div>
+
+        <div class="visual-container">
+            <h3>Live Trajectory (Walker #0)</h3>
+            <canvas id="walker-canvas" height="60"></canvas>
+        </div>
+
+        <div class="plot-box">
+            <div id="trajectoryPlot"></div>
+        </div>
+        <div class="plot-box">
+            <div id="histogramPlot"></div>
+        </div>
+    </div>
+
+    <div id="analysisModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAnalysis()">&times;</span>
+            <h2 style="text-align:center">Diffusion Analysis</h2>
+            <div id="analysisPlot" style="height: 400px;"></div>
+            <div id="analysisResult" style="text-align:center; font-size: 1.2em; margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration (Updated as requested) ---
+        const NUM_WALKERS = 10001;
+        const MAX_STEPS = 10001;
+        const STEPS_PER_FRAME = 50; 
+        const SNAPSHOTS = [2000, 4000, 6000, 8000, 10000];
+
+        // --- State ---
+        let positions = new Float32Array(NUM_WALKERS).fill(0);
+        let time = 0;
+        let isRunning = false;
+        let animationFrameId;
+        
+        // Data Storage
+        let walker0Path_x = [0];
+        let walker0Path_y = [0];
+        // Store stats for analysis: { t, sigma, variance }
+        let snapshotStats = [];
+
+        // --- DOM Elements ---
+        const canvas = document.getElementById('walker-canvas');
+        const ctx = canvas.getContext('2d');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const msdDisplay = document.getElementById('msdDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const modal = document.getElementById('analysisModal');
+
+        // --- Initialization ---
+        function initPlots() {
+            Plotly.newPlot('trajectoryPlot', [{
+                x: [0], y: [0], mode: 'lines', name: 'Walker 0', line: { color: '#2ca02c' }
+            }], {
+                title: 'Trajectory of Walker #0',
+                xaxis: { title: 'Time (t)', range: [0, MAX_STEPS] },
+                yaxis: { title: 'Position (x)' }
+            });
+
+            Plotly.newPlot('histogramPlot', [], {
+                title: 'Distribution of Positions at Snapshots',
+                xaxis: { title: 'Position (x)', range: [-350, 350] },
+                yaxis: { title: 'Count' },
+                barmode: 'overlay',
+                showlegend: true
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth - 40;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function drawSingleWalker(x) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const w = canvas.width;
+            const h = canvas.height;
+            const center = w / 2;
+            const scale = w / 700; 
+
+            ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+            ctx.strokeStyle = '#ccc'; ctx.stroke();
+
+            ctx.beginPath(); ctx.moveTo(center, h/2 - 10); ctx.lineTo(center, h/2 + 10);
+            ctx.strokeStyle = '#000'; ctx.stroke();
+
+            const px = center + (x * scale);
+            ctx.beginPath(); ctx.arc(px, h/2, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = 'red'; ctx.fill();
+        }
+
+        // --- Simulation Logic ---
+        function step() {
+            if (time >= MAX_STEPS) {
+                stopSimulation();
+                analyzeBtn.disabled = false; // Enable analysis at end
+                return;
+            }
+
+            let hitSnapshot = false;
+            let currentBatch = 0;
+
+            while (currentBatch < STEPS_PER_FRAME && time < MAX_STEPS) {
+                time++;
+                for (let i = 0; i < NUM_WALKERS; i++) {
+                    positions[i] += (Math.random() < 0.5 ? -1 : 1);
+                }
+
+                if (time % 10 === 0) {
+                    walker0Path_x.push(time);
+                    walker0Path_y.push(positions[0]);
+                }
+
+                if (SNAPSHOTS.includes(time)) {
+                    processSnapshot(time);
+                    hitSnapshot = true;
+                }
+                currentBatch++;
+            }
+
+            timeDisplay.innerText = time;
+            
+            // Calculate MSD (approx Variance for mean=0)
+            let sumSq = 0;
+            for(let i=0; i<NUM_WALKERS; i++) sumSq += positions[i]*positions[i];
+            const msd = sumSq / NUM_WALKERS;
+            msdDisplay.innerText = msd.toFixed(2);
+
+            drawSingleWalker(positions[0]);
+
+            Plotly.extendTraces('trajectoryPlot', {
+                x: [walker0Path_x.slice(-Math.ceil(STEPS_PER_FRAME/10))],
+                y: [walker0Path_y.slice(-Math.ceil(STEPS_PER_FRAME/10))]
+            }, [0]);
+
+            if (time < MAX_STEPS) {
+                animationFrameId = requestAnimationFrame(step);
+            } else {
+                stopSimulation();
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        function processSnapshot(t) {
+            // 1. Calculate Statistics for Analysis
+            let sum = 0; 
+            let sumSq = 0;
+            for(let i=0; i<NUM_WALKERS; i++){
+                sum += positions[i];
+                sumSq += positions[i]*positions[i];
+            }
+            const mean = sum / NUM_WALKERS;
+            const variance = (sumSq / NUM_WALKERS) - (mean * mean);
+            const std = Math.sqrt(variance);
+
+            // Store for the popup
+            snapshotStats.push({ t: t, sigma: std, variance: variance });
+
+            // 2. Add to Histogram Plot
+            const currentPositions = Array.from(positions);
+            const trace = {
+                x: currentPositions,
+                type: 'histogram',
+                opacity: 0.5,
+                name: `t=${t}`,
+                marker: { color: getTimeColor(t) },
+                xbins: { size: 5 } // Bin size 5 to fix parity visual
+            };
+            Plotly.addTraces('histogramPlot', trace);
+        }
+
+        // --- Analysis & Popup Logic ---
+        function showAnalysis() {
+            modal.style.display = 'flex';
+            
+            // Prepare Data for Linear Fit: Variance vs Time
+            // Theory: Var = 2*D*t  --> Slope = 2D
+            const xVal = snapshotStats.map(d => d.t);
+            const yVal = snapshotStats.map(d => d.variance); // Fitting Variance (Sigma^2)
+
+            // Linear Regression (Least Squares)
+            const n = xVal.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            for (let i = 0; i < n; i++) {
+                sumX += xVal[i];
+                sumY += yVal[i];
+                sumXY += xVal[i] * yVal[i];
+                sumXX += xVal[i] * xVal[i];
+            }
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+
+            // Generate Fit Line Points
+            const fitX = [0, MAX_STEPS];
+            const fitY = [intercept, slope * MAX_STEPS + intercept];
+
+            // Calculate D
+            const D = slope / 2;
+
+            // Plot in Modal
+            Plotly.newPlot('analysisPlot', [
+                {
+                    x: xVal, y: yVal,
+                    mode: 'markers',
+                    type: 'scatter',
+                    name: 'Measured Variance (σ²)',
+                    marker: { size: 10, color: 'blue' }
+                },
+                {
+                    x: fitX, y: fitY,
+                    mode: 'lines',
+                    name: `Linear Fit (Slope=${slope.toFixed(3)})`,
+                    line: { color: 'red', dash: 'dash' }
+                }
+            ], {
+                title: 'Variance vs Time (Linear Fit)',
+                xaxis: { title: 'Time (t)' },
+                yaxis: { title: 'Variance (σ²)' }
+            });
+
+            // Display Text Result
+            const theoryD = 0.5; // For step=1, time=1
+            const error = Math.abs((D - theoryD)/theoryD) * 100;
+            
+            document.getElementById('analysisResult').innerHTML = `
+                Calculated Slope (2D) = <b>${slope.toFixed(4)}</b> <br>
+                Diffusion Constant (D) = <b>${D.toFixed(4)}</b> <br>
+                <small>(Theoretical D = 0.50, Error = ${error.toFixed(2)}%)</small>
+            `;
+        }
+
+        function closeAnalysis() {
+            modal.style.display = 'none';
+        }
+
+        // --- Control Logic ---
+        function startSimulation() {
+            if (isRunning) return;
+            isRunning = true;
+            startBtn.disabled = true;
+            analyzeBtn.disabled = true;
+            
+            initPlots();
+            
+            positions.fill(0);
+            time = 0;
+            walker0Path_x = [0];
+            walker0Path_y = [0];
+            snapshotStats = [];
+            
+            step();
+        }
+
+        function stopSimulation() {
+            isRunning = false;
+            startBtn.disabled = false;
+            startBtn.innerText = "Restart Simulation";
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        function getTimeColor(t) {
+            const progress = t / MAX_STEPS;
+            const r = Math.floor(255 * progress);
+            const b = Math.floor(255 * (1 - progress));
+            return `rgb(${r}, 0, ${b})`;
+        }
+
+        initPlots();
+    </script>
+</body>
+</html>
