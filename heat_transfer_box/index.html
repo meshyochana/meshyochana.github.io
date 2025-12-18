@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Heat Equation Simulator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', sans-serif; }
+        
+        /* UI Elements */
+        #ui-layer { position: absolute; top: 15px; left: 15px; pointer-events: none; }
+        .btn { 
+            pointer-events: auto; background: #222; color: #fff; border: 1px solid #444; 
+            padding: 8px 15px; cursor: pointer; border-radius: 4px; font-size: 14px;
+        }
+        .btn:hover { background: #333; border-color: #00aaff; }
+
+        /* Modal Styles */
+        #info-modal {
+            display: none; position: fixed; z-index: 100; left: 0; top: 0; 
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.85);
+            overflow-y: auto;
+        }
+        .modal-content {
+            background-color: #1a1a1a; color: #ddd; margin: 5% auto; padding: 30px;
+            border: 1px solid #333; width: 70%; border-radius: 8px; line-height: 1.6;
+        }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: #fff; }
+        h2 { color: #00aaff; }
+        code { background: #2a2a2a; padding: 2px 5px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <button class="btn" onclick="openModal()">ⓘ Simulation Info</button>
+    </div>
+
+    <div id="info-modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>3D Heat Equation: z=0 Steady-State Source</h2>
+            <hr style="border:0; border-top:1px solid #333">
+            
+            <h3>The Physics Setup</h3>
+            <p>We solve the 3D Heat Equation for a rectangular box of dimensions L_1*L_2*L_3. 
+            The boundary conditions are set such that the <b>bottom facet (z=0)</b> is maintained at a constant temperature T_{hot}, 
+            while all other five facets are held at 0.</p>
+
+            <h3>Governing Equation</h3>
+            <p>The temperature distribution T(x,y,z,t) follows the partial differential equation:
+            $$\frac{\partial T}{\partial t} = D \left( \frac{\partial^2 T}{\partial x^2} + \frac{\partial^2 T}{\partial y^2} + \frac{\partial^2 T}{\partial z^2} \right)$$
+            where D is the thermal diffusivity.</p>
+
+            <h3>The Solution</h3>
+            <p>The solution is composed of a sum of spatial modes. For the constant source at z=0, the solution at any time t is:
+            $$T(x,y,z,t) = \sum_{n,m \text{ odd}} A_{nm} \sin\left(\frac{n\pi x}{L_1}\right) \sin\left(\frac{m\pi z}{L_3}\right) \frac{\sinh(\gamma_{nm}(L_2 - y))}{\sinh(\gamma_{nm}L_2)} \left(1 - e^{-D \gamma_{nm}^2 t}\right)$$
+            Where the separation constant $\gamma_{nm}$ and coefficients $A_{nm}$ are defined as:
+            $$\gamma_{nm} = \pi \sqrt{\left(\frac{n}{L_1}\right)^2 + \left(\frac{m}{L_3}\right)^2}, \quad A_{nm} = \frac{16 T_{hot}}{\pi^2 n m}$$
+            </p>
+
+            <h3>Parameters</h3>
+            <ul>
+                <li><b>$L_1, L_2, L_3$:</b> Length, Depth, and Height of the box.</li>
+                <li><b>Diffusivity ($D$):</b> Controls how fast heat penetrates the volume.</li>
+                <li><b>$T_{hot}$:</b> The constant temperature applied to the z=0 plane.</li>
+                <li><b>Color Scale:</b> Normalizes the visualization. Adjust this if the box appears too dim or oversaturated.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+        // --- State ---
+        const params = {
+            L1: 6, L2: 6, L3: 6,
+            D: 0.1,
+            Thot: 100,
+            colorSensitivity: 100,
+            n_terms: 8,
+            Play: () => { isPlaying = true; },
+            Pause: () => { isPlaying = false; },
+            Reset: () => { time = 0; }
+        };
+
+        let isPlaying = true;
+        let time = 0;
+        let scene, camera, renderer, controls, particles, geometry;
+        const particleCount = 7000;
+
+        // --- Initialization ---
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(12, 10, 12);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x111111));
+
+            createParticles();
+            setupGUI();
+            animate();
+        }
+
+        function createParticles() {
+            if (particles) scene.remove(particles);
+            geometry = new THREE.BufferGeometry();
+            const pos = new Float32Array(particleCount * 3);
+            const col = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                pos[i * 3] = Math.random() * params.L1;
+                pos[i * 3 + 1] = Math.random() * params.L2;
+                pos[i * 3 + 2] = Math.random() * params.L3;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
+
+            particles = new THREE.Points(geometry, new THREE.PointsMaterial({
+                size: 0.08, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending
+            }));
+            scene.add(particles);
+        }
+
+        function calculateT(x, y, z, t) {
+            let T = 0;
+            const PI = Math.PI;
+            for (let n = 1; n <= params.n_terms; n += 2) {
+                for (let m = 1; m <= params.n_terms; m += 2) {
+                    const gamma = PI * Math.sqrt((n/params.L1)**2 + (m/params.L3)**2);
+                    const Anm = (16 * params.Thot) / (PI * PI * n * m);
+                    const spatial = Math.sin(n * PI * x / params.L1) * Math.sin(m * PI * z / params.L3);
+                    const yDecay = Math.sinh(gamma * (params.L2 - y)) / Math.sinh(gamma * params.L2);
+                    const temporal = 1 - Math.exp(-params.D * gamma * gamma * t);
+                    T += Anm * spatial * yDecay * temporal;
+                }
+            }
+            return T;
+        }
+
+        function setupGUI() {
+            const gui = new GUI();
+            const f1 = gui.addFolder('Geometry');
+            f1.add(params, 'L1', 1, 15).name('Length X').onChange(createParticles);
+            f1.add(params, 'L2', 1, 15).name('Depth Y').onChange(createParticles);
+            f1.add(params, 'L3', 1, 15).name('Height Z').onChange(createParticles);
+            
+            const f2 = gui.addFolder('Physics');
+            f2.add(params, 'D', 0.01, 1).name('Diffusivity');
+            f2.add(params, 'Thot', 0, 1000).name('T_hot (y=0)');
+            f2.add(params, 'colorSensitivity', 10, 500).name('Color Scale');
+
+            const f3 = gui.addFolder('Animation');
+            f3.add(params, 'Play');
+            f3.add(params, 'Pause');
+            f3.add(params, 'Reset');
+            f1.open(); f2.open(); f3.open();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isPlaying) time += 0.02;
+
+            const pos = geometry.attributes.position.array;
+            const col = geometry.attributes.color.array;
+
+            for (let i = 0; i < particleCount; i++) {
+                const T = calculateT(pos[i*3], pos[i*3+1], pos[i*3+2], time);
+                const nT = Math.min(T / params.colorSensitivity, 1);
+                col[i*3] = nT * 1.3;
+                col[i*3+1] = Math.pow(nT, 3);
+                col[i*3+2] = (1 - nT) * 0.2;
+            }
+            geometry.attributes.color.needsUpdate = true;
+            renderer.render(scene, camera);
+            controls.update();
+        }
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        init();
+    </script>
+
+    <script>
+        // Modal Logic
+        function openModal() { document.getElementById("info-modal").style.display = "block"; }
+        function closeModal() { document.getElementById("info-modal").style.display = "none"; }
+        window.onclick = function(event) {
+            let modal = document.getElementById("info-modal");
+            if (event.target == modal) modal.style.display = "none";
+        }
+    </script>
+</body>
+</html>
