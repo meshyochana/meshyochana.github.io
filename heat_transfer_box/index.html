@@ -2,42 +2,44 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>3D Heat Equation Simulator</title>
+    <title>3D Heat Simulator - Final Orientation</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', sans-serif; }
-        
-        /* UI Elements */
-        #ui-layer { position: absolute; top: 15px; left: 15px; pointer-events: none; }
+        #ui-layer { position: absolute; top: 15px; left: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
         .btn { 
             pointer-events: auto; background: #222; color: #fff; border: 1px solid #444; 
-            padding: 8px 15px; cursor: pointer; border-radius: 4px; font-size: 14px;
+            padding: 8px 15px; cursor: pointer; border-radius: 4px; font-size: 13px;
         }
         .btn:hover { background: #333; border-color: #00aaff; }
-
-        /* Modal Styles */
+        #plot-container {
+            position: absolute; bottom: 20px; right: 20px; width: 420px; height: 260px;
+            background: rgba(10, 10, 10, 0.9); border: 1px solid #333; border-radius: 8px;
+            padding: 10px; display: none; z-index: 10;
+        }
         #info-modal {
             display: none; position: fixed; z-index: 100; left: 0; top: 0; 
-            width: 100%; height: 100%; background-color: rgba(0,0,0,0.85);
-            overflow-y: auto;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); overflow-y: auto;
         }
         .modal-content {
             background-color: #1a1a1a; color: #ddd; margin: 5% auto; padding: 30px;
             border: 1px solid #333; width: 70%; border-radius: 8px; line-height: 1.6;
         }
         .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close:hover { color: #fff; }
-        h2 { color: #00aaff; }
-        code { background: #2a2a2a; padding: 2px 5px; border-radius: 3px; }
     </style>
 </head>
 <body>
 
     <div id="ui-layer">
         <button class="btn" onclick="openModal()">ⓘ Simulation Info</button>
+        <button id="plot-btn" class="btn" onclick="toggleLine()">Plot Line</button>
+    </div>
+
+    <div id="plot-container">
+        <canvas id="tempChart"></canvas>
     </div>
 
     <div id="info-modal">
@@ -73,6 +75,7 @@
         </div>
     </div>
 
+
     <script type="importmap">
         {
             "imports": {
@@ -85,134 +88,174 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { TransformControls } from 'three/addons/controls/TransformControls.js';
         import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
-        // --- State ---
         const params = {
-            L1: 6, L2: 6, L3: 6,
-            D: 0.1,
-            Thot: 100,
-            colorSensitivity: 100,
-            n_terms: 8,
-            Play: () => { isPlaying = true; },
-            Pause: () => { isPlaying = false; },
-            Reset: () => { time = 0; }
+            L1: 6, L2: 6, L3: 6, D: 0.1, Thot: 100, colorSensitivity: 100, n_terms: 8,
+            Play: () => { isPlaying = true; }, Pause: () => { isPlaying = false; }, Reset: () => { time = 0; }
         };
 
-        let isPlaying = true;
-        let time = 0;
-        let scene, camera, renderer, controls, particles, geometry;
-        const particleCount = 7000;
+        let isPlaying = true, time = 0, scene, camera, renderer, controls, particles, geometry, chart;
+        let line, handleStart, handleEnd, transformControls;
 
-        // --- Initialization ---
         function init() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(12, 10, 12);
+            
+            // Camera tilted to emphasize the z-axis as height and xy as the base
+            camera.position.set(0, -12, 5);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
-            scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x111111));
+            // Visual grid on the bottom plane (z = -params.L3/2)
+            const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+            grid.position.y = -params.L3/2; 
+            scene.add(grid);
+
+            transformControls = new TransformControls(camera, renderer.domElement);
+            transformControls.addEventListener('dragging-changed', (e) => { controls.enabled = !e.value; });
+            transformControls.addEventListener('change', updateLineProfile);
+            scene.add(transformControls);
 
             createParticles();
             setupGUI();
+            initChart();
             animate();
         }
 
         function createParticles() {
             if (particles) scene.remove(particles);
             geometry = new THREE.BufferGeometry();
-            const pos = new Float32Array(particleCount * 3);
-            const col = new Float32Array(particleCount * 3);
-
-            for (let i = 0; i < particleCount; i++) {
-                pos[i * 3] = Math.random() * params.L1;
-                pos[i * 3 + 1] = Math.random() * params.L2;
-                pos[i * 3 + 2] = Math.random() * params.L3;
+            const count = 7000;
+            const pos = new Float32Array(count * 3);
+            const col = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                pos[i*3] = (Math.random() - 0.5) * params.L1;   // x
+                pos[i*3+1] = (Math.random() - 0.5) * params.L2; // y (Depth)
+                pos[i*3+2] = (Math.random() - 0.5) * params.L3; // z (Height)
             }
             geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
-
-            particles = new THREE.Points(geometry, new THREE.PointsMaterial({
-                size: 0.08, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending
-            }));
+            particles = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.08, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending }));
             scene.add(particles);
         }
 
+        window.toggleLine = () => {
+            const container = document.getElementById('plot-container');
+            if (line) {
+                scene.remove(line, handleStart, handleEnd);
+                transformControls.detach();
+                line = null;
+                container.style.display = 'none';
+            } else {
+                handleStart = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color: 0x00ff00})); // Bottom
+                handleEnd = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color: 0xff0000}));   // Top
+                
+                // Direction: Down to Up along Z
+                handleStart.position.set(0, 0, -params.L3 / 2);
+                handleEnd.position.set(0, 0, params.L3 / 2);
+                
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([handleStart.position, handleEnd.position]);
+                line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({color: 0x00ccff, linewidth: 2}));
+                
+                scene.add(line, handleStart, handleEnd);
+                transformControls.attach(handleEnd); // Default focus on the top point
+                container.style.display = 'block';
+                
+                window.addEventListener('mousedown', (e) => {
+                    const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(mouse, camera);
+                    const isects = raycaster.intersectObjects([handleStart, handleEnd]);
+                    if (isects.length > 0) transformControls.attach(isects[0].object);
+                });
+            }
+        };
+
         function calculateT(x, y, z, t) {
-            let T = 0;
-            const PI = Math.PI;
+            // Mapping origin-centered to Fourier domain [0, L]
+            const x_s = x + params.L1 / 2;
+            const y_s = y + params.L2 / 2;
+            const z_s = z + params.L3 / 2; // z_s = 0 is bottom (Hot)
+
+            let T = 0; const PI = Math.PI;
             for (let n = 1; n <= params.n_terms; n += 2) {
                 for (let m = 1; m <= params.n_terms; m += 2) {
-                    const gamma = PI * Math.sqrt((n/params.L1)**2 + (m/params.L3)**2);
+                    const gamma = PI * Math.sqrt((n/params.L1)**2 + (m/params.L2)**2);
                     const Anm = (16 * params.Thot) / (PI * PI * n * m);
-                    const spatial = Math.sin(n * PI * x / params.L1) * Math.sin(m * PI * z / params.L3);
-                    const yDecay = Math.sinh(gamma * (params.L2 - y)) / Math.sinh(gamma * params.L2);
+                    
+                    const spatial = Math.sin(n * PI * x_s / params.L1) * Math.sin(m * PI * y_s / params.L2);
+                    
+                    // Decays along Z (Height)
+                    const zDecay = Math.sinh(gamma * (params.L3 - z_s)) / Math.sinh(gamma * params.L3);
                     const temporal = 1 - Math.exp(-params.D * gamma * gamma * t);
-                    T += Anm * spatial * yDecay * temporal;
+                    
+                    T += Anm * spatial * zDecay * temporal;
                 }
             }
             return T;
         }
 
+        function updateLineProfile() {
+            if (!line) return;
+            line.geometry.setFromPoints([handleStart.position, handleEnd.position]);
+            line.geometry.attributes.position.needsUpdate = true;
+            const samples = 50, data = [], labels = [];
+            for (let i = 0; i <= samples; i++) {
+                const p = new THREE.Vector3().lerpVectors(handleStart.position, handleEnd.position, i/samples);
+                data.push(calculateT(p.x, p.y, p.z, time).toFixed(2));
+                labels.push(i);
+            }
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = data;
+            chart.update('none');
+        }
+
+        function initChart() {
+            chart = new Chart(document.getElementById('tempChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'T(s) profile: Bottom to Top', borderColor: '#00aaff', data: [], pointRadius: 0 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    scales: { y: { beginAtZero: true, grid: { color: '#222' } }, x: { display: false } },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+        }
+
         function setupGUI() {
             const gui = new GUI();
-            const f1 = gui.addFolder('Geometry');
-            f1.add(params, 'L1', 1, 15).name('Length X').onChange(createParticles);
-            f1.add(params, 'L2', 1, 15).name('Depth Y').onChange(createParticles);
-            f1.add(params, 'L3', 1, 15).name('Height Z').onChange(createParticles);
-            
-            const f2 = gui.addFolder('Physics');
-            f2.add(params, 'D', 0.01, 1).name('Diffusivity');
-            f2.add(params, 'Thot', 0, 1000).name('T_hot (y=0)');
-            f2.add(params, 'colorSensitivity', 10, 500).name('Color Scale');
-
-            const f3 = gui.addFolder('Animation');
-            f3.add(params, 'Play');
-            f3.add(params, 'Pause');
-            f3.add(params, 'Reset');
-            f1.open(); f2.open(); f3.open();
+            gui.add(params, 'L1', 1, 15).name('X Width').onChange(createParticles);
+            gui.add(params, 'L2', 1, 15).name('Y Depth').onChange(createParticles);
+            gui.add(params, 'L3', 1, 15).name('Z Height').onChange(createParticles);
+            gui.add(params, 'D', 0.01, 1).name('Diffusivity');
+            gui.add(params, 'Thot', 0, 1000).name('Bottom Temp');
+            gui.add(params, 'colorSensitivity', 10, 500).name('Color Scale');
+            gui.add(params, 'Play'); gui.add(params, 'Pause'); gui.add(params, 'Reset');
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            if (isPlaying) time += 0.02;
-
-            const pos = geometry.attributes.position.array;
+            if (isPlaying) { time += 0.02; updateLineProfile(); }
             const col = geometry.attributes.color.array;
-
-            for (let i = 0; i < particleCount; i++) {
+            const pos = geometry.attributes.position.array;
+            for (let i = 0; i < 7000; i++) {
                 const T = calculateT(pos[i*3], pos[i*3+1], pos[i*3+2], time);
                 const nT = Math.min(T / params.colorSensitivity, 1);
-                col[i*3] = nT * 1.3;
-                col[i*3+1] = Math.pow(nT, 3);
-                col[i*3+2] = (1 - nT) * 0.2;
+                col[i*3] = nT * 1.3; col[i*3+1] = Math.pow(nT, 3); col[i*3+2] = (1 - nT) * 0.2;
             }
             geometry.attributes.color.needsUpdate = true;
             renderer.render(scene, camera);
-            controls.update();
         }
-
-        window.addEventListener('resize', () => {
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-        });
-
         init();
     </script>
-
     <script>
-        // Modal Logic
         function openModal() { document.getElementById("info-modal").style.display = "block"; }
         function closeModal() { document.getElementById("info-modal").style.display = "none"; }
-        window.onclick = function(event) {
-            let modal = document.getElementById("info-modal");
-            if (event.target == modal) modal.style.display = "none";
-        }
     </script>
 </body>
 </html>
