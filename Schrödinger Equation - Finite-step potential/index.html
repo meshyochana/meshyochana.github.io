@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Schrödinger Equation - Finite-step potential</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 900px; 
+            margin: auto; 
+            background-color: #faf8f5;
+            color: #333;
+        }
+        h2 { text-align: center; color: #2c3e50; }
+        .control-panel { 
+            background: #ffffff; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px; 
+            text-align: center;
+        }
+        .chart-container { 
+            background: #ffffff; 
+            padding: 15px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 100%; 
+            height: 350px; 
+            margin-bottom: 20px; 
+            box-sizing: border-box;
+        }
+        label { font-weight: bold; font-size: 1.1em; }
+        input[type=range] { width: 80%; margin-top: 10px; }
+        .math { font-family: 'Times New Roman', serif; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h2>Schrödinger Equation - Finite-step potential (<span class="math">E &lt; V₀</span>)</h2>
+    
+    <div class="control-panel">
+        <label for="energySlider">Energy (<span class="math">E</span>): <span id="energyValue" style="color: #e74c3c;">0.200</span></label><br>
+        <input type="range" id="energySlider" min="0.001" max="0.999" step="0.001" value="0.200">
+        <p style="margin-top: 10px; color: #7f8c8d; font-size: 0.9em;">
+            Barrier Potential <span class="math">V₀</span> = 1.0. Domain: <span class="math">x</span> from -20 to 10.
+        </p>
+    </div>
+
+    <div class="chart-container"><canvas id="waveChart"></canvas></div>
+    <div class="chart-container"><canvas id="probChart"></canvas></div>
+    <div class="chart-container"><canvas id="potChart"></canvas></div>
+
+    <script>
+        const V0 = 1.0;
+        const xMin = -20;
+        const xMax = 10;
+        const numPoints = 500;
+        const dx = (xMax - xMin) / numPoints;
+        let xValues = [];
+        for(let i=0; i<=numPoints; i++) {
+            xValues.push(xMin + i*dx);
+        }
+
+        function calculate(E) {
+            const k = Math.sqrt(2 * E);
+            const beta = Math.sqrt(2 * (V0 - E));
+            
+            const realPart = k * k - beta * beta;
+            const imagPart = -2 * beta * k;
+            const phi = Math.atan2(imagPart, realPart);
+
+            let psi = [];
+            let prob = [];
+            let pot = [];
+            let E_line = [];
+
+            for(let x of xValues) {
+                let p = 0;
+                if(x < 0) {
+                    p = Math.cos(k * x - phi / 2);
+                    pot.push(0);
+                } else {
+                    p = Math.cos(phi / 2) * Math.exp(-beta * x);
+                    pot.push(V0);
+                }
+                psi.push(p);
+                prob.push(p * p);
+                E_line.push(E);
+            }
+            return {psi, prob, pot, E_line};
+        }
+
+        Chart.defaults.font.family = 'sans-serif';
+        const ctxWave = document.getElementById('waveChart').getContext('2d');
+        const ctxProb = document.getElementById('probChart').getContext('2d');
+        const ctxPot = document.getElementById('potChart').getContext('2d');
+
+        // Dynamic grid lines to highlight x=0 and y=0
+        const gridLines = {
+            color: (context) => {
+                if (context.tick.value === 0) return '#000000'; // Black for x=0 / y=0
+                return 'rgba(0, 0, 0, 0.1)';
+            },
+            lineWidth: (context) => {
+                if (context.tick.value === 0) return 1; // Bold for x=0 / y=0
+                return 1;
+            }
+        };
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            elements: { point: { radius: 0 } },
+            scales: { 
+                x: { 
+                    type: 'linear', 
+                    min: xMin, 
+                    max: xMax, 
+                    title: { display: true, text: 'Position (x)'},
+                    grid: gridLines
+                },
+                y: {
+                    grid: gridLines
+                }
+            },
+            plugins: { legend: { position: 'top' } }
+        };
+
+        let waveChart = new Chart(ctxWave, {
+            type: 'line',
+            data: { 
+                datasets: [{ 
+                    label: 'Wavefunction ψ(x)', 
+                    data: [], 
+                    borderColor: '#2980b9', 
+                    borderWidth: 2,
+                    tension: 0.1
+                }] 
+            },
+            options: { 
+                ...commonOptions, 
+                scales: { 
+                    x: commonOptions.scales.x, 
+                    y: { ...commonOptions.scales.y, min: -1.2, max: 1.2 } 
+                } 
+            }
+        });
+
+        let probChart = new Chart(ctxProb, {
+            type: 'line',
+            data: { 
+                datasets: [{ 
+                    label: 'Probability Density |ψ(x)|²', 
+                    data: [], 
+                    borderColor: '#8e44ad', 
+                    borderWidth: 2,
+                    backgroundColor: 'rgba(142, 68, 173, 0.1)',
+                    fill: true,
+                    tension: 0.1
+                }] 
+            },
+            options: { 
+                ...commonOptions, 
+                scales: { 
+                    x: commonOptions.scales.x, 
+                    y: { ...commonOptions.scales.y, min: 0, max: 1.2 } 
+                } 
+            }
+        });
+
+        let potChart = new Chart(ctxPot, {
+            type: 'line',
+            data: { 
+                datasets: [
+                    { 
+                        label: 'Potential V(x)', 
+                        data: [], 
+                        borderColor: '#2c3e50', 
+                        borderWidth: 5, 
+                        stepped: true 
+                    },
+                    { 
+                        label: 'Particle Energy (E)', 
+                        data: [], 
+                        borderColor: '#e74c3c', 
+                        borderWidth: 2, 
+                        borderDash: [5, 5] 
+                    }
+                ]
+            },
+            options: { 
+                ...commonOptions, 
+                scales: { 
+                    x: commonOptions.scales.x, 
+                    y: { ...commonOptions.scales.y, min: 0, max: 1.2 } 
+                } 
+            }
+        });
+
+        function updateCharts() {
+            const E = parseFloat(document.getElementById('energySlider').value);
+            document.getElementById('energyValue').innerText = E.toFixed(3);
+            const data = calculate(E);
+
+            const formatData = (yArray) => xValues.map((x, i) => ({ x: x, y: yArray[i] }));
+
+            waveChart.data.datasets[0].data = formatData(data.psi);
+            waveChart.update();
+
+            probChart.data.datasets[0].data = formatData(data.prob);
+            probChart.update();
+
+            potChart.data.datasets[0].data = formatData(data.pot);
+            potChart.data.datasets[1].data = formatData(data.E_line);
+            potChart.update();
+        }
+
+        document.getElementById('energySlider').addEventListener('input', updateCharts);
+        
+        updateCharts();
+    </script>
+</body>
+</html>
