@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Interactive Coordinate & Image FT Editor</title>
+<style>
+  :root {
+    --primary-color: #007bff;
+    --primary-hover: #0056b3;
+    --light-gray: #f0f2f5;
+    --medium-gray: #dee2e6;
+    --dark-gray: #495057;
+    --text-color: #212529;
+    --card-bg: #ffffff;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--light-gray);
+    color: var(--text-color);
+    line-height: 1.6;
+  }
+
+  .container { max-width: 1700px; margin: 0 auto; padding: 2rem; }
+  header { text-align: center; margin-bottom: 2rem; }
+  h1 { font-size: 2.5rem; color: var(--dark-gray); }
+  h2 { text-align: center; margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--dark-gray); border-bottom: 1px solid var(--medium-gray); padding-bottom: 0.5rem; }
+
+  .controls {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .control-group { display: flex; align-items: center; gap: 0.75em; }
+  .control-group-col { display: flex; flex-direction: column; gap: 0.5em; }
+  .control-group-row-center { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 0.5em; }
+
+  button, input[type="file"]::file-selector-button {
+    padding: 10px 18px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  button:hover, input[type="file"]::file-selector-button:hover { background-color: var(--primary-hover); }
+
+  input[type="checkbox"], input[type="radio"] { width: 1.25em; height: 1.25em; accent-color: var(--primary-color); cursor: pointer; }
+  input[type="number"] { width: 80px; padding: 4px; }
+  input[type="range"] { width: 120px; }
+  label { cursor: pointer; white-space: nowrap; font-weight: 500; }
+  
+  #ft-window-shape { display: flex; gap: 1em; }
+  #ft-window-shape label { display: flex; align-items: center; gap: 0.25em; }
+
+  .plots-wrapper { display: flex; flex-direction: row; flex-wrap: wrap; gap: 2rem; justify-content: center; }
+  .plot-container { flex: 1; min-width: 800px; max-width: 800px; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); padding: 1.5rem; }
+  canvas { width: 100%; height: auto; border: 1px solid var(--medium-gray); cursor: default; }
+  #fft-canvas { background-color: #000; }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <header><h1>Interactive Coordinate & Image FT Editor</h1></header>
+    
+    <main>
+        <div class="controls">
+            <div class="control-group-col">
+                <div class="control-group">
+                    <label>Points File (.txt)</label>
+                    <input type="file" id="file-input" accept=".txt">
+                </div>
+                <div class="control-group">
+                    <label>Image File</label>
+                    <input type="file" id="image-input" accept="image/*">
+                </div>
+                <div class="control-group" style="margin-top: 5px;">
+                    <button id="reset-btn">Reset</button>
+                    <button id="save-ft-btn">Save FT Image</button>
+                </div>
+            </div>
+
+            <div class="control-group-col" style="border: 1px solid var(--medium-gray); padding: 10px; border-radius: 8px; background: #f8f9fa;">
+                <label style="color: var(--primary-color);"><strong>K-Space Plot Mode</strong></label>
+                <div class="control-group">
+                    <label><input type="radio" id="mode-abs" name="plot-mode" value="abs" checked> Abs Mode (Magnitude)</label>
+                </div>
+                <div class="control-group">
+                    <label><input type="radio" id="mode-phase" name="plot-mode" value="phase"> Phase Mode (Complex)</label>
+                </div>
+            </div>
+            
+            <div class="control-group-col" style="border: 1px solid var(--medium-gray); padding: 10px; border-radius: 8px;">
+                <div class="control-group">
+                    <input type="checkbox" id="window-checkbox">
+                    <label for="window-checkbox">Enable FT Window</label>
+                </div>
+                
+                <div id="ft-window-shape" class="control-group">
+                    <label><input type="radio" id="shape-square" name="window-shape" value="square" checked> Square</label>
+                    <label><input type="radio" id="shape-circle" name="window-shape" value="circle"> Circular</label>
+                </div>
+
+                <div id="window-params-group" class="control-group-col">
+                    <div id="square-params" class="control-group-row-center">
+                        <label>W: </label><input type="number" id="window-width-input" value="300" min="10">
+                        <label>H: </label><input type="number" id="window-height-input" value="300" min="10">
+                    </div>
+                    <div id="circle-params" class="control-group-row-center" style="display: none;">
+                        <label>Radius: </label><input type="number" id="window-radius-input" value="150" min="5">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group-col">
+                <div class="control-group">
+                    <input type="checkbox" id="hide-center-checkbox">
+                    <label for="hide-center-checkbox">Hide Center</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="noise-reduction-checkbox">
+                    <label for="noise-reduction-checkbox">Reduce Noise</label>
+                </div>
+                <div class="control-group">
+                    <label>Threshold</label>
+                    <input type="range" id="noise-threshold-slider" min="0" max="1" value="0.1" step="0.01">
+                </div>
+            </div>
+            
+            <div class="control-group-col">
+                 <div><label>K-max: </label><input type="number" id="k-max-input" value="1.5" step="0.1"></div>
+                 <div><label>Resolution: </label><input type="number" id="resolution-input" value="100" step="10"></div>
+                 <div style="margin-top: 8px; border-top: 1px solid var(--medium-gray); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+                     <div class="control-group">
+                         <input type="checkbox" id="kzoom-mode-checkbox">
+                         <label for="kzoom-mode-checkbox">Zoom K-Space</label>
+                     </div>
+                     <button id="reset-kzoom-btn" disabled style="padding: 6px 12px; font-size: 0.9rem;">Reset Zoom</button>
+                     <div id="kzoom-info" style="font-size: 0.78rem; color: #888; min-height: 1.2em;"></div>
+                 </div>
+            </div>
+        </div>
+
+        <div class="plots-wrapper">
+            <div class="plot-container">
+                <h2 id="spatial-title">Real Space</h2>
+                <canvas id="scatter-plot" width="800" height="800"></canvas>
+            </div>
+            <div class="plot-container">
+                <h2 id="kspace-title">K-Space (Fourier Transform)</h2>
+                <div style="position: relative; display: block; line-height: 0;">
+                    <canvas id="fft-canvas" width="800" height="800"></canvas>
+                    <canvas id="fft-overlay" width="800" height="800" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                </div>
+                <div id="phase-legend" style="display: none; margin-top: 1rem; background: #111; color: #fff; padding: 12px; border-radius: 8px; justify-content: center; align-items: center; gap: 15px;">
+                    <div style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); border: 2px solid #555;"></div>
+                    <div style="text-align: left; font-size: 0.9rem; color: #ccc; line-height: 1.4;">
+                        <strong>Hue</strong> = Phase angle <i>arg(ρ)</i> &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Brightness</strong> = Amplitude <i>|ρ|</i><br>
+                        <span style="font-size:0.8em;">(0°=Red, 90°=Grn/Yel, ±180°=Cyan, -90°=Blu/Mag)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+  </div>
+
+  <script>
+    const scatterCanvas = document.getElementById('scatter-plot');
+    const sCtx = scatterCanvas.getContext('2d');
+    const fftCanvas = document.getElementById('fft-canvas');
+    const fCtx = fftCanvas.getContext('2d');
+    const margin = 50;
+
+    const fileInput = document.getElementById('file-input');
+    const imageInput = document.getElementById('image-input');
+    const resetBtn = document.getElementById('reset-btn');
+    const saveFtBtn = document.getElementById('save-ft-btn');
+    const windowCheckbox = document.getElementById('window-checkbox');
+    const hideCenterCheckbox = document.getElementById('hide-center-checkbox');
+    const noiseReductionCheckbox = document.getElementById('noise-reduction-checkbox');
+    const noiseThresholdSlider = document.getElementById('noise-threshold-slider');
+    const kMaxInput = document.getElementById('k-max-input');
+    const resolutionInput = document.getElementById('resolution-input');
+    
+    const shapeSquareRadio = document.getElementById('shape-square');
+    const shapeCircleRadio = document.getElementById('shape-circle');
+    const squareParamsDiv = document.getElementById('square-params');
+    const circleParamsDiv = document.getElementById('circle-params');
+    const windowWidthInput = document.getElementById('window-width-input');
+    const windowHeightInput = document.getElementById('window-height-input');
+    const windowRadiusInput = document.getElementById('window-radius-input');
+
+    const modeAbsRadio = document.getElementById('mode-abs');
+    const modePhaseRadio = document.getElementById('mode-phase');
+    const phaseLegend = document.getElementById('phase-legend');
+
+    let points = [];
+    let loadedImage = null;
+    let isImageMode = false;
+    let isDraggingWindow = false;
+    let isResizingWindow = false;
+    let resizeHandle = '';
+    let isDraggingPoint = false;
+    let draggedPoint = null;
+    
+    let fftWindow = { x: 150, y: 150, width: 300, height: 300 }; 
+    let interactionOffset = {x: 0, y: 0};
+    
+    let isCircularWindow = false;
+    let windowCenter = {x: 0, y: 0};
+    let scale = 1, minX = 0, maxX = 0, minY = 0, maxY = 0;
+
+    // K-space zoom state
+    let kCenterX = 0, kCenterY = 0;
+    let kOriginalMax = null;
+    let isKZoomMode = false;
+    let kZoomDrag = { active: false, startX: 0, startY: 0, curX: 0, curY: 0 };
+
+    function getViridisColor(t) {
+        t = Math.max(0, Math.min(1, t));
+        const colors = [[68,1,84],[72,35,116],[64,67,135],[52,94,141],[41,120,142],[32,144,140],[34,167,132],[68,190,112],[121,209,81],[189,223,38],[253,231,37]];
+        const i = Math.floor(t * (colors.length - 1));
+        const j = Math.min(i + 1, colors.length - 1);
+        const f = t * (colors.length - 1) - i;
+        return [
+            Math.round(colors[i][0] + f * (colors[j][0] - colors[i][0])),
+            Math.round(colors[i][1] + f * (colors[j][1] - colors[i][1])),
+            Math.round(colors[i][2] + f * (colors[j][2] - colors[i][2]))
+        ];
+    }
+
+    function hsvToRgb(h, s, v) {
+        let r, g, b;
+        let i = Math.floor(h * 6);
+        let f = h * 6 - i;
+        let p = v * (1 - s);
+        let q = v * (1 - f * s);
+        let t = v * (1 - (1 - f) * s);
+        switch (i % 6) {
+            case 0: r = v, g = t, b = p; break;
+            case 1: r = q, g = v, b = p; break;
+            case 2: r = p, g = v, b = t; break;
+            case 3: r = p, g = q, b = v; break;
+            case 4: r = t, g = p, b = v; break;
+            case 5: r = v, g = p, b = q; break;
+        }
+        return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
+
+    function getFftMouse(e) {
+        const r = fftCanvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - r.left) * (800 / r.width),
+            y: (e.clientY - r.top) * (800 / r.height)
+        };
+    }
+
+    function canvasToKSpace(cx, cy) {
+        const k_max = parseFloat(kMaxInput.value) || 1.5;
+        return {
+            kx: kCenterX + (cx / 800 - 0.5) * 2 * k_max,
+            ky: kCenterY + (cy / 800 - 0.5) * 2 * k_max
+        };
+    }
+
+    function drawKZoomOverlay() {
+        const oCtx = document.getElementById('fft-overlay').getContext('2d');
+        oCtx.clearRect(0, 0, 800, 800);
+        if (!kZoomDrag.active) return;
+        const x = Math.min(kZoomDrag.startX, kZoomDrag.curX);
+        const y = Math.min(kZoomDrag.startY, kZoomDrag.curY);
+        const w = Math.abs(kZoomDrag.curX - kZoomDrag.startX);
+        const h = Math.abs(kZoomDrag.curY - kZoomDrag.startY);
+        oCtx.strokeStyle = 'rgba(255, 220, 0, 0.95)';
+        oCtx.lineWidth = 2;
+        oCtx.setLineDash([5, 3]);
+        oCtx.strokeRect(x, y, w, h);
+        oCtx.fillStyle = 'rgba(255, 220, 0, 0.08)';
+        oCtx.fillRect(x, y, w, h);
+    }
+
+    function applyKZoom() {
+        const dx = Math.abs(kZoomDrag.curX - kZoomDrag.startX);
+        const dy = Math.abs(kZoomDrag.curY - kZoomDrag.startY);
+        if (dx < 10 || dy < 10) return;
+
+        const k_max = parseFloat(kMaxInput.value) || 1.5;
+        if (kOriginalMax === null) kOriginalMax = k_max;
+
+        const cx = (kZoomDrag.startX + kZoomDrag.curX) / 2;
+        const cy = (kZoomDrag.startY + kZoomDrag.curY) / 2;
+        const { kx, ky } = canvasToKSpace(cx, cy);
+        const newKMax = Math.max(dx, dy) / 800 * k_max;
+
+        kCenterX = kx;
+        kCenterY = ky;
+        kMaxInput.value = newKMax.toFixed(5);
+
+        document.getElementById('reset-kzoom-btn').disabled = false;
+        document.getElementById('kzoom-info').textContent =
+            `Center: (${kCenterX.toFixed(3)}, ${kCenterY.toFixed(3)})`;
+        calculateAndDisplayFT();
+    }
+
+    function drawFFTWindow() {
+        if (!windowCheckbox.checked || (!isImageMode && points.length === 0)) return;
+        sCtx.save();
+        sCtx.fillStyle = 'rgba(0, 100, 255, 0.15)';
+        sCtx.strokeStyle = 'rgba(0, 100, 255, 0.6)';
+        sCtx.lineWidth = 2;
+        const handleSize = 10;
+
+        if (isCircularWindow) {
+            const r = parseFloat(windowRadiusInput.value) * scale;
+            const cx = margin + (windowCenter.x - minX) * scale;
+            const cy = 800 - margin - (windowCenter.y - minY) * scale;
+            sCtx.beginPath(); sCtx.arc(cx, cy, r, 0, Math.PI * 2); sCtx.fill(); sCtx.stroke();
+            sCtx.fillStyle = 'rgba(0, 100, 255, 0.8)';
+            sCtx.fillRect(cx - 4, cy - 4, 8, 8);
+            fftWindow.x = cx - r; fftWindow.y = cy - r; fftWindow.width = fftWindow.height = 2*r;
+        } else {
+            sCtx.fillRect(fftWindow.x, fftWindow.y, fftWindow.width, fftWindow.height);
+            sCtx.strokeRect(fftWindow.x, fftWindow.y, fftWindow.width, fftWindow.height);
+            sCtx.fillStyle = '#007bff';
+            [[0,0],[1,0],[0,1],[1,1]].forEach(([ox,oy]) => {
+                sCtx.fillRect(fftWindow.x + ox*fftWindow.width - handleSize/2, fftWindow.y + oy*fftWindow.height - handleSize/2, handleSize, handleSize);
+            });
+        }
+        sCtx.restore();
+    }
+
+    function calculateTransforms() {
+        if (isImageMode) {
+            minX = 0; maxX = 800; minY = 0; maxY = 800; scale = 1;
+        } else if (points.length > 0) {
+            minX = Math.min(...points.map(p => p.x)); maxX = Math.max(...points.map(p => p.x));
+            minY = Math.min(...points.map(p => p.y)); maxY = Math.max(...points.map(p => p.y));
+            const dW = maxX - minX || 1; const dH = maxY - minY || 1;
+            scale = Math.min(700/dW, 700/dH);
+        }
+        if (windowCenter.x === 0) { windowCenter.x = (maxX+minX)/2; windowCenter.y = (maxY+minY)/2; }
+    }
+
+    function calculateAndDisplayFT() {
+        const res = parseInt(resolutionInput.value) || 100;
+        const k_max = parseFloat(kMaxInput.value) || 1.5;
+        const isPhaseMode = modePhaseRadio.checked;
+        let ftPts = [];
+
+        if (isImageMode) {
+            const tempC = document.createElement('canvas');
+            tempC.width = res; tempC.height = res;
+            const tCtx = tempC.getContext('2d');
+            if (windowCheckbox.checked) {
+                tCtx.drawImage(scatterCanvas, fftWindow.x, fftWindow.y, fftWindow.width, fftWindow.height, 0, 0, res, res);
+            } else {
+                tCtx.drawImage(scatterCanvas, 0, 0, 800, 800, 0, 0, res, res);
+            }
+            const pD = tCtx.getImageData(0, 0, res, res).data;
+            for(let y=0; y<res; y++){
+                for(let x=0; x<res; x++){
+                    const idx = (y*res + x)*4;
+                    const w = (pD[idx] + pD[idx+1] + pD[idx+2])/3;
+                    if(w > 5) ftPts.push({x: x-res/2, y: res/2-y, w: w/255});
+                }
+            }
+        } else {
+            let pts = points;
+            let cx = (maxX+minX)/2, cy = (maxY+minY)/2;
+            if (windowCheckbox.checked) {
+                if(isCircularWindow) {
+                    const r = parseFloat(windowRadiusInput.value);
+                    pts = points.filter(p => Math.hypot(p.x-windowCenter.x, p.y-windowCenter.y) <= r);
+                    cx = windowCenter.x; cy = windowCenter.y;
+                } else {
+                    const wX1 = (fftWindow.x-margin)/scale+minX; const wX2 = wX1 + fftWindow.width/scale;
+                    const wY2 = ((800-margin)-fftWindow.y)/scale+minY; const wY1 = wY2 - fftWindow.height/scale;
+                    pts = points.filter(p => p.x >= wX1 && p.x <= wX2 && p.y >= wY1 && p.y <= wY2);
+                    cx = (wX1+wX2)/2; cy = (wY1+wY2)/2;
+                }
+            }
+            ftPts = pts.map(p => ({x: p.x-cx, y: p.y-cy, w: 1}));
+        }
+
+        if(ftPts.length === 0) { fCtx.clearRect(0,0,800,800); return; }
+
+        const mags = new Float32Array(res * res);
+        let phases = null;
+        if (isPhaseMode) phases = new Float32Array(res * res);
+
+        for(let py=0; py<res; py++){
+            for(let px=0; px<res; px++){
+                const kx = kCenterX + (px-res/2)*(2*k_max/res); const ky = kCenterY + (py-res/2)*(2*k_max/res);
+                let re = 0, im = 0;
+                for(const p of ftPts){
+                    const dot = p.x*kx + p.y*ky;
+                    re += p.w * Math.cos(-dot); im += p.w * Math.sin(-dot);
+                }
+                const idx = py*res + px;
+                mags[idx] = Math.log(1 + Math.sqrt(re*re + im*im));
+                if (isPhaseMode) phases[idx] = Math.atan2(im, re);
+            }
+        }
+
+        if(noiseReductionCheckbox.checked){
+            const avg = mags.reduce((a,b)=>a+b)/mags.length;
+            const thr = Math.max(...mags) * parseFloat(noiseThresholdSlider.value);
+            for(let i=0; i<mags.length; i++) mags[i] = mags[i] < thr ? 0 : Math.max(0, mags[i]-avg);
+        }
+
+        let maxM = 0; const cM = Math.round(res*0.02);
+        for(let i=0; i<mags.length; i++){
+            const x = i%res, y = Math.floor(i/res);
+            if(!(hideCenterCheckbox.checked && Math.hypot(x-res/2, y-res/2) < cM) && mags[i] > maxM) maxM = mags[i];
+        }
+
+        const out = fCtx.createImageData(res, res);
+        for(let i=0; i<mags.length; i++){
+            const x = i%res, y = Math.floor(i/res);
+            const isC = hideCenterCheckbox.checked && Math.hypot(x-res/2, y-res/2) < cM;
+            
+            if (isC) {
+                out.data.set([0,0,0, 255], i*4);
+            } else {
+                if (isPhaseMode) {
+                    let v = mags[i] / (maxM || 1); 
+                    let h = phases[i] / (2 * Math.PI);
+                    if (h < 0) h += 1.0; 
+                    const [r, g, b] = hsvToRgb(h, 1.0, v);
+                    out.data.set([r, g, b, 255], i*4);
+                } else {
+                    const col = getViridisColor(mags[i]/(maxM||1));
+                    out.data.set([...col, 255], i*4);
+                }
+            }
+        }
+        
+        const tC = document.createElement('canvas'); tC.width = tC.height = res;
+        tC.getContext('2d').putImageData(out, 0, 0);
+        fCtx.clearRect(0,0,800,800); fCtx.imageSmoothingEnabled = false;
+        fCtx.drawImage(tC, 0, 0, 800, 800);
+    }
+
+    function drawSpatial() {
+        sCtx.clearRect(0,0,800,800);
+        if(isImageMode && loadedImage) sCtx.drawImage(loadedImage, 0, 0, 800, 800);
+        else {
+            sCtx.fillStyle = '#007bff';
+            points.forEach(p => {
+                const cx = margin + (p.x-minX)*scale; const cy = 800-margin-(p.y-minY)*scale;
+                sCtx.beginPath(); sCtx.arc(cx, cy, 2, 0, 7); sCtx.fill();
+            });
+        }
+        drawFFTWindow();
+    }
+
+    function updateAll() { 
+        calculateTransforms(); 
+        drawSpatial(); 
+        calculateAndDisplayFT(); 
+        phaseLegend.style.display = modePhaseRadio.checked ? 'flex' : 'none';
+    }
+
+    // --- Interaction Logic ---
+    function getMouse(e) {
+        const r = scatterCanvas.getBoundingClientRect();
+        const x = (e.clientX - r.left) * (800 / r.width);
+        const y = (e.clientY - r.top) * (800 / r.height);
+        return { x, y, dx: (x-margin)/scale+minX, dy: ((800-margin)-y)/scale+minY };
+    }
+
+    scatterCanvas.addEventListener('mousedown', e => {
+        const m = getMouse(e);
+        const hs = 12;
+
+        if (windowCheckbox.checked && !isCircularWindow) {
+            if(Math.abs(m.x - fftWindow.x) < hs && Math.abs(m.y - fftWindow.y) < hs) { isResizingWindow = true; resizeHandle = 'nw'; return; }
+            if(Math.abs(m.x - (fftWindow.x+fftWindow.width)) < hs && Math.abs(m.y - fftWindow.y) < hs) { isResizingWindow = true; resizeHandle = 'ne'; return; }
+            if(Math.abs(m.x - fftWindow.x) < hs && Math.abs(m.y - (fftWindow.y+fftWindow.height)) < hs) { isResizingWindow = true; resizeHandle = 'sw'; return; }
+            if(Math.abs(m.x - (fftWindow.x+fftWindow.width)) < hs && Math.abs(m.y - (fftWindow.y+fftWindow.height)) < hs) { isResizingWindow = true; resizeHandle = 'se'; return; }
+        }
+
+        if (windowCheckbox.checked) {
+            const isInside = isCircularWindow ? 
+                Math.hypot(m.x - (fftWindow.x + fftWindow.width/2), m.y - (fftWindow.y + fftWindow.height/2)) < (fftWindow.width/2) :
+                (m.x > fftWindow.x && m.x < fftWindow.x+fftWindow.width && m.y > fftWindow.y && m.y < fftWindow.y+fftWindow.height);
+            
+            if(isInside) { isDraggingWindow = true; interactionOffset = {x: m.x-fftWindow.x, y: m.y-fftWindow.y}; return; }
+        }
+
+        if (!isImageMode) {
+            draggedPoint = points.find(p => Math.hypot(p.x-m.dx, p.y-m.dy)*scale < 10);
+            if(draggedPoint) isDraggingPoint = true;
+        }
+    });
+
+    fftCanvas.addEventListener('mousedown', e => {
+        if (!isKZoomMode) return;
+        const m = getFftMouse(e);
+        kZoomDrag = { active: true, startX: m.x, startY: m.y, curX: m.x, curY: m.y };
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (kZoomDrag.active) {
+            const m = getFftMouse(e);
+            kZoomDrag.curX = m.x; kZoomDrag.curY = m.y;
+            drawKZoomOverlay();
+        }
+        const m = getMouse(e);
+        if (isResizingWindow) {
+            const oldR = fftWindow.x + fftWindow.width; const oldB = fftWindow.y + fftWindow.height;
+            if(resizeHandle.includes('n')) { fftWindow.height = oldB - m.y; fftWindow.y = m.y; }
+            if(resizeHandle.includes('s')) { fftWindow.height = m.y - fftWindow.y; }
+            if(resizeHandle.includes('w')) { fftWindow.width = oldR - m.x; fftWindow.x = m.x; }
+            if(resizeHandle.includes('e')) { fftWindow.width = m.x - fftWindow.x; }
+            fftWindow.width = Math.max(10, fftWindow.width); fftWindow.height = Math.max(10, fftWindow.height);
+            windowWidthInput.value = Math.round(fftWindow.width / scale);
+            windowHeightInput.value = Math.round(fftWindow.height / scale);
+        } else if (isDraggingWindow) {
+            fftWindow.x = m.x - interactionOffset.x; fftWindow.y = m.y - interactionOffset.y;
+            windowCenter.x = (fftWindow.x + fftWindow.width/2 - margin)/scale + minX;
+            windowCenter.y = ((800 - margin) - (fftWindow.y + fftWindow.height/2))/scale + minY;
+        } else if (isDraggingPoint) {
+            draggedPoint.x = m.dx; draggedPoint.y = m.dy;
+        } else {
+            scatterCanvas.style.cursor = 'default';
+            if(windowCheckbox.checked && !isCircularWindow) {
+                const hs = 12;
+                if((Math.abs(m.x-fftWindow.x)<hs || Math.abs(m.x-(fftWindow.x+fftWindow.width))<hs) && (Math.abs(m.y-fftWindow.y)<hs || Math.abs(m.y-(fftWindow.y+fftWindow.height))<hs))
+                    scatterCanvas.style.cursor = 'nwse-resize';
+            }
+        }
+        if(isResizingWindow || isDraggingWindow || isDraggingPoint) updateAll();
+    });
+
+    window.addEventListener('mouseup', () => {
+        isResizingWindow = isDraggingWindow = isDraggingPoint = false;
+        if (kZoomDrag.active) {
+            kZoomDrag.active = false;
+            document.getElementById('fft-overlay').getContext('2d').clearRect(0, 0, 800, 800);
+            applyKZoom();
+        }
+    });
+
+    // --- Listeners ---
+    imageInput.addEventListener('change', e => {
+        const f = e.target.files[0]; if(!f) return;
+        const r = new FileReader(); r.onload = ev => {
+            const img = new Image(); img.onload = () => {
+                loadedImage = img; isImageMode = true; 
+                document.getElementById('spatial-title').innerText = "Real Space (Image)";
+                updateAll();
+            };
+            img.src = ev.target.result;
+        };
+        r.readAsDataURL(f);
+    });
+
+    fileInput.addEventListener('change', e => {
+        const f = e.target.files[0]; if(!f) return;
+        const r = new FileReader(); r.onload = ev => {
+            points = ev.target.result.split('\n').filter(l => l.trim()).map(l => {
+                const [x,y] = l.split(/[\s,]+/).map(Number); return {x,y};
+            }).filter(p => !isNaN(p.x));
+            isImageMode = false; updateAll();
+        };
+        r.readAsText(f);
+    });
+
+    windowWidthInput.addEventListener('input', () => { fftWindow.width = parseFloat(windowWidthInput.value)*scale; updateAll(); });
+    windowHeightInput.addEventListener('input', () => { fftWindow.height = parseFloat(windowHeightInput.value)*scale; updateAll(); });
+    shapeSquareRadio.addEventListener('change', () => { isCircularWindow = false; squareParamsDiv.style.display = 'flex'; circleParamsDiv.style.display = 'none'; updateAll(); });
+    shapeCircleRadio.addEventListener('change', () => { isCircularWindow = true; squareParamsDiv.style.display = 'none'; circleParamsDiv.style.display = 'flex'; updateAll(); });
+    
+    // Mode toggles
+    modeAbsRadio.addEventListener('change', updateAll);
+    modePhaseRadio.addEventListener('change', updateAll);
+
+    document.getElementById('kzoom-mode-checkbox').addEventListener('change', function () {
+        isKZoomMode = this.checked;
+        fftCanvas.style.cursor = isKZoomMode ? 'crosshair' : 'default';
+        document.getElementById('kspace-title').textContent =
+            isKZoomMode ? 'K-Space — drag to zoom' : 'K-Space (Fourier Transform)';
+    });
+
+    document.getElementById('reset-kzoom-btn').addEventListener('click', () => {
+        kCenterX = 0; kCenterY = 0;
+        kMaxInput.value = kOriginalMax !== null ? kOriginalMax : 1.5;
+        kOriginalMax = null;
+        document.getElementById('reset-kzoom-btn').disabled = true;
+        document.getElementById('kzoom-info').textContent = '';
+        calculateAndDisplayFT();
+    });
+
+    resetBtn.addEventListener('click', () => {
+        isImageMode = false; points = [];
+        for(let x=0; x<30; x++) for(let y=0; y<30; y++) points.push({x: x*20, y: y*20});
+        kCenterX = 0; kCenterY = 0; kOriginalMax = null;
+        kMaxInput.value = 1.5;
+        document.getElementById('reset-kzoom-btn').disabled = true;
+        document.getElementById('kzoom-info').textContent = '';
+        updateAll();
+    });
+    
+    [windowCheckbox, hideCenterCheckbox, noiseReductionCheckbox, noiseThresholdSlider, kMaxInput, resolutionInput, windowRadiusInput].forEach(el => el.addEventListener('change', updateAll));
+    [noiseThresholdSlider, kMaxInput, resolutionInput, windowRadiusInput].forEach(el => el.addEventListener('input', updateAll));
+
+    saveFtBtn.addEventListener('click', () => {
+        const l = document.createElement('a'); l.download = 'ft_render.png'; l.href = fftCanvas.toDataURL(); l.click();
+    });
+
+    resetBtn.click();
+  </script>
+</body>
+</html>

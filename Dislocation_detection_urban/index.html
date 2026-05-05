@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Spatial & Fourier Transform Editor</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --light-gray: #f0f2f5;
+            --medium-gray: #dee2e6;
+            --dark-gray: #495057;
+            --text-color: #212529;
+            --card-bg: #ffffff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--light-gray);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--dark-gray);
+            margin-bottom: 2rem;
+        }
+
+        .controls {
+            margin: 0 auto 2rem auto;
+            max-width: 1200px;
+            padding: 1.5rem;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button, input[type="file"]::file-selector-button {
+            padding: 8px 14px;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        button:hover, input[type="file"]::file-selector-button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .instructions {
+            max-width: 1200px;
+            margin: 0 auto 20px auto;
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 300px;
+        }
+
+        h3 {
+            margin-top: 0;
+            color: var(--dark-gray);
+        }
+
+        /* Scaled CSS for dynamic canvases to fit screen */
+        canvas {
+            border: 1px solid var(--medium-gray);
+            background: #000;
+            max-width: 400px; 
+            max-height: 400px;
+            object-fit: contain;
+            image-rendering: pixelated;
+        }
+        
+        #scatter-plot { cursor: crosshair; }
+        #canvasSpectrum { cursor: crosshair; }
+        #canvasResult { cursor: crosshair; }
+        
+        .info-text { font-size: 12px; color: #666; margin-top: 8px; }
+    </style>
+</head>
+<body>
+
+    <h1>Interactive Spatial & Fourier Transform Editor</h1>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Points Input (.txt / .csv)</label>
+            <input type="file" id="file-input" accept=".txt,.csv">
+        </div>
+        <div class="control-group">
+            <label>Image Input (JPG/PNG)</label>
+            <input type="file" id="image-input" accept="image/*">
+        </div>
+        <div class="control-group">
+            <label>Actions</label>
+            <button id="reset-btn">Reset to Lattice</button>
+            <button id="resetMaskBtn">Clear Mask (Reset to 0)</button>
+        </div>
+        <div class="control-group">
+            <div class="row"><input type="checkbox" id="window-checkbox"><label for="window-checkbox">Enable FFT Window</label></div>
+            <div class="row"><input type="checkbox" id="hide-center-checkbox"><label for="hide-center-checkbox">Hide FFT Center (DC)</label></div>
+            <div class="row"><input type="checkbox" id="noise-reduction-checkbox"><label for="noise-reduction-checkbox">Reduce Noise</label></div>
+        </div>
+        <div class="control-group" style="background: #f8f9fa; padding: 10px; border-radius: 8px;">
+            <div class="row">
+                <label for="contrast-slider" title="Adjusts upper limit for intensity stretching (brightness)">Result Contrast:</label>
+                <input type="range" id="contrast-slider" min="0" max="100" step="0.1" value="50">
+                <span id="contrast-val" style="width: 45px; display: inline-block;">50.0%</span>
+            </div>
+            <div class="row">
+                <label for="threshold-slider" title="Sets a noise floor. Values below this % are cut to black.">Result Threshold:</label>
+                <input type="range" id="threshold-slider" min="0" max="100" step="0.1" value="0">
+                <span id="threshold-val" style="width: 45px; display: inline-block;">0.0%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <strong>On the Spatial Domain:</strong> Drag the blue FFT Window if enabled. (Points mapped precisely without padding)<br>
+        <strong>On the Masked Spectrum:</strong> Left-Click & Drag to draw mask. Right-Click & Drag to erase. Scroll to change brush size.
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h3 id="spatial-title">Spatial Domain (Points)</h3>
+            <canvas id="scatter-plot"></canvas>
+            <div id="spatial-info" class="info-text">Size: 0x0</div>
+        </div>
+        <div class="panel">
+            <h3>Masked Spectrum (Frequency)</h3>
+            <canvas id="canvasSpectrum"></canvas>
+            <div style="margin-top: 10px; font-size: 14px;">Brush Size: <span id="brushSizeDisplay">15</span>px</div>
+            <div id="spectrum-info" class="info-text">FFT Grid: 0x0</div>
+        </div>
+        <div class="panel">
+            <h3>Result (Inverse FFT)</h3>
+            <canvas id="canvasResult"></canvas>
+            <div id="result-info" class="info-text">Cropped Size: 0x0</div>
+            
+            <div style="margin-top: 15px; font-size: 14px; text-align: left; width: 100%; display: flex; flex-direction: column; gap: 8px; background: #f8f9fa; padding: 10px; border-radius: 8px;">
+                <div style="font-weight: bold; text-align: center; font-size: 0.85rem; color: #495057;">Result Annotations</div>
+                <div class="row" style="justify-content: space-between;">
+                    <label>Color:</label>
+                    <input type="color" id="res-color" value="#00ff00">
+                </div>
+                <div class="row" style="justify-content: space-between;">
+                    <label>Opacity:</label>
+                    <input type="range" id="res-alpha" min="0" max="1" step="0.05" value="0.5" style="width: 100px;">
+                </div>
+                <div class="row" style="justify-content: space-between;">
+                    <span>Brush: <span id="res-radius-val">15</span>px</span>
+                    <button id="clear-markers-btn" style="padding: 3px 8px; font-size: 0.75rem;">Clear</button>
+                </div>
+                <div class="info-text" style="text-align: center; margin-top: 2px;">Left-Click Draw | Right-Click Erase (Scroll for Size)</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Globals & Setup ---
+        let SIZE = 256; 
+        let sW = 256, sH = 256; 
+        let resW = 256, resH = 256; 
+        
+        const scatterCanvas = document.getElementById('scatter-plot');
+        const sCtx = scatterCanvas.getContext('2d');
+        const canvasSpectrum = document.getElementById('canvasSpectrum');
+        const ctxSpectrum = canvasSpectrum.getContext('2d');
+        const canvasResult = document.getElementById('canvasResult');
+        const ctxResult = canvasResult.getContext('2d');
+        
+        const fileInput = document.getElementById('file-input');
+        const imageInput = document.getElementById('image-input');
+        const resetBtn = document.getElementById('reset-btn');
+        const windowCheckbox = document.getElementById('window-checkbox');
+        const hideCenterCheckbox = document.getElementById('hide-center-checkbox');
+        const noiseReductionCheckbox = document.getElementById('noise-reduction-checkbox');
+        
+        const contrastSlider = document.getElementById('contrast-slider');
+        const contrastVal = document.getElementById('contrast-val');
+        const thresholdSlider = document.getElementById('threshold-slider');
+        const thresholdVal = document.getElementById('threshold-val');
+        
+        // --- Result Canvas Drawing Variables ---
+        let resOverlayCanvas = document.createElement('canvas');
+        let resOverlayCtx = resOverlayCanvas.getContext('2d');
+        let cachedResultData = null;
+        let resultBrushSize = 15;
+        let isDrawingResult = false;
+        let resultDrawMode = 1; 
+        let resultMouseX = -1;
+        let resultMouseY = -1;
+        
+        const resColorInput = document.getElementById('res-color');
+        const resAlphaInput = document.getElementById('res-alpha');
+        const resRadiusDisplay = document.getElementById('res-radius-val');
+        const clearMarkersBtn = document.getElementById('clear-markers-btn');
+
+        let points = [];
+        let isImageMode = false;
+        let loadedImage = null;
+        
+        let fftWindow = { x: 50, y: 50, width: 200, height: 200 };
+        let isWindowEnabled = false;
+        let isDraggingWindow = false;
+        let isResizingWindow = false;
+        let resizeHandle = '';
+        let interactionOffset = {x: 0, y: 0};
+        
+        let isCenterHidden = false;
+        let isNoiseReduced = false;
+
+        let fftRe = new Float64Array(SIZE * SIZE);
+        let fftIm = new Float64Array(SIZE * SIZE);
+        let mask = new Float64Array(SIZE * SIZE).fill(0);
+        let cachedSpectrumData = null; 
+        
+        let brushSize = 15;
+        let isDrawingMask = false;
+        let drawMode = 1; 
+        let spectrumMouseX = -1;
+        let spectrumMouseY = -1;
+
+        // --- Custom FFT Algorithm ---
+        function transform(real, imag) {
+            const n = real.length;
+            if ((n & (n - 1)) !== 0) throw new RangeError("Length is not a power of 2");
+            for (let i = 0; i < n; i++) {
+                let j = 0;
+                for (let k = 0; (1 << k) < n; k++) j = (j << 1) | ((i >>> k) & 1);
+                if (j > i) {
+                    [real[i], real[j]] = [real[j], real[i]];
+                    [imag[i], imag[j]] = [imag[j], imag[i]];
+                }
+            }
+            for (let size = 2; size <= n; size *= 2) {
+                const halfsize = size / 2;
+                for (let i = 0; i < n; i += size) {
+                    for (let j = 0; j < halfsize; j++) {
+                        const angle = -2 * Math.PI * j / size;
+                        const treal = real[i+j+halfsize] * Math.cos(angle) - imag[i+j+halfsize] * Math.sin(angle);
+                        const timag = real[i+j+halfsize] * Math.sin(angle) + imag[i+j+halfsize] * Math.cos(angle);
+                        real[i+j+halfsize] = real[i+j] - treal;
+                        imag[i+j+halfsize] = imag[i+j] - timag;
+                        real[i+j] += treal;
+                        imag[i+j] += timag;
+                    }
+                }
+            }
+        }
+
+        function inverseTransform(real, imag) {
+            const n = real.length;
+            for (let i = 0; i < n; i++) imag[i] = -imag[i];
+            transform(real, imag);
+            for (let i = 0; i < n; i++) {
+                imag[i] = -imag[i] / n;
+                real[i] = real[i] / n;
+            }
+        }
+
+        function fftShiftFlat(re, im, n) {
+            const half = n / 2;
+            for (let y = 0; y < half; y++) {
+                for (let x = 0; x < half; x++) {
+                    let idx1 = y * n + x;
+                    let idx3 = (y + half) * n + (x + half);
+                    let tRe = re[idx1], tIm = im[idx1];
+                    re[idx1] = re[idx3]; im[idx1] = im[idx3];
+                    re[idx3] = tRe; im[idx3] = tIm;
+
+                    let idx2 = y * n + (x + half);
+                    let idx4 = (y + half) * n + x;
+                    tRe = re[idx2]; tIm = im[idx2];
+                    re[idx2] = re[idx4]; im[idx2] = im[idx4];
+                    re[idx4] = tRe; im[idx4] = tIm;
+                }
+            }
+        }
+
+        // --- Drawing Spatial Domain ---
+        function drawFFTWindow() {
+            if (!isWindowEnabled) return;
+            sCtx.fillStyle = 'rgba(0, 123, 255, 0.15)';
+            sCtx.fillRect(fftWindow.x, fftWindow.y, fftWindow.width, fftWindow.height);
+            sCtx.strokeStyle = '#007bff';
+            sCtx.lineWidth = Math.max(1, sW / 400); 
+            sCtx.strokeRect(fftWindow.x, fftWindow.y, fftWindow.width, fftWindow.height);
+            
+            const hs = Math.max(4, sW / 80);
+            sCtx.fillStyle = '#007bff';
+            [[0,0],[1,0],[0,1],[1,1]].forEach(([ox, oy]) => {
+                sCtx.fillRect(fftWindow.x + ox*fftWindow.width - hs/2, fftWindow.y + oy*fftWindow.height - hs/2, hs, hs);
+            });
+        }
+
+        // --- Core Process: Spatial -> FFT -> Spectrum & Inverse ---
+        function updateAll() {
+            if (isImageMode && loadedImage) {
+                sW = loadedImage.width;
+                sH = loadedImage.height;
+                scatterCanvas.width = sW;
+                scatterCanvas.height = sH;
+                sCtx.drawImage(loadedImage, 0, 0);
+                document.getElementById('spatial-info').innerText = `Size: ${sW}x${sH}`;
+            } else if (!isImageMode && points.length > 0) {
+                const xs = points.map(p => p.x);
+                const ys = points.map(p => p.y);
+                const minX = Math.min(...xs), maxX = Math.max(...xs);
+                const minY = Math.min(...ys), maxY = Math.max(...ys);
+                
+                const rangeX = maxX - minX;
+                const rangeY = maxY - minY;
+                const maxRange = Math.max(rangeX, rangeY) || 1;
+                
+                let uniformScale = 1;
+                if (maxRange < 100) uniformScale = 500 / maxRange; 
+                else if (maxRange > 1024) uniformScale = 1024 / maxRange; 
+                
+                sW = Math.ceil(rangeX * uniformScale) + 1; 
+                sH = Math.ceil(rangeY * uniformScale) + 1;
+                
+                scatterCanvas.width = sW;
+                scatterCanvas.height = sH;
+                sCtx.fillStyle = '#000';
+                sCtx.fillRect(0, 0, sW, sH);
+                
+                sCtx.fillStyle = '#fff';
+                points.forEach(p => {
+                    let px = Math.round((p.x - minX) * uniformScale);
+                    let py = Math.round((p.y - minY) * uniformScale);
+                    sCtx.fillRect(px, py, 1, 1); 
+                });
+                
+                document.getElementById('spatial-info').innerText = `Size: ${sW}x${sH} (Scale: ${uniformScale.toFixed(2)}x)`;
+            }
+
+            drawFFTWindow();
+
+            let extX = isWindowEnabled ? Math.round(fftWindow.x) : 0;
+            let extY = isWindowEnabled ? Math.round(fftWindow.y) : 0;
+            let extW = isWindowEnabled ? Math.round(fftWindow.width) : sW;
+            let extH = isWindowEnabled ? Math.round(fftWindow.height) : sH;
+
+            extX = Math.max(0, Math.min(extX, sW - 1));
+            extY = Math.max(0, Math.min(extY, sH - 1));
+            extW = Math.max(1, Math.min(extW, sW - extX));
+            extH = Math.max(1, Math.min(extH, sH - extY));
+
+            let targetW = extW;
+            let targetH = extH;
+            if (Math.max(targetW, targetH) > 1024) {
+                let safetyScale = 1024 / Math.max(targetW, targetH);
+                targetW = Math.round(targetW * safetyScale);
+                targetH = Math.round(targetH * safetyScale);
+            }
+
+            resW = targetW;
+            resH = targetH;
+            canvasResult.width = resW;
+            canvasResult.height = resH;
+            document.getElementById('result-info').innerText = `Cropped Size: ${resW}x${resH}`;
+
+            // Update Result Overlay Canvas to preserve drawn markers if dimensions persist or change slightly
+            if (resOverlayCanvas.width !== resW || resOverlayCanvas.height !== resH) {
+                let temp = document.createElement('canvas');
+                temp.width = resOverlayCanvas.width; temp.height = resOverlayCanvas.height;
+                temp.getContext('2d').drawImage(resOverlayCanvas, 0, 0);
+                
+                resOverlayCanvas.width = resW;
+                resOverlayCanvas.height = resH;
+                resOverlayCtx.drawImage(temp, 0, 0);
+            }
+
+            let newSize = Math.pow(2, Math.ceil(Math.log2(Math.max(targetW, targetH, 64))));
+            let tempSize = Math.min(newSize, 1024); 
+
+            if (fftRe.length !== tempSize * tempSize) {
+                let oldSize = Math.sqrt(fftRe.length);
+                SIZE = tempSize;
+                fftRe = new Float64Array(SIZE * SIZE);
+                fftIm = new Float64Array(SIZE * SIZE);
+                
+                let newMask = new Float64Array(SIZE * SIZE).fill(0);
+                if (oldSize > 0 && mask.length === oldSize * oldSize) {
+                    for (let y = 0; y < SIZE; y++) {
+                        for (let x = 0; x < SIZE; x++) {
+                            let oldX = Math.floor(x * oldSize / SIZE);
+                            let oldY = Math.floor(y * oldSize / SIZE);
+                            newMask[y * SIZE + x] = mask[oldY * oldSize + oldX];
+                        }
+                    }
+                }
+                mask = newMask;
+                
+                canvasSpectrum.width = SIZE; canvasSpectrum.height = SIZE;
+                document.getElementById('spectrum-info').innerText = `FFT Grid: ${SIZE}x${SIZE}`;
+            }
+
+            let realMatrix = Array(SIZE).fill(0).map(() => new Float64Array(SIZE));
+            let imagMatrix = Array(SIZE).fill(0).map(() => new Float64Array(SIZE));
+
+            let tempCanvas = document.createElement('canvas');
+            tempCanvas.width = targetW; tempCanvas.height = targetH;
+            let tCtx = tempCanvas.getContext('2d');
+            tCtx.drawImage(scatterCanvas, extX, extY, extW, extH, 0, 0, targetW, targetH);
+            
+            let imgData = tCtx.getImageData(0, 0, targetW, targetH).data;
+            for(let y=0; y<targetH; y++) {
+                for(let x=0; x<targetW; x++) {
+                    const idx = (y * targetW + x) * 4;
+                    realMatrix[y][x] = 0.299 * imgData[idx] + 0.587 * imgData[idx+1] + 0.114 * imgData[idx+2];
+                }
+            }
+
+            for (let i = 0; i < SIZE; i++) transform(realMatrix[i], imagMatrix[i]);
+            for (let j = 0; j < SIZE; j++) {
+                let colR = new Float64Array(SIZE), colI = new Float64Array(SIZE);
+                for(let i=0; i<SIZE; i++) { colR[i] = realMatrix[i][j]; colI[i] = imagMatrix[i][j]; }
+                transform(colR, colI);
+                for(let i=0; i<SIZE; i++) { realMatrix[i][j] = colR[i]; imagMatrix[i][j] = colI[i]; }
+            }
+
+            for(let y=0; y<SIZE; y++) {
+                for(let x=0; x<SIZE; x++) {
+                    let idx = y * SIZE + x;
+                    fftRe[idx] = realMatrix[y][x];
+                    fftIm[idx] = imagMatrix[y][x];
+                }
+            }
+            fftShiftFlat(fftRe, fftIm, SIZE);
+
+            updateSpectrumAndInverse();
+        }
+
+        function viridisColor(t) {
+            t = Math.max(0, Math.min(1, t));
+            const c0 = [0.2777273272234177, 0.005407344544966578, 0.3340998053353061];
+            const c1 = [0.1050930431085774, 1.404613529898575, 1.384590162594685];
+            const c2 = [-0.3308618287255563, 0.214847559468213, 0.09509516302823659];
+            const c3 = [-4.634230498983486, -5.799100973351585, -19.33244095627987];
+            const c4 = [6.228269936347081, 14.17993336680509, 56.69055260068105];
+            const c5 = [4.776384997670288, -13.74514537774601, -65.35303263337234];
+            const c6 = [-5.435455855934631, 4.645852612178535, 26.3124352495832];
+            return [0, 1, 2].map(i =>
+                Math.max(0, Math.min(1, c0[i] + t * (c1[i] + t * (c2[i] + t * (c3[i] + t * (c4[i] + t * (c5[i] + t * c6[i])))))))
+            );
+        }
+
+        function renderSpectrumCanvas() {
+            if (cachedSpectrumData) {
+                ctxSpectrum.putImageData(cachedSpectrumData, 0, 0);
+            }
+            if (spectrumMouseX >= 0 && spectrumMouseY >= 0) {
+                ctxSpectrum.beginPath();
+                ctxSpectrum.arc(spectrumMouseX, spectrumMouseY, brushSize, 0, Math.PI * 2);
+                ctxSpectrum.strokeStyle = 'red';
+                ctxSpectrum.lineWidth = Math.max(1, SIZE/300);
+                ctxSpectrum.stroke();
+            }
+        }
+
+        function updateSpectrumAndInverse() {
+            let specData = ctxSpectrum.createImageData(SIZE, SIZE);
+            let maxLogMag = 0;
+            let sumLogMag = 0;
+            let logMags = new Float64Array(SIZE * SIZE);
+            
+            const centerMaskSize = 0.5;
+            const half = SIZE / 2;
+
+            let effectiveMasks = new Uint8Array(SIZE * SIZE);
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    let i = y * SIZE + x;
+                    let distToCenter = Math.hypot(x - half, y - half);
+                    
+                    if (isCenterHidden && distToCenter <= centerMaskSize) {
+                        effectiveMasks[i] = 0;
+                    } else if (!isCenterHidden && distToCenter <= centerMaskSize) {
+                        effectiveMasks[i] = 1;
+                    } else {
+                        effectiveMasks[i] = mask[i];
+                    }
+                }
+            }
+
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    let i = y * SIZE + x;
+                    let mag = Math.sqrt(fftRe[i]**2 + fftIm[i]**2);
+                    let lMag = Math.log(1 + mag);
+                    logMags[i] = lMag;
+                    sumLogMag += lMag;
+                    
+                    const isCenter = Math.abs(y - half) < centerMaskSize && Math.abs(x - half) < centerMaskSize;
+                    if (!(isCenterHidden && isCenter) && lMag > maxLogMag) maxLogMag = lMag;
+                }
+            }
+
+            const avgLogMag = sumLogMag / (SIZE * SIZE);
+
+            // Recompute max after noise reduction so normalization uses the new range
+            let effectiveMax = maxLogMag;
+            if (isNoiseReduced) {
+                effectiveMax = 0;
+                for (let i = 0; i < SIZE * SIZE; i++) {
+                    const iy = Math.floor(i / SIZE), ix = i % SIZE;
+                    const isCenter = Math.abs(iy - half) < centerMaskSize && Math.abs(ix - half) < centerMaskSize;
+                    if (!(isCenterHidden && isCenter)) {
+                        const v = Math.max(0, logMags[i] - avgLogMag);
+                        if (v > effectiveMax) effectiveMax = v;
+                    }
+                }
+            }
+
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    let i = y * SIZE + x;
+                    let val = logMags[i];
+                    if (isNoiseReduced) val = Math.max(0, val - avgLogMag);
+
+                    const isCenter = Math.abs(y - half) < centerMaskSize && Math.abs(x - half) < centerMaskSize;
+                    let normVal = (isCenterHidden && isCenter) ? 0 : (val / (effectiveMax || 1));
+                    // Gamma < 1 boosts brightness and contrast of dim features
+                    normVal = Math.pow(normVal, 0.8);
+
+                    let isBoundary = false;
+                    if (effectiveMasks[i] === 1) {
+                        if (x > 0 && effectiveMasks[i - 1] === 0) isBoundary = true;
+                        else if (x < SIZE - 1 && effectiveMasks[i + 1] === 0) isBoundary = true;
+                        else if (y > 0 && effectiveMasks[i - SIZE] === 0) isBoundary = true;
+                        else if (y < SIZE - 1 && effectiveMasks[i + SIZE] === 0) isBoundary = true;
+                    }
+
+                    if (isBoundary) {
+                        specData.data[i * 4] = 255;
+                        specData.data[i * 4 + 1] = 0;
+                        specData.data[i * 4 + 2] = 0;
+                        specData.data[i * 4 + 3] = 255;
+                    } else if (effectiveMasks[i] === 0) {
+                        const [r, g, b] = viridisColor(normVal * 0.65);
+                        specData.data[i * 4]     = r * 255;
+                        specData.data[i * 4 + 1] = g * 255;
+                        specData.data[i * 4 + 2] = b * 255;
+                        specData.data[i * 4 + 3] = 255;
+                    } else {
+                        const [r, g, b] = viridisColor(normVal);
+                        specData.data[i * 4]     = r * 255;
+                        specData.data[i * 4 + 1] = g * 255;
+                        specData.data[i * 4 + 2] = b * 255;
+                        specData.data[i * 4 + 3] = 255;
+                    }
+                }
+            }
+            cachedSpectrumData = specData;
+            renderSpectrumCanvas();
+
+            // --- Inverse FFT ---
+            let invRe = new Float64Array(SIZE * SIZE);
+            let invIm = new Float64Array(SIZE * SIZE);
+            for (let i = 0; i < SIZE * SIZE; i++) {
+                invRe[i] = fftRe[i] * effectiveMasks[i];
+                invIm[i] = fftIm[i] * effectiveMasks[i];
+            }
+
+            fftShiftFlat(invRe, invIm, SIZE);
+
+            let invReMat = Array(SIZE).fill(0).map(() => new Float64Array(SIZE));
+            let invImMat = Array(SIZE).fill(0).map(() => new Float64Array(SIZE));
+            for(let y=0; y<SIZE; y++) {
+                for(let x=0; x<SIZE; x++) {
+                    let idx = y * SIZE + x;
+                    invReMat[y][x] = invRe[idx];
+                    invImMat[y][x] = invIm[idx];
+                }
+            }
+
+            for (let i = 0; i < SIZE; i++) inverseTransform(invReMat[i], invImMat[i]);
+            for (let j = 0; j < SIZE; j++) {
+                let colR = new Float64Array(SIZE), colI = new Float64Array(SIZE);
+                for(let i=0; i<SIZE; i++) { colR[i] = invReMat[i][j]; colI[i] = invImMat[i][j]; }
+                inverseTransform(colR, colI);
+                for(let i=0; i<SIZE; i++) { invReMat[i][j] = colR[i]; invImMat[i][j] = colI[i]; }
+            }
+
+            let resData = ctxResult.createImageData(resW, resH);
+            let resultMags = new Float64Array(resW * resH);
+            let absoluteMax = 0;
+            
+            for (let y = 0; y < resH; y++) {
+                for (let x = 0; x < resW; x++) {
+                    let idx = y * resW + x;
+                    resultMags[idx] = Math.sqrt(invReMat[y][x]**2 + invImMat[y][x]**2);
+                    if (resultMags[idx] > absoluteMax) absoluteMax = resultMags[idx];
+                }
+            }
+
+            let pctContrast = parseFloat(contrastSlider.value);
+            let pctThreshold = parseFloat(thresholdSlider.value) / 100.0;
+
+            let pMin = 0, pMax = absoluteMax || 1;
+
+            if (absoluteMax > 0) {
+                if (isImageMode) {
+                    let sortedMags = Float64Array.from(resultMags).sort();
+                    let pctIndex = Math.floor(resW * resH * (pctContrast / 100));
+                    pMin = sortedMags[Math.floor(resW * resH * 0.01)]; 
+                    pMax = sortedMags[Math.min(pctIndex, resW * resH - 1)]; 
+                    if (pMax - pMin < absoluteMax * 0.01) pMax = absoluteMax; 
+                } else {
+                    let multiplier = Math.max(0.01, (100 - pctContrast) / 50); 
+                    pMax = absoluteMax * multiplier;
+                }
+            }
+
+            let range = pMax - pMin;
+            if (range <= 0) range = 1;
+
+            for (let i = 0; i < resW * resH; i++) {
+                let norm = (resultMags[i] - pMin) / range;
+                if (norm < pctThreshold) {
+                    norm = 0; 
+                }
+                let val = Math.max(0, Math.min(1, norm)) * 255;
+                
+                let idx = i * 4;
+                resData.data[idx] = val;
+                resData.data[idx + 1] = val;
+                resData.data[idx + 2] = val;
+                resData.data[idx + 3] = 255;
+            }
+            
+            cachedResultData = resData;
+            renderResultCanvas();
+        }
+
+        // --- Render the Final Result Image with Annotations ---
+        function renderResultCanvas() {
+            if (cachedResultData) {
+                ctxResult.putImageData(cachedResultData, 0, 0);
+            }
+            
+            // Draw the permanent user annotations overlay
+            ctxResult.drawImage(resOverlayCanvas, 0, 0);
+
+            // Draw brush cursor preview
+            if (resultMouseX >= 0 && resultMouseY >= 0) {
+                ctxResult.beginPath();
+                ctxResult.arc(resultMouseX, resultMouseY, resultBrushSize, 0, Math.PI * 2);
+                ctxResult.strokeStyle = 'rgba(255,255,255,0.8)';
+                ctxResult.lineWidth = Math.max(1, resW/300);
+                ctxResult.stroke();
+                
+                ctxResult.beginPath();
+                ctxResult.arc(resultMouseX, resultMouseY, resultBrushSize, 0, Math.PI * 2);
+                ctxResult.strokeStyle = 'rgba(0,0,0,0.8)';
+                ctxResult.setLineDash([4, 4]);
+                ctxResult.stroke();
+                ctxResult.setLineDash([]);
+            }
+        }
+
+        // --- Result Canvas Annotation Handlers ---
+        function hexToRgba(hex, alpha) {
+            let r = parseInt(hex.slice(1, 3), 16),
+                g = parseInt(hex.slice(3, 5), 16),
+                b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r},${g},${b},${alpha})`;
+        }
+
+        function applyResultMarker(x, y) {
+            resOverlayCtx.beginPath();
+            resOverlayCtx.arc(x, y, resultBrushSize, 0, Math.PI * 2);
+            if (resultDrawMode === 1) {
+                resOverlayCtx.globalCompositeOperation = 'source-over';
+                resOverlayCtx.fillStyle = hexToRgba(resColorInput.value, resAlphaInput.value);
+                resOverlayCtx.fill();
+            } else {
+                resOverlayCtx.globalCompositeOperation = 'destination-out';
+                resOverlayCtx.fillStyle = 'rgba(0,0,0,1)';
+                resOverlayCtx.fill();
+            }
+            renderResultCanvas();
+        }
+
+        function getResultMousePos(evt) {
+            const rect = canvasResult.getBoundingClientRect();
+            const scaleX = resW / rect.width;
+            const scaleY = resH / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        canvasResult.addEventListener('mousedown', (e) => {
+            isDrawingResult = true;
+            resultDrawMode = e.button === 0 ? 1 : 0; // Left draw, right erase
+            const pos = getResultMousePos(e);
+            resultMouseX = pos.x;
+            resultMouseY = pos.y;
+            applyResultMarker(resultMouseX, resultMouseY);
+        });
+
+        canvasResult.addEventListener('mousemove', (e) => {
+            const pos = getResultMousePos(e);
+            resultMouseX = pos.x;
+            resultMouseY = pos.y;
+            if (isDrawingResult) {
+                applyResultMarker(resultMouseX, resultMouseY);
+            } else {
+                renderResultCanvas();
+            }
+        });
+
+        canvasResult.addEventListener('mouseleave', () => {
+            resultMouseX = -1;
+            resultMouseY = -1;
+            renderResultCanvas();
+        });
+        
+        canvasResult.addEventListener('mouseup', () => {
+            isDrawingResult = false;
+        });
+
+        canvasResult.addEventListener('contextmenu', e => e.preventDefault());
+
+        canvasResult.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            resultBrushSize += e.deltaY > 0 ? -2 : 2;
+            resultBrushSize = Math.max(2, Math.min(Math.max(resW, resH)/2, resultBrushSize));
+            resRadiusDisplay.innerText = resultBrushSize;
+            renderResultCanvas();
+        });
+        
+        clearMarkersBtn.addEventListener('click', () => {
+            resOverlayCtx.clearRect(0, 0, resW, resH);
+            renderResultCanvas();
+        });
+
+        // --- Existing Interaction Handlers ---
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    loadedImage = img;
+                    isImageMode = true;
+                    document.getElementById('spatial-title').innerText = "Spatial Domain (Image)";
+                    updateAll();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                points = event.target.result.split('\n').filter(l => l.trim()).map(l => {
+                    const [x, y] = l.split(/[\s,]+/).map(Number);
+                    return { x, y };
+                }).filter(p => !isNaN(p.x));
+                
+                isImageMode = false;
+                loadedImage = null;
+                document.getElementById('spatial-title').innerText = "Spatial Domain (Points)";
+                updateAll();
+            };
+            reader.readAsText(file);
+        });
+
+        function getSpatialMousePos(evt) {
+            const rect = scatterCanvas.getBoundingClientRect();
+            const scaleX = sW / rect.width;
+            const scaleY = sH / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        scatterCanvas.addEventListener('mousedown', (e) => {
+            if (!isWindowEnabled) return;
+            const pos = getSpatialMousePos(e);
+            
+            const hs = Math.max(15, sW / 40);
+            if (Math.abs(pos.x - fftWindow.x) < hs && Math.abs(pos.y - fftWindow.y) < hs) { 
+                isResizingWindow = true; resizeHandle = 'nw'; return; 
+            }
+            if (Math.abs(pos.x - (fftWindow.x + fftWindow.width)) < hs && Math.abs(pos.y - (fftWindow.y + fftWindow.height)) < hs) { 
+                isResizingWindow = true; resizeHandle = 'se'; return; 
+            }
+            
+            if (pos.x > fftWindow.x && pos.x < fftWindow.x + fftWindow.width && 
+                pos.y > fftWindow.y && pos.y < fftWindow.y + fftWindow.height) {
+                isDraggingWindow = true;
+                interactionOffset = { x: pos.x - fftWindow.x, y: pos.y - fftWindow.y };
+            }
+        });
+
+        scatterCanvas.addEventListener('mousemove', (e) => {
+            if (!isDraggingWindow && !isResizingWindow) return;
+            const pos = getSpatialMousePos(e);
+            if (isResizingWindow) {
+                if (resizeHandle === 'nw') {
+                    fftWindow.width += fftWindow.x - pos.x;
+                    fftWindow.height += fftWindow.y - pos.y;
+                    fftWindow.x = pos.x;
+                    fftWindow.y = pos.y;
+                } else {
+                    fftWindow.width = pos.x - fftWindow.x;
+                    fftWindow.height = pos.y - fftWindow.y;
+                }
+            } else if (isDraggingWindow) {
+                fftWindow.x = pos.x - interactionOffset.x;
+                fftWindow.y = pos.y - interactionOffset.y;
+            }
+            updateAll(); 
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDraggingWindow = false;
+            isResizingWindow = false;
+            isDrawingMask = false;
+        });
+
+        function applyMask(x, y) {
+            for (let dy = -brushSize; dy <= brushSize; dy++) {
+                for (let dx = -brushSize; dx <= brushSize; dx++) {
+                    if (dx*dx + dy*dy <= brushSize*brushSize) {
+                        let nx = Math.round(x + dx);
+                        let ny = Math.round(y + dy);
+                        if (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE) {
+                            mask[ny * SIZE + nx] = drawMode;
+                        }
+                    }
+                }
+            }
+            updateSpectrumAndInverse();
+        }
+
+        function getSpectrumMousePos(evt) {
+            const rect = canvasSpectrum.getBoundingClientRect();
+            const scaleX = SIZE / rect.width;
+            const scaleY = SIZE / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        canvasSpectrum.addEventListener('mousedown', (e) => {
+            isDrawingMask = true;
+            drawMode = e.button === 0 ? 1 : 0; 
+            const pos = getSpectrumMousePos(e);
+            spectrumMouseX = pos.x;
+            spectrumMouseY = pos.y;
+            applyMask(spectrumMouseX, spectrumMouseY);
+        });
+
+        canvasSpectrum.addEventListener('mousemove', (e) => {
+            const pos = getSpectrumMousePos(e);
+            spectrumMouseX = pos.x;
+            spectrumMouseY = pos.y;
+
+            if (isDrawingMask) {
+                applyMask(spectrumMouseX, spectrumMouseY);
+            } else {
+                renderSpectrumCanvas(); 
+            }
+        });
+        
+        canvasSpectrum.addEventListener('mouseleave', () => {
+            spectrumMouseX = -1;
+            spectrumMouseY = -1;
+            renderSpectrumCanvas(); 
+        });
+
+        canvasSpectrum.addEventListener('contextmenu', e => e.preventDefault());
+
+        canvasSpectrum.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            brushSize += e.deltaY > 0 ? -2 : 2;
+            brushSize = Math.max(2, Math.min(SIZE/2, brushSize)); 
+            document.getElementById('brushSizeDisplay').innerText = brushSize;
+            renderSpectrumCanvas(); 
+        });
+
+        document.getElementById('resetMaskBtn').addEventListener('click', () => {
+            mask.fill(0);
+            updateSpectrumAndInverse();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            isImageMode = false;
+            loadedImage = null;
+            document.getElementById('spatial-title').innerText = "Spatial Domain (Points)";
+            document.getElementById('image-input').value = ""; 
+            document.getElementById('file-input').value = "";
+
+            points = [];
+            for (let x = 0; x < 10; x++) {
+                for (let y = 0; y < 10; y++) {
+                    points.push({ x: x*60, y: y*60 });
+                }
+            }
+            fftWindow = { x: 50, y: 50, width: 200, height: 200 };
+            updateAll();
+        });
+
+        windowCheckbox.addEventListener('change', e => { 
+            isWindowEnabled = e.target.checked; 
+            updateAll(); 
+        });
+        hideCenterCheckbox.addEventListener('change', e => { isCenterHidden = e.target.checked; updateSpectrumAndInverse(); });
+        noiseReductionCheckbox.addEventListener('change', e => { isNoiseReduced = e.target.checked; updateSpectrumAndInverse(); });
+        
+        contrastSlider.addEventListener('input', (e) => {
+            contrastVal.innerText = e.target.value + '%';
+            updateSpectrumAndInverse(); 
+        });
+
+        thresholdSlider.addEventListener('input', (e) => {
+            thresholdVal.innerText = e.target.value + '%';
+            updateSpectrumAndInverse(); 
+        });
+
+        // Init
+        resetBtn.click();
+    </script>
+</body>
+</html>
