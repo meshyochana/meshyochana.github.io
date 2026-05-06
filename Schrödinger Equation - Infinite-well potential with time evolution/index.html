@@ -100,7 +100,7 @@
     <div class="section">
         <h2>3. Time Evolution of Superposition States</h2>
         <p>While stationary states have constant probability densities, a superposition evolves dynamically due to quantum interference.
-           The left plot shows the spatial profile |Ψ(x,t)|<sup>2</sup> as time runs; the right plot tracks the probability density at a fixed point x<sub>0</sub>.
+           The left hand plot shows the spatial profile |Ψ(x,t)|<sup>2</sup> as time evolves; the right hand plot tracks the probability density at a fixed point x<sub>0</sub>.
            Eigenfrequencies scale as ω<sub>n</sub> = n<sup>2</sup>ω<sub>1</sub>.</p>
 
         <!-- 6-slider panel -->
@@ -227,11 +227,14 @@ const L = extra => Object.assign({}, baseLayout, extra);
 function updateWavePlots() {
     const n = parseInt(document.getElementById('nWaveSlider').value);
     document.getElementById('nWaveVal').innerText = n;
-    const yPsi  = xVals.map(x => psi(n, x));
+    // 20 samples per half-period, minimum 300 points
+    const nPts = Math.max(300, 20 * n);
+    const xW = Array.from({length: nPts + 1}, (_, i) => -a/2 + i * (a / nPts));
+    const yPsi  = xW.map(x => psi(n, x));
     const yProb = yPsi.map(y => y*y);
-    Plotly.newPlot('psiPlot',  [{x:xVals,y:yPsi, type:'scatter',mode:'lines',line:{color:'#2980b9',width:2.5},name:`ψ<sub>${n}</sub>(x)`}],
+    Plotly.newPlot('psiPlot',  [{x:xW,y:yPsi, type:'scatter',mode:'lines',line:{color:'#2980b9',width:2.5},name:`ψ<sub>${n}</sub>(x)`}],
         L({title:`Wavefunction ψ<sub>${n}</sub>(x)`,xaxis:{title:'x'},yaxis:{title:'ψ'}}));
-    Plotly.newPlot('probPlot', [{x:xVals,y:yProb,type:'scatter',mode:'lines',line:{color:'#c0392b',width:2.5},name:`|ψ<sub>${n}</sub>|<sup>2</sup>`}],
+    Plotly.newPlot('probPlot', [{x:xW,y:yProb,type:'scatter',mode:'lines',line:{color:'#c0392b',width:2.5},name:`|ψ<sub>${n}</sub>|<sup>2</sup>`}],
         L({title:`Probability Density |ψ<sub>${n}</sub>(x)|<sup>2</sup>`,xaxis:{title:'x'},yaxis:{title:'|ψ|<sup>2</sup>',rangemode:'tozero'}}));
 }
 
