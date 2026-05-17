@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Schrödinger Eqn. - Finite-well potential - Bound States</title>
+
+
+    <!-- MathJax v3 Configuration -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            color: #00AA00;
+            border-bottom: 2px solid #00AA00;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            margin-top: 30px;
+            color: #444;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: gray;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .code-block {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+            overflow-x: auto;
+            font-family: Consolas, monospace;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .plot-container {
+            width: 100%;
+            height: 600px;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #fff;
+        }
+
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        select {
+            padding: 5px 10px;
+            font-size: 1em;
+        }
+
+        input[type="range"] {
+            cursor: pointer;
+            width: 220px;
+        }
+
+        .slider-label {
+            font-weight: bold;
+            min-width: 90px;
+        }
+
+        .slider-value {
+            font-weight: bold;
+            color: #00AA00;
+            min-width: 40px;
+            font-size: 1.1em;
+        }
+
+        .plot-explanation {
+            background: #f0f7f0;
+            border-left: 4px solid #00AA00;
+            padding: 14px 18px;
+            margin: 10px 0 20px 0;
+            border-radius: 0 5px 5px 0;
+            font-size: 0.97em;
+        }
+
+        .roots-table-wrap {
+            overflow-x: auto;
+            margin: 10px 0 20px 0;
+        }
+
+        table {
+            border-collapse: collapse;
+            font-size: 0.95em;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 6px 14px;
+            text-align: center;
+        }
+
+        th {
+            background: #d9f0d9;
+        }
+
+        .layout-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+        }
+
+        .layout-column {
+            flex: 1;
+            min-width: 500px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Schrödinger Eqn. - Finite-well potential - Bound States</h1>
+    <div class="subtitle">Converted and updated by Meshy Ochana (2026) from Ron Lifshitz's Mathematica Notebook (2011)
+    </div>
+
+    <div class="layout-container">
+        <div class="layout-column">
+            <h2>Calculation of allowed wavenumbers</h2>
+
+            <h3>Prepare the graphical representation</h3>
+            <p>
+                We are using the scaled units from class.<br>
+                Use the slider below to set the depth $V_0$ of the potential well.
+            </p>
+
+            <!-- V0 Slider -->
+            <div class="controls">
+                <span class="slider-label">$V_0$ =</span>
+                <input type="range" id="v0Slider" min="1" max="200" value="45" step="1"
+                    oninput="scheduleUpdate(this.value)">
+                <span class="slider-value" id="v0Display">45</span>
+            </div>
+
+            <!-- Explanation of Plot 1 -->
+            <div class="plot-explanation">
+                <strong>What this plot shows:</strong>
+                The bound-state condition for a finite square well of half-width $a$ and depth $V_0$
+                requires that the inside wavenumber $k$ and the outside decay constant $\beta$ satisfy
+                $\hat{k}^2 + \hat{\beta}^2 = \hat{V_0}$.
+                <ul style="margin:8px 0 0 0;">
+                    <li><span style="color:red;font-weight:bold;">Red curve — Even states:</span>
+                        $\hat{\beta} = \hat{k}\tan \hat{k}$ (boundary-condition equation for even/symmetric
+                        wavefunctions).</li>
+                    <li><span style="color:green;font-weight:bold;">Green curve — Odd states:</span>
+                        $\hat{\beta} = -\hat{k}\cot \hat{k}$ (boundary-condition equation for odd/antisymmetric
+                        wavefunctions).</li>
+                    <li><span style="color:blue;font-weight:bold;">Blue quarter-circle:</span>
+                        $\hat{\beta} = \sqrt{\hat{V_0} - \hat{k}^2}$, the energy conservation constraint.</li>
+                </ul>
+                <strong>The intersection points</strong> of the quarter-circle with the red or green curves
+                give the allowed wavenumbers $k_n$ of the bound states.
+                Each intersection corresponds to one bound state; the dots mark the numerically computed roots.
+                Increasing $V_0$ (drag the slider) enlarges the quarter-circle and adds new intersections —
+                i.e., new bound states appear.
+            </div>
+
+            <h3>Find roots numerically and plot them</h3>
+
+
+            <div id="wavenumber-plot" class="plot-container"></div>
+        </div>
+
+        <div class="layout-column">
+            <h2>Plotting the Wave Functions</h2>
+
+            <p>
+                The wave functions are plotted over the finite potential well. Using the numerical roots calculated
+                above,
+                we can construct the exact piecewise functions $\psi_{\text{Even}}(x)$ and $\psi_{\text{Odd}}(x)$
+                for each bound state. Select a state $n$ below to visualize the wavefunction and its corresponding
+                energy level.
+            </p>
+
+            <div class="controls">
+                <label for="stateSelect"><strong>Select Bound State ($n$):</strong></label>
+                <select id="stateSelect" onchange="updateWavefunctionPlot(parseInt(this.value))"></select>
+            </div>
+
+            <div id="wavefunction-plot" class="plot-container"></div>
+
+            <div style="margin-top: 20px;">
+                <p><strong>Calculated Roots:</strong></p>
+                <div class="roots-table-wrap">
+                    <table id="rootsTable">
+                        <thead>
+                            <tr>
+                                <th>$n$</th>
+                                <th>Type</th>
+                                <th>$k_n$</th>
+                                <th>$\beta_n$</th>
+                                <th>$E_n = -\beta_n^2$</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rootsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plotly loaded here so it's available to the inline script below -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <script>
+        // ─────────────────────────────────────────────────────────────────────────
+        // Debounce: fire onV0Change only after the slider stops moving for 80 ms
+        // ─────────────────────────────────────────────────────────────────────────
+        let _debounceTimer = null;
+        function scheduleUpdate(val) {
+            document.getElementById('v0Display').textContent = val; // instant label update
+            clearTimeout(_debounceTimer);
+            _debounceTimer = setTimeout(() => onV0Change(val), 80);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Numerical root-finding (bisection) for the two boundary-condition curves
+        // ─────────────────────────────────────────────────────────────────────────
+
+        function bisect(f, a, b, tol) {
+            tol = tol || 1e-10;
+            let fa = f(a), fb = f(b);
+            if (fa * fb > 0) return null;
+            for (let i = 0; i < 200; i++) {
+                let m = (a + b) / 2;
+                let fm = f(m);
+                if (Math.abs(b - a) < tol) return m;
+                if (fa * fm <= 0) { b = m; fb = fm; }
+                else { a = m; fa = fm; }
+            }
+            return (a + b) / 2;
+        }
+
+        /**
+         * Find all roots of the even boundary condition: k tan(k) = sqrt(V0 - k^2)
+         * and odd: -k cot(k) = sqrt(V0 - k^2), for k in (0, sqrt(V0)).
+         * Each branch of tan / -cot lives in one interval of length π.
+         */
+        function findRoots(V0) {
+            const sqrtV0 = Math.sqrt(V0);
+            const evenRoots = [], oddRoots = [];
+
+            // Even: f(k) = k tan(k) - sqrt(V0-k^2)
+            // Branches of tan in [0, sqrtV0]: start at nπ, end at (n+1/2)π
+            for (let n = 0; n < 50; n++) {
+                let lo = n * Math.PI + 1e-9;
+                let hi = (n + 0.5) * Math.PI - 1e-9;
+                if (lo >= sqrtV0) break;
+                hi = Math.min(hi, sqrtV0 - 1e-9);
+                if (hi <= lo) break;
+                let f = k => k * Math.tan(k) - Math.sqrt(Math.max(0, V0 - k * k));
+                let r = bisect(f, lo, hi);
+                if (r !== null && r > 1e-9 && r < sqrtV0) evenRoots.push(r);
+            }
+
+            // Odd: f(k) = -k cot(k) - sqrt(V0-k^2)
+            // Branches of -cot in [(n+1/2)π, (n+1)π]
+            for (let n = 0; n < 50; n++) {
+                let lo = (n + 0.5) * Math.PI + 1e-9;
+                let hi = (n + 1.0) * Math.PI - 1e-9;
+                if (lo >= sqrtV0) break;
+                hi = Math.min(hi, sqrtV0 - 1e-9);
+                if (hi <= lo) break;
+                let f = k => -k / Math.tan(k) - Math.sqrt(Math.max(0, V0 - k * k));
+                let r = bisect(f, lo, hi);
+                if (r !== null && r > 1e-9 && r < sqrtV0) oddRoots.push(r);
+            }
+
+            return { evenRoots, oddRoots };
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // State
+        // ─────────────────────────────────────────────────────────────────────────
+        let currentV0 = 45;
+        let states = [];   // [{n, type, k, beta}, ...] sorted by k
+
+        function buildStates(V0) {
+            const { evenRoots, oddRoots } = findRoots(V0);
+            const all = [];
+            for (let k of evenRoots) all.push({ type: 'even', k, beta: Math.sqrt(Math.max(0, V0 - k * k)) });
+            for (let k of oddRoots) all.push({ type: 'odd', k, beta: Math.sqrt(Math.max(0, V0 - k * k)) });
+            all.sort((a, b) => a.k - b.k);
+            return all.map((s, i) => ({ ...s, n: i + 1 }));
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Plot 1 – Wavenumber intersection plot
+        // ─────────────────────────────────────────────────────────────────────────
+        // Reusable typed arrays for the wavenumber plot (avoids GC pressure on slider drag)
+        const _N = 400;
+        const _kMax = 4 * Math.PI;
+        const _kArr = new Float64Array(_N + 1);
+        const _evenArr = new Array(_N + 1);
+        const _oddArr = new Array(_N + 1);
+        const _circArr = new Array(_N + 1);
+        for (let i = 0; i <= _N; i++) _kArr[i] = (i / _N) * _kMax;
+
+        function plotWavenumbers(V0, stateList) {
+            const clip = Math.sqrt(V0) * 1.5;
+
+            for (let i = 0; i <= _N; i++) {
+                const k = _kArr[i];
+                const ev = k * Math.tan(k);
+                _evenArr[i] = (ev < 0 || ev > clip) ? null : ev;
+                const od = -k / Math.tan(k);
+                _oddArr[i] = (od < 0 || od > clip) ? null : od;
+                const c2 = V0 - k * k;
+                _circArr[i] = c2 >= 0 ? Math.sqrt(c2) : null;
+            }
+
+            const evenX = stateList.filter(s => s.type === 'even').map(s => s.k);
+            const evenY = stateList.filter(s => s.type === 'even').map(s => s.beta);
+            const oddX = stateList.filter(s => s.type === 'odd').map(s => s.k);
+            const oddY = stateList.filter(s => s.type === 'odd').map(s => s.beta);
+
+            const yMax = Math.max(Math.sqrt(V0) * 1.1, 2);
+
+            const data = [
+                { x: _kArr, y: _evenArr, mode: 'lines', line: { color: 'red', width: 2 }, name: 'Even: k tan(k)' },
+                { x: _kArr, y: _oddArr, mode: 'lines', line: { color: 'green', width: 2 }, name: 'Odd: −k cot(k)' },
+                { x: _kArr, y: _circArr, mode: 'lines', line: { color: 'blue', width: 2 }, name: 'Circle: √(V₀ − k²)' },
+                { x: evenX, y: evenY, mode: 'markers', marker: { color: 'red', size: 9, symbol: 'circle' }, name: 'Even Roots' },
+                { x: oddX, y: oddY, mode: 'markers', marker: { color: 'green', size: 9, symbol: 'circle' }, name: 'Odd Roots' }
+            ];
+
+            const layout = {
+                title: `Allowed Wavenumbers — V₀ = ${V0}`,
+                xaxis: {
+                    title: 'ka',
+                    range: [0, _kMax],
+                    tickvals: [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2, 2 * Math.PI,
+                        5 * Math.PI / 2, 3 * Math.PI, 7 * Math.PI / 2, 4 * Math.PI],
+                    ticktext: ['0', 'π/2', 'π', '3π/2', '2π', '5π/2', '3π', '7π/2', '4π']
+                },
+                yaxis: { title: 'βa', range: [0, yMax] },
+                showlegend: true
+            };
+
+            Plotly.react('wavenumber-plot', data, layout);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Roots table
+        // ─────────────────────────────────────────────────────────────────────────
+        function updateRootsTable(stateList) {
+            const tbody = document.getElementById('rootsBody');
+            tbody.innerHTML = '';
+            for (let s of stateList) {
+                const E = -(s.beta * s.beta);
+                tbody.innerHTML += `<tr>
+                <td>${s.n}</td>
+                <td style="color:${s.type === 'even' ? 'red' : 'green'};font-weight:bold">${s.type}</td>
+                <td>${s.k.toFixed(6)}</td>
+                <td>${s.beta.toFixed(6)}</td>
+                <td>${E.toFixed(4)}</td>
+            </tr>`;
+            }
+            // Trigger MathJax re-render for any new $ $ inside the table
+            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([tbody]);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // State selector dropdown
+        // ─────────────────────────────────────────────────────────────────────────
+        function updateStateSelector(stateList, selectedN) {
+            const sel = document.getElementById('stateSelect');
+            sel.innerHTML = '';
+            if (stateList.length === 0) {
+                sel.innerHTML = '<option value="">No bound states</option>';
+                return;
+            }
+            for (let s of stateList) {
+                const opt = document.createElement('option');
+                opt.value = s.n;
+                opt.textContent = `n = ${s.n} (${s.type[0].toUpperCase() + s.type.slice(1)}, k = ${s.k.toFixed(3)})`;
+                if (s.n === selectedN) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Plot 2 – Wavefunction & Potential Well
+        // ─────────────────────────────────────────────────────────────────────────
+        function calculateWavefunction(x, state) {
+            const K = state.k, beta = state.beta;
+            let CC;
+            if (state.type === 'even') {
+                CC = Math.cos(K) * Math.exp(beta);
+                if (x < -1) return CC * Math.exp(beta * x);
+                if (x <= 1) return Math.cos(K * x);
+                return CC * Math.exp(-beta * x);
+            } else {
+                CC = Math.sin(K) * Math.exp(beta);
+                if (x < -1) return -CC * Math.exp(beta * x);
+                if (x <= 1) return Math.sin(K * x);
+                return CC * Math.exp(-beta * x);
+            }
+        }
+
+        function updateWavefunctionPlot(n) {
+            if (states.length === 0) {
+                Plotly.react('wavefunction-plot', [], { title: 'No bound states for current V₀' });
+                return;
+            }
+            const state = states.find(s => s.n === n) || states[0];
+            const V0 = currentV0;
+
+            const x_vals = [], psi_vals = [];
+            for (let i = -400; i <= 400; i++) {
+                let x = i / 100;
+                x_vals.push(x);
+                psi_vals.push(calculateWavefunction(x, state));
+            }
+
+            const energy = -(state.beta * state.beta);
+            const color = state.type === 'even' ? 'red' : 'green';
+
+            const waveData = {
+                x: x_vals, y: psi_vals, mode: 'lines',
+                line: { color, width: 2 },
+                name: `ψ(x) [n=${state.n}]`,
+                xaxis: 'x', yaxis: 'y'
+            };
+
+            const wellLines = {
+                x: [-1, -1, null, 1, 1],
+                y: [-1.2, 1.2, null, -1.2, 1.2],
+                mode: 'lines',
+                line: { color: 'black', dash: 'dash', width: 2 },
+                name: 'Well Boundaries',
+                xaxis: 'x', yaxis: 'y'
+            };
+
+            const potentialData = {
+                x: [-1.5, -1, -1, 1, 1, 1.5],
+                y: [0, 0, -V0, -V0, 0, 0],
+                mode: 'lines',
+                line: { color: 'blue', width: 2 },
+                name: 'V(x)',
+                xaxis: 'x2', yaxis: 'y2'
+            };
+
+            const energyLine = {
+                x: [-1, 1], y: [energy, energy], mode: 'lines',
+                line: { color: 'orange', width: 3 },
+                name: `Energy = ${energy.toFixed(2)}`,
+                xaxis: 'x2', yaxis: 'y2'
+            };
+
+            const layout = {
+                title: `Wave Function & Potential Well — n=${state.n} (${state.type}), E = ${energy.toFixed(3)}`,
+                grid: { rows: 1, columns: 2, pattern: 'independent' },
+                xaxis: { title: 'x', range: [-4, 4] },
+                yaxis: { title: 'ψ(x)', range: [-1.2, 1.2] },
+                xaxis2: { title: 'x', range: [-1.5, 1.5] },
+                yaxis2: { title: 'Energy', range: [-1.2 * V0, 0.2 * V0] },
+                showlegend: false
+            };
+
+            Plotly.react('wavefunction-plot', [waveData, wellLines, potentialData, energyLine], layout);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Master update — called on slider change and on load
+        // ─────────────────────────────────────────────────────────────────────────
+        function onV0Change(val) {
+            currentV0 = parseInt(val);
+            document.getElementById('v0Display').textContent = currentV0;
+
+            // Remember which state was selected
+            const sel = document.getElementById('stateSelect');
+            const prevN = sel.value ? parseInt(sel.value) : 1;
+
+            states = buildStates(currentV0);
+
+            plotWavenumbers(currentV0, states);
+            updateRootsTable(states);
+            updateStateSelector(states, prevN);
+
+            // Pick the same n if it still exists, else fall back to 1
+            const newN = states.find(s => s.n === prevN) ? prevN : (states[0] ? states[0].n : 1);
+            updateWavefunctionPlot(newN);
+        }
+
+        // Initial render
+        onV0Change(45);
+
+    </script>
+
+</body>
+
+</html>
