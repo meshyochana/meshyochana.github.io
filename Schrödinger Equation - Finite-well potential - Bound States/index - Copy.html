@@ -16,7 +16,7 @@
             }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
         body {
@@ -83,33 +83,6 @@
         select {
             padding: 5px 10px;
             font-size: 1em;
-        }
-
-        .state-btn {
-            padding: 6px 14px;
-            font-size: 0.95em;
-            border: 2px solid #aaa;
-            border-radius: 5px;
-            background: #f5f5f5;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.15s, border-color 0.15s;
-        }
-
-        .state-btn:hover {
-            background: #e0e0e0;
-        }
-
-        .state-btn.active-even {
-            background: #ffe0e0;
-            border-color: red;
-            color: red;
-        }
-
-        .state-btn.active-odd {
-            background: #d6f5d6;
-            border-color: green;
-            color: green;
         }
 
         input[type="range"] {
@@ -189,7 +162,7 @@
 
             <!-- V0 Slider -->
             <div class="controls">
-                <span class="slider-label">$\hat{V_0}$ =</span>
+                <span class="slider-label">$V_0$ =</span>
                 <input type="range" id="v0Slider" min="1" max="200" value="45" step="1"
                     oninput="scheduleUpdate(this.value)">
                 <span class="slider-value" id="v0Display">45</span>
@@ -212,10 +185,10 @@
                         $\hat{\beta} = \sqrt{\hat{V_0} - \hat{k}^2}$, the energy conservation constraint.</li>
                 </ul>
                 <strong>The intersection points</strong> of the quarter-circle with the red or green curves
-                give the allowed wavenumbers $\hat{k_n}$ of the bound states.
+                give the allowed wavenumbers $k_n$ of the bound states.
                 Each intersection corresponds to one bound state; the dots mark the numerically computed roots.
-                Increasing $\hat{V_0}$, by dragging the slider, deepens the well while enlarging the blue
-                quarter-circle, thus adding new intersections and increasing the number of bound states.
+                Increasing $V_0$ (drag the slider) enlarges the quarter-circle and adds new intersections —
+                i.e., new bound states appear.
             </div>
 
             <h3>Find roots numerically and plot them</h3>
@@ -236,8 +209,8 @@
             </p>
 
             <div class="controls">
-                <strong>Select Bound State ($n$):</strong>
-                <div id="stateButtons" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                <label for="stateSelect"><strong>Select Bound State ($n$):</strong></label>
+                <select id="stateSelect" onchange="updateWavefunctionPlot(parseInt(this.value))"></select>
             </div>
 
             <div id="wavefunction-plot" class="plot-container"></div>
@@ -250,9 +223,9 @@
                             <tr>
                                 <th>$n$</th>
                                 <th>Type</th>
-                                <th>$\hat{k_n}$</th>
-                                <th>$\hat{\beta_n}$</th>
-                                <th>$\hat{E_n} = -\hat{\beta_n}^2$</th>
+                                <th>$k_n$</th>
+                                <th>$\beta_n$</th>
+                                <th>$E_n = -\beta_n^2$</th>
                             </tr>
                         </thead>
                         <tbody id="rootsBody"></tbody>
@@ -349,21 +322,17 @@
         // ─────────────────────────────────────────────────────────────────────────
         // Plot 1 – Wavenumber intersection plot
         // ─────────────────────────────────────────────────────────────────────────
-        // Pre-allocated arrays; k-values are rebuilt dynamically inside plotWavenumbers
-        const _N = 600;   // enough resolution for k up to ~14
+        // Reusable typed arrays for the wavenumber plot (avoids GC pressure on slider drag)
+        const _N = 400;
+        const _kMax = 4 * Math.PI;
         const _kArr = new Float64Array(_N + 1);
         const _evenArr = new Array(_N + 1);
         const _oddArr = new Array(_N + 1);
         const _circArr = new Array(_N + 1);
+        for (let i = 0; i <= _N; i++) _kArr[i] = (i / _N) * _kMax;
 
         function plotWavenumbers(V0, stateList) {
-            const sqrtV0 = Math.sqrt(V0);
-            // Both axes run from 0 to axMax (equal scale, dynamic)
-            const axMax = Math.max(sqrtV0 * 1.05, 2);
-            const clip = axMax * 1.2;   // clip curves a bit beyond axis edge
-
-            // Rebuild k-array to exactly cover [0, axMax]
-            for (let i = 0; i <= _N; i++) _kArr[i] = (i / _N) * axMax;
+            const clip = Math.sqrt(V0) * 1.5;
 
             for (let i = 0; i <= _N; i++) {
                 const k = _kArr[i];
@@ -380,37 +349,26 @@
             const oddX = stateList.filter(s => s.type === 'odd').map(s => s.k);
             const oddY = stateList.filter(s => s.type === 'odd').map(s => s.beta);
 
-            // Build ticks up to axMax in steps of π/2
-            const tickvals = [], ticktext = [];
-            const halfPi = Math.PI / 2;
-            for (let m = 0; m * halfPi <= axMax * 1.01; m++) {
-                tickvals.push(m * halfPi);
-                const labels = ['0', 'π/2', 'π', '3π/2', '2π', '5π/2', '3π', '7π/2', '4π', '9π/2', '5π', '11π/2', '6π', '13π/2', '7π'];
-                ticktext.push(labels[m] || `${m}·π/2`);
-            }
+            const yMax = Math.max(Math.sqrt(V0) * 1.1, 2);
 
             const data = [
-                { x: _kArr, y: _evenArr, mode: 'lines', line: { color: 'red', width: 2 }, name: '$\\hat{k}\\tan\\hat{k}$' },
-                { x: _kArr, y: _oddArr, mode: 'lines', line: { color: 'green', width: 2 }, name: '$-\\hat{k}\\cot\\hat{k}$' },
-                { x: _kArr, y: _circArr, mode: 'lines', line: { color: 'blue', width: 2 }, name: '$\\sqrt{\\hat{V}_0 - \\hat{k}^2}$' },
-                { x: evenX, y: evenY, mode: 'markers', marker: { color: 'red', size: 9 }, name: 'Even Roots' },
-                { x: oddX, y: oddY, mode: 'markers', marker: { color: 'green', size: 9 }, name: 'Odd Roots' }
+                { x: _kArr, y: _evenArr, mode: 'lines', line: { color: 'red', width: 2 }, name: 'Even: k tan(k)' },
+                { x: _kArr, y: _oddArr, mode: 'lines', line: { color: 'green', width: 2 }, name: 'Odd: −k cot(k)' },
+                { x: _kArr, y: _circArr, mode: 'lines', line: { color: 'blue', width: 2 }, name: 'Circle: √(V₀ − k²)' },
+                { x: evenX, y: evenY, mode: 'markers', marker: { color: 'red', size: 9, symbol: 'circle' }, name: 'Even Roots' },
+                { x: oddX, y: oddY, mode: 'markers', marker: { color: 'green', size: 9, symbol: 'circle' }, name: 'Odd Roots' }
             ];
 
             const layout = {
-                title: `$\\text{Allowed Wavenumbers} — \\hat{V}_0 = ${V0}$`,
+                title: `Allowed Wavenumbers — V₀ = ${V0}`,
                 xaxis: {
-                    title: '$\\hat{k}$',
-                    range: [0, axMax],
-                    tickvals, ticktext,
-                    constrain: 'domain'
+                    title: 'ka',
+                    range: [0, _kMax],
+                    tickvals: [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2, 2 * Math.PI,
+                        5 * Math.PI / 2, 3 * Math.PI, 7 * Math.PI / 2, 4 * Math.PI],
+                    ticktext: ['0', 'π/2', 'π', '3π/2', '2π', '5π/2', '3π', '7π/2', '4π']
                 },
-                yaxis: {
-                    title: '$\\hat{\\beta}$',
-                    range: [0, axMax],
-                    scaleanchor: 'x',
-                    scaleratio: 1
-                },
+                yaxis: { title: 'βa', range: [0, yMax] },
                 showlegend: true
             };
 
@@ -438,38 +396,21 @@
         }
 
         // ─────────────────────────────────────────────────────────────────────────
-        // State selector buttons
+        // State selector dropdown
         // ─────────────────────────────────────────────────────────────────────────
-        let _selectedN = 1;
-
         function updateStateSelector(stateList, selectedN) {
-            _selectedN = selectedN;
-            const container = document.getElementById('stateButtons');
-            container.innerHTML = '';
+            const sel = document.getElementById('stateSelect');
+            sel.innerHTML = '';
             if (stateList.length === 0) {
-                container.textContent = 'No bound states';
+                sel.innerHTML = '<option value="">No bound states</option>';
                 return;
             }
             for (let s of stateList) {
-                const btn = document.createElement('button');
-                btn.className = 'state-btn';
-                btn.dataset.n = s.n;
-                btn.dataset.type = s.type;
-                btn.textContent = `n = ${s.n}`;
-                btn.title = `${s.type[0].toUpperCase() + s.type.slice(1)}, k = ${s.k.toFixed(3)}`;
-                if (s.n === selectedN) {
-                    btn.classList.add(s.type === 'even' ? 'active-even' : 'active-odd');
-                }
-                btn.addEventListener('click', () => {
-                    _selectedN = s.n;
-                    // Update button styles
-                    container.querySelectorAll('.state-btn').forEach(b => {
-                        b.classList.remove('active-even', 'active-odd');
-                    });
-                    btn.classList.add(s.type === 'even' ? 'active-even' : 'active-odd');
-                    updateWavefunctionPlot(s.n);
-                });
-                container.appendChild(btn);
+                const opt = document.createElement('option');
+                opt.value = s.n;
+                opt.textContent = `n = ${s.n} (${s.type[0].toUpperCase() + s.type.slice(1)}, k = ${s.k.toFixed(3)})`;
+                if (s.n === selectedN) opt.selected = true;
+                sel.appendChild(opt);
             }
         }
 
@@ -500,93 +441,59 @@
             const state = states.find(s => s.n === n) || states[0];
             const V0 = currentV0;
 
-            // Left panel: wavefunction
-            const x_vals = [];
-            for (let i = -400; i <= 400; i++) x_vals.push(i / 100);
-
-            const plotData = [];
-
-            // Gray wavefunctions for all OTHER states (up to 5)
-            const MAX_STATES = 5;
-            for (let s of states.slice(0, MAX_STATES)) {
-                if (s.n === state.n) continue;
-                const psi = x_vals.map(x => calculateWavefunction(x, s));
-                plotData.push({
-                    x: x_vals, y: psi, mode: 'lines',
-                    line: { color: 'rgba(0,0,0,0.1)', width: 1.5 },
-                    name: `ψ n=${s.n}`,
-                    xaxis: 'x', yaxis: 'y',
-                    showlegend: false
-                });
+            const x_vals = [], psi_vals = [];
+            for (let i = -400; i <= 400; i++) {
+                let x = i / 100;
+                x_vals.push(x);
+                psi_vals.push(calculateWavefunction(x, state));
             }
 
-            // Highlighted wavefunction for selected state
-            const psiSelected = x_vals.map(x => calculateWavefunction(x, state));
-            const waveColor = state.type === 'even' ? 'red' : 'green';
-            plotData.push({
-                x: x_vals, y: psiSelected, mode: 'lines',
-                line: { color: waveColor, width: 2.5 },
-                name: `$\\psi(\\hat{x}) \\text{ } n=${state.n}$`,
-                xaxis: 'x', yaxis: 'y',
-                showlegend: false
-            });
+            const energy = -(state.beta * state.beta);
+            const color = state.type === 'even' ? 'red' : 'green';
 
-            // Well boundary dashed lines
-            plotData.push({
+            const waveData = {
+                x: x_vals, y: psi_vals, mode: 'lines',
+                line: { color, width: 2 },
+                name: `ψ(x) [n=${state.n}]`,
+                xaxis: 'x', yaxis: 'y'
+            };
+
+            const wellLines = {
                 x: [-1, -1, null, 1, 1],
                 y: [-1.2, 1.2, null, -1.2, 1.2],
                 mode: 'lines',
-                line: { color: 'black', dash: 'dash', width: 1.5 },
-                name: '$\\text{Well Boundaries}$',
-                xaxis: 'x', yaxis: 'y',
-                showlegend: false
-            });
+                line: { color: 'black', dash: 'dash', width: 2 },
+                name: 'Well Boundaries',
+                xaxis: 'x', yaxis: 'y'
+            };
 
-            // Right panel: potential well
-            plotData.push({
+            const potentialData = {
                 x: [-1.5, -1, -1, 1, 1, 1.5],
                 y: [0, 0, -V0, -V0, 0, 0],
                 mode: 'lines',
                 line: { color: 'blue', width: 2 },
-                name: '$\\hat{V}(\\hat{x})$',
-                xaxis: 'x2', yaxis: 'y2',
-                showlegend: false
-            });
+                name: 'V(x)',
+                xaxis: 'x2', yaxis: 'y2'
+            };
 
-            // Gray energy lines for all other states (up to MAX_STATES)
-            for (let s of states.slice(0, MAX_STATES)) {
-                if (s.n === state.n) continue;
-                const E = -(s.beta * s.beta);
-                plotData.push({
-                    x: [-1, 1], y: [E, E], mode: 'lines',
-                    line: { color: 'rgba(0,0,0,0.18)', width: 1.5 },
-                    name: `$\\hat{E} \\text{ } n=${s.n}$`,
-                    xaxis: 'x2', yaxis: 'y2',
-                    showlegend: false
-                });
-            }
-
-            // Highlighted energy line for selected state
-            const energy = -(state.beta * state.beta);
-            plotData.push({
+            const energyLine = {
                 x: [-1, 1], y: [energy, energy], mode: 'lines',
                 line: { color: 'orange', width: 3 },
-                name: `$\\hat{E} = ${energy.toFixed(2)}$`,
-                xaxis: 'x2', yaxis: 'y2',
-                showlegend: false
-            });
+                name: `Energy = ${energy.toFixed(2)}`,
+                xaxis: 'x2', yaxis: 'y2'
+            };
 
             const layout = {
-                title: `$\\text{Wave Function & Potential Well} — n=${state.n} \\text{ (${state.type})}, \\hat{E}_n = ${energy.toFixed(3)}$`,
+                title: `Wave Function & Potential Well — n=${state.n} (${state.type}), E = ${energy.toFixed(3)}`,
                 grid: { rows: 1, columns: 2, pattern: 'independent' },
-                xaxis: { title: '$\\hat{x}$', range: [-4, 4] },
-                yaxis: { title: '$\\psi(\\hat{x})$', range: [-1.2, 1.2] },
-                xaxis2: { title: '$\\hat{x}$', range: [-1.5, 1.5] },
-                yaxis2: { title: '$\\hat{E}$', range: [-1.2 * V0, 0.2 * V0] },
+                xaxis: { title: 'x', range: [-4, 4] },
+                yaxis: { title: 'ψ(x)', range: [-1.2, 1.2] },
+                xaxis2: { title: 'x', range: [-1.5, 1.5] },
+                yaxis2: { title: 'Energy', range: [-1.2 * V0, 0.2 * V0] },
                 showlegend: false
             };
 
-            Plotly.react('wavefunction-plot', plotData, layout);
+            Plotly.react('wavefunction-plot', [waveData, wellLines, potentialData, energyLine], layout);
         }
 
         // ─────────────────────────────────────────────────────────────────────────
@@ -596,16 +503,18 @@
             currentV0 = parseInt(val);
             document.getElementById('v0Display').textContent = currentV0;
 
-            const prevN = _selectedN || 1;
+            // Remember which state was selected
+            const sel = document.getElementById('stateSelect');
+            const prevN = sel.value ? parseInt(sel.value) : 1;
 
             states = buildStates(currentV0);
 
             plotWavenumbers(currentV0, states);
             updateRootsTable(states);
+            updateStateSelector(states, prevN);
 
             // Pick the same n if it still exists, else fall back to 1
             const newN = states.find(s => s.n === prevN) ? prevN : (states[0] ? states[0].n : 1);
-            updateStateSelector(states, newN);
             updateWavefunctionPlot(newN);
         }
 
