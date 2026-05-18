@@ -241,7 +241,7 @@
             <div class="controls">
                 <strong>Select Bound State ($n$):</strong>
                 <div id="stateButtons" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
-                <button id="toggleGrayBtn" class="state-btn" onclick="toggleGrayWaves()" style="margin-left:15px;">Hide Other ψ</button>
+                <button id="toggleGrayBtn" class="state-btn" onclick="toggleGrayWaves()" style="margin-left:15px; border-color: #888; color: #888; background: #f0f0f0;">Show Other ψ</button>
             </div>
 
             <div id="wavefunction-plot" class="plot-container"></div>
@@ -560,8 +560,8 @@
                 showlegend: false
             });
 
-            // Gray energy lines for all other states (up to MAX_STATES)
-            for (let s of states.slice(0, MAX_STATES)) {
+            // Gray energy lines for all other states
+            for (let s of states) {
                 if (s.n === state.n) continue;
                 const E = -(s.beta * s.beta);
                 plotData.push({
@@ -637,7 +637,7 @@
             onV0Change(document.getElementById('v0Slider').value);
         }
 
-        let _showGrayWaves = true;
+        let _showGrayWaves = false;
         function toggleGrayWaves() {
             _showGrayWaves = !_showGrayWaves;
             const btn = document.getElementById('toggleGrayBtn');
