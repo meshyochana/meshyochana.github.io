@@ -184,7 +184,7 @@
             <h3>Prepare the graphical representation</h3>
             <p>
                 We are using the scaled units from class.<br>
-                Use the slider below to set the depth $V_0$ of the potential well.
+                Use the slider below to set the depth $\hat{V_0}$ of the potential well.
             </p>
 
             <!-- V0 Slider -->
@@ -220,6 +220,9 @@
 
             <h3>Find roots numerically and plot them</h3>
 
+            <div style="margin-bottom: 10px;">
+                <button id="toggleAxesBtn" class="state-btn" onclick="toggleFixedAxes()">Lock Axes</button>
+            </div>
 
             <div id="wavenumber-plot" class="plot-container"></div>
         </div>
@@ -359,7 +362,8 @@
         function plotWavenumbers(V0, stateList) {
             const sqrtV0 = Math.sqrt(V0);
             // Both axes run from 0 to axMax (equal scale, dynamic)
-            const axMax = Math.max(sqrtV0 * 1.05, 2);
+            let axMax = Math.max(sqrtV0 * 1.05, 2);
+            if (typeof _fixedAxes !== 'undefined' && _fixedAxes) axMax = 15;
             const clip = axMax * 1.2;   // clip curves a bit beyond axis edge
 
             // Rebuild k-array to exactly cover [0, axMax]
@@ -607,6 +611,27 @@
             const newN = states.find(s => s.n === prevN) ? prevN : (states[0] ? states[0].n : 1);
             updateStateSelector(states, newN);
             updateWavefunctionPlot(newN);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Axes toggle logic
+        // ─────────────────────────────────────────────────────────────────────────
+        let _fixedAxes = false;
+        function toggleFixedAxes() {
+            _fixedAxes = !_fixedAxes;
+            const btn = document.getElementById('toggleAxesBtn');
+            if (_fixedAxes) {
+                btn.textContent = 'Unlock Axes (Dynamic)';
+                btn.style.borderColor = 'blue';
+                btn.style.color = 'blue';
+                btn.style.background = '#e0e0ff';
+            } else {
+                btn.textContent = 'Lock Axes [0, 15]';
+                btn.style.borderColor = '';
+                btn.style.color = '';
+                btn.style.background = '';
+            }
+            onV0Change(document.getElementById('v0Slider').value);
         }
 
         // Initial render
