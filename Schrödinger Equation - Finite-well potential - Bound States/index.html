@@ -61,7 +61,9 @@
 
         .plot-container {
             width: 100%;
-            height: 600px;
+            height: 55vh;
+            min-height: 400px;
+            max-height: 600px;
             margin: 20px 0;
             border: 1px solid #ddd;
             border-radius: 5px;
@@ -166,8 +168,9 @@
         }
 
         .layout-column {
-            flex: 1;
-            min-width: 500px;
+            flex: 1 1 300px;
+            min-width: 300px;
+            max-width: 100%;
         }
     </style>
 </head>
@@ -183,17 +186,9 @@
 
             <h3>Prepare the graphical representation</h3>
             <p>
-                We are using the scaled units from class.<br>
-                Use the slider below to set the depth $\hat{V_0}$ of the potential well.
+                We are using the scaled units from class.
+                Use the slider (below the plot) to set the depth $\hat{V_0}$ of the potential well.
             </p>
-
-            <!-- V0 Slider -->
-            <div class="controls">
-                <span class="slider-label">$\hat{V_0}$ =</span>
-                <input type="range" id="v0Slider" min="1" max="200" value="45" step="1"
-                    oninput="scheduleUpdate(this.value)">
-                <span class="slider-value" id="v0Display">45</span>
-            </div>
 
             <!-- Explanation of Plot 1 -->
             <div class="plot-explanation">
@@ -220,8 +215,13 @@
 
             <h3>Find roots numerically and plot them</h3>
 
-            <div style="margin-bottom: 10px;">
-                <button id="toggleAxesBtn" class="state-btn" onclick="toggleFixedAxes()">Lock Axes</button>
+            <!-- V0 Slider -->
+            <div class="controls">
+                <span class="slider-label">$\hat{V_0}$ =</span>
+                <input type="range" id="v0Slider" min="1" max="200" value="45" step="1"
+                    oninput="scheduleUpdate(this.value)">
+                <span class="slider-value" id="v0Display">45</span>
+                <button id="toggleAxesBtn" class="state-btn" onclick="toggleFixedAxes()" style="margin-left:15px;">Lock Axes</button>
             </div>
 
             <div id="wavenumber-plot" class="plot-container"></div>
@@ -241,6 +241,7 @@
             <div class="controls">
                 <strong>Select Bound State ($n$):</strong>
                 <div id="stateButtons" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                <button id="toggleGrayBtn" class="state-btn" onclick="toggleGrayWaves()" style="margin-left:15px;">Hide Other ψ</button>
             </div>
 
             <div id="wavefunction-plot" class="plot-container"></div>
@@ -418,7 +419,7 @@
                 showlegend: true
             };
 
-            Plotly.react('wavenumber-plot', data, layout);
+            Plotly.react('wavenumber-plot', data, layout, { responsive: true });
         }
 
         // ─────────────────────────────────────────────────────────────────────────
@@ -459,7 +460,7 @@
                 btn.className = 'state-btn';
                 btn.dataset.n = s.n;
                 btn.dataset.type = s.type;
-                btn.textContent = `n = ${s.n}`;
+                btn.textContent = `${s.n}`;
                 btn.title = `${s.type[0].toUpperCase() + s.type.slice(1)}, k = ${s.k.toFixed(3)}`;
                 if (s.n === selectedN) {
                     btn.classList.add(s.type === 'even' ? 'active-even' : 'active-odd');
@@ -512,16 +513,18 @@
 
             // Gray wavefunctions for all OTHER states (up to 5)
             const MAX_STATES = 5;
-            for (let s of states.slice(0, MAX_STATES)) {
-                if (s.n === state.n) continue;
-                const psi = x_vals.map(x => calculateWavefunction(x, s));
-                plotData.push({
-                    x: x_vals, y: psi, mode: 'lines',
-                    line: { color: 'rgba(0,0,0,0.1)', width: 1.5 },
-                    name: `ψ n=${s.n}`,
-                    xaxis: 'x', yaxis: 'y',
-                    showlegend: false
-                });
+            if (_showGrayWaves) {
+                for (let s of states.slice(0, MAX_STATES)) {
+                    if (s.n === state.n) continue;
+                    const psi = x_vals.map(x => calculateWavefunction(x, s));
+                    plotData.push({
+                        x: x_vals, y: psi, mode: 'lines',
+                        line: { color: 'rgba(0,0,0,0.1)', width: 1.5 },
+                        name: `ψ n=${s.n}`,
+                        xaxis: 'x', yaxis: 'y',
+                        showlegend: false
+                    });
+                }
             }
 
             // Highlighted wavefunction for selected state
@@ -590,7 +593,7 @@
                 showlegend: false
             };
 
-            Plotly.react('wavefunction-plot', plotData, layout);
+            Plotly.react('wavefunction-plot', plotData, layout, { responsive: true });
         }
 
         // ─────────────────────────────────────────────────────────────────────────
@@ -621,17 +624,35 @@
             _fixedAxes = !_fixedAxes;
             const btn = document.getElementById('toggleAxesBtn');
             if (_fixedAxes) {
-                btn.textContent = 'Unlock Axes (Dynamic)';
+                btn.textContent = 'Unlock Axes';
                 btn.style.borderColor = 'blue';
                 btn.style.color = 'blue';
                 btn.style.background = '#e0e0ff';
             } else {
-                btn.textContent = 'Lock Axes [0, 15]';
+                btn.textContent = 'Lock Axes';
                 btn.style.borderColor = '';
                 btn.style.color = '';
                 btn.style.background = '';
             }
             onV0Change(document.getElementById('v0Slider').value);
+        }
+
+        let _showGrayWaves = true;
+        function toggleGrayWaves() {
+            _showGrayWaves = !_showGrayWaves;
+            const btn = document.getElementById('toggleGrayBtn');
+            if (_showGrayWaves) {
+                btn.textContent = 'Hide Other ψ';
+                btn.style.borderColor = '';
+                btn.style.color = '';
+                btn.style.background = '';
+            } else {
+                btn.textContent = 'Show Other ψ';
+                btn.style.borderColor = '#888';
+                btn.style.color = '#888';
+                btn.style.background = '#f0f0f0';
+            }
+            updateWavefunctionPlot(_selectedN);
         }
 
         // Initial render
