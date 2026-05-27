@@ -312,8 +312,27 @@
                         <input type="number" id="res-input" value="100" step="10">
                     </div>
                 </div>
+
+                <div class="control-row" style="margin-top: 10px;">
+                    <div class="switch-wrap">
+                        <input type="checkbox" id="hide-center-checkbox">
+                        <label for="hide-center-checkbox">Hide Center</label>
+                    </div>
+                    <div class="switch-wrap">
+                        <input type="checkbox" id="noise-reduction-checkbox">
+                        <label for="noise-reduction-checkbox">Reduce Noise</label>
+                    </div>
+                </div>
+
+                <div class="control-group" id="noise-thresh-group" style="display:none; margin-top: 10px;">
+                    <div class="control-row">
+                        <label>Threshold</label>
+                        <span class="val-display" id="val-noise-thresh">0.1</span>
+                    </div>
+                    <input type="range" id="noise-threshold-slider" min="0" max="1" value="0.1" step="0.01">
+                </div>
                 
-                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;" id="scan-status">Blobs: 0 | FPS: 0</p>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 15px;" id="scan-status">Blobs: 0 | FPS: 0</p>
             </div>
         </div>
 
@@ -352,6 +371,10 @@
         const kmaxInput = document.getElementById('kmax-input');
         const resInput = document.getElementById('res-input');
         const scanActiveCheckbox = document.getElementById('scan-active-checkbox');
+        const hideCenterCheckbox = document.getElementById('hide-center-checkbox');
+        const noiseReductionCheckbox = document.getElementById('noise-reduction-checkbox');
+        const noiseThresholdSlider = document.getElementById('noise-threshold-slider');
+        const valNoiseThresh = document.getElementById('val-noise-thresh');
         
         // Displays
         const valThresh = document.getElementById('val-thresh');
@@ -506,9 +529,13 @@
                 return;
             }
 
-            // Center points around 0
-            const cx = CANVAS_SIZE / 2;
-            const cy = CANVAS_SIZE / 2;
+            // Calculate bounding box center just like original points file
+            let minX = Math.min(...points.map(p => p.x)); 
+            let maxX = Math.max(...points.map(p => p.x));
+            let minY = Math.min(...points.map(p => p.y)); 
+            let maxY = Math.max(...points.map(p => p.y));
+            let cx = (maxX+minX)/2, cy = (maxY+minY)/2;
+
             const ftPts = points.map(p => ({
                 x: p.x - cx,
                 y: p.y - cy,
@@ -517,7 +544,6 @@
 
             const mags = new Float32Array(res * res);
             
-            // Calculate FT for each pixel in k-space
             for(let py=0; py<res; py++){
                 for(let px=0; px<res; px++){
                     const kx = (px-res/2)*(2*k_max/res); 
@@ -527,7 +553,6 @@
                     for(let i=0; i<ftPts.length; i++){
                         const p = ftPts[i];
                         const dot = p.x*kx + p.y*ky;
-                        // Use negative dot product for forward FT
                         re += p.w * Math.cos(-dot); 
                         im += p.w * Math.sin(-dot);
                     }
@@ -537,34 +562,34 @@
                 }
             }
 
-            let maxM = 0; 
-            const cM = Math.round(res*0.02); // Center mask size
-            
-            // Find max for normalization, ignoring the DC component at center
+            if(noiseReductionCheckbox.checked){
+                const avg = mags.reduce((a,b)=>a+b)/mags.length;
+                const thr = Math.max(...mags) * parseFloat(noiseThresholdSlider.value);
+                for(let i=0; i<mags.length; i++) mags[i] = mags[i] < thr ? 0 : Math.max(0, mags[i]-avg);
+            }
+
+            let maxM = 0; const cM = Math.round(res*0.02);
             for(let i=0; i<mags.length; i++){
                 const x = i%res, y = Math.floor(i/res);
-                if(Math.hypot(x-res/2, y-res/2) >= cM && mags[i] > maxM) {
+                if(!(hideCenterCheckbox.checked && Math.hypot(x-res/2, y-res/2) < cM) && mags[i] > maxM) {
                     maxM = mags[i];
                 }
             }
 
-            // Render to ImageData
             const out = ctx.createImageData(res, res);
             for(let i=0; i<mags.length; i++){
                 const x = i%res, y = Math.floor(i/res);
-                const isC = Math.hypot(x-res/2, y-res/2) < cM;
+                const isC = hideCenterCheckbox.checked && Math.hypot(x-res/2, y-res/2) < cM;
                 
                 if (isC) {
-                    out.data.set([0,0,0, 255], i*4); // Black out DC
+                    out.data.set([0,0,0, 255], i*4);
                 } else {
                     const col = getViridisColor(mags[i]/(maxM||1));
                     out.data.set([...col, 255], i*4);
                 }
             }
             
-            // Draw to canvas by scaling up the small result
-            const tC = document.createElement('canvas'); 
-            tC.width = tC.height = res;
+            const tC = document.createElement('canvas'); tC.width = tC.height = res;
             tC.getContext('2d').putImageData(out, 0, 0);
             
             ctx.clearRect(0, 0, width, height); 
@@ -781,6 +806,14 @@
         
         invertCheckbox.addEventListener('change', () => {
             if (currentMode === 'calibration') runCalibration();
+        });
+
+        noiseReductionCheckbox.addEventListener('change', () => {
+            document.getElementById('noise-thresh-group').style.display = noiseReductionCheckbox.checked ? 'block' : 'none';
+        });
+
+        noiseThresholdSlider.addEventListener('input', () => {
+            valNoiseThresh.innerText = noiseThresholdSlider.value;
         });
 
         // Initialize empty state
