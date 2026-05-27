@@ -507,11 +507,11 @@
             }
 
             // Center points around 0
-            // The points are in canvas coordinate space (0 to CANVAS_SIZE)
-            // Let's normalize them to -0.5 to 0.5 roughly based on canvas size
+            const cx = CANVAS_SIZE / 2;
+            const cy = CANVAS_SIZE / 2;
             const ftPts = points.map(p => ({
-                x: (p.x - CANVAS_SIZE/2) / CANVAS_SIZE,
-                y: -(p.y - CANVAS_SIZE/2) / CANVAS_SIZE, // Flip Y for standard Cartesian
+                x: p.x - cx,
+                y: p.y - cy,
                 w: 1
             }));
 
