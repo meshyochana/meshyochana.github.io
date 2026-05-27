@@ -655,19 +655,19 @@
                 const maxA = parseInt(maxSizeSlider.value);
                 
                 const tStart = performance.now();
-                const blobs = detectBlobs(imgData, thr, inv, minA, maxA);
+                detectedBlobs = detectBlobs(imgData, thr, inv, minA, maxA);
                 const tEnd = performance.now();
                 
-                if (blobs.length === 0 || (tEnd - tStart) > 100) {
+                if (detectedBlobs.length === 0 || (tEnd - tStart) > 100) {
                     showToast("Please place the camera on a clearer spot.");
                 }
                 
                 // Draw Camera View
                 scanCameraCtx.drawImage(processCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-                drawBlobsOverlay(scanCameraCtx, blobs);
+                drawBlobsOverlay(scanCameraCtx, detectedBlobs);
                 
                 // Calculate FT
-                calculateAndDisplayFT(blobs, scanFtCtx, CANVAS_SIZE, CANVAS_SIZE);
+                calculateAndDisplayFT(detectedBlobs, scanFtCtx, CANVAS_SIZE, CANVAS_SIZE);
                 
                 // Calculate FPS
                 frameCount++;
@@ -678,10 +678,17 @@
                     lastFrameTime = now;
                 }
                 
-                scanStatus.innerText = `Blobs: ${blobs.length} | FPS: ${fps}`;
+                scanStatus.innerText = `Blobs: ${detectedBlobs.length} | FPS: ${fps}`;
             }
             
             scanLoopId = requestAnimationFrame(runScanLoop);
+        }
+
+        // Force FT update if paused
+        function forceUpdateFT() {
+            if (currentMode === 'scan' && !scanActiveCheckbox.checked && detectedBlobs.length > 0) {
+                calculateAndDisplayFT(detectedBlobs, scanFtCtx, CANVAS_SIZE, CANVAS_SIZE);
+            }
         }
 
         // --- Event Listeners & UI ---
@@ -814,6 +821,12 @@
 
         noiseThresholdSlider.addEventListener('input', () => {
             valNoiseThresh.innerText = noiseThresholdSlider.value;
+        });
+
+        // Listen to FT control changes to update immediately when paused
+        [kmaxInput, resInput, hideCenterCheckbox, noiseReductionCheckbox, noiseThresholdSlider].forEach(el => {
+            el.addEventListener('input', forceUpdateFT);
+            el.addEventListener('change', forceUpdateFT);
         });
 
         // Initialize empty state
