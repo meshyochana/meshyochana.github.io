@@ -90,9 +90,26 @@
         }
 
         canvas {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        @media (min-width: 600px) {
+            #view-scan {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            #view-scan .canvas-container {
+                width: 50%;
+                border-bottom: none !important;
+                border-right: 2px solid var(--primary);
+            }
+            #view-scan .controls-panel {
+                width: 100%;
+                border-top: 2px solid var(--primary);
+            }
         }
 
         video { display: none; } /* Hidden, only used for capture */
@@ -235,47 +252,14 @@
                     <button onclick="startCamera()">Grant Access</button>
                 </div>
             </div>
-            
-            <div class="controls-panel">
-                <div class="control-row" style="margin-bottom: 20px;">
+            <div class="controls-panel" style="flex: 0; padding-bottom: 0; border-top: none;">
+                <div class="control-row">
                     <button onclick="captureFrame()" id="btn-capture" disabled>Capture Frame</button>
                     <label class="file-upload-label secondary">
                         Upload Image
                         <input type="file" id="image-upload" accept="image/*">
                     </label>
                 </div>
-
-                <div class="control-group">
-                    <div class="control-row">
-                        <label>Threshold</label>
-                        <span class="val-display" id="val-thresh">128</span>
-                    </div>
-                    <input type="range" id="thresh-slider" min="0" max="255" value="128">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-row">
-                        <label>Min Blob Size</label>
-                        <span class="val-display" id="val-min-size">5</span>
-                    </div>
-                    <input type="range" id="min-size-slider" min="1" max="100" value="5">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-row">
-                        <label>Max Blob Size</label>
-                        <span class="val-display" id="val-max-size">500</span>
-                    </div>
-                    <input type="range" id="max-size-slider" min="10" max="2000" value="500">
-                </div>
-                
-                <div class="control-group">
-                    <div class="switch-wrap">
-                        <input type="checkbox" id="invert-checkbox">
-                        <label for="invert-checkbox">Detect Dark Blobs (Invert)</label>
-                    </div>
-                </div>
-                
                 <div style="margin-top: 15px;">
                     <p style="font-size: 0.85rem; color: var(--text-secondary);" id="calib-status">Blobs detected: 0</p>
                 </div>
@@ -294,46 +278,83 @@
                 <canvas id="scan-ft-canvas" width="400" height="400"></canvas>
             </div>
 
-            <div class="controls-panel">
+            <div class="controls-panel" style="flex: 0; padding-bottom: 0; border-top: none;">
                 <div class="control-group">
                     <div class="switch-wrap">
                         <input type="checkbox" id="scan-active-checkbox" checked>
-                        <label for="scan-active-checkbox">Active Scanning</label>
+                        <label for="scan-active-checkbox" style="color: var(--primary); font-weight: bold;">Active Scanning</label>
                     </div>
                 </div>
-
-                <div class="control-row">
-                    <div class="control-group" style="flex:1;">
-                        <label>K-max</label>
-                        <input type="number" id="kmax-input" value="1.5" step="0.1">
-                    </div>
-                    <div class="control-group" style="flex:1;">
-                        <label>Resolution</label>
-                        <input type="number" id="res-input" value="100" step="10">
-                    </div>
-                </div>
-
-                <div class="control-row" style="margin-top: 10px;">
-                    <div class="switch-wrap">
-                        <input type="checkbox" id="hide-center-checkbox">
-                        <label for="hide-center-checkbox">Hide Center</label>
-                    </div>
-                    <div class="switch-wrap">
-                        <input type="checkbox" id="noise-reduction-checkbox">
-                        <label for="noise-reduction-checkbox">Reduce Noise</label>
-                    </div>
-                </div>
-
-                <div class="control-group" id="noise-thresh-group" style="display:none; margin-top: 10px;">
-                    <div class="control-row">
-                        <label>Threshold</label>
-                        <span class="val-display" id="val-noise-thresh">0.1</span>
-                    </div>
-                    <input type="range" id="noise-threshold-slider" min="0" max="1" value="0.1" step="0.01">
-                </div>
-                
-                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 15px;" id="scan-status">Blobs: 0 | FPS: 0</p>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;" id="scan-status">Blobs: 0 | FPS: 0</p>
             </div>
+        </div>
+
+        <!-- SHARED CONTROLS PANEL -->
+        <div class="controls-panel" style="border-top: 2px solid var(--border); overflow-y: auto;">
+            
+            <p style="color: var(--primary); font-size: 0.9rem; margin-bottom: 10px; font-weight: bold;">Blob Detection</p>
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Threshold</label>
+                    <span class="val-display" id="val-thresh">128</span>
+                </div>
+                <input type="range" id="thresh-slider" min="0" max="255" value="128">
+            </div>
+
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Min Size</label>
+                    <span class="val-display" id="val-min-size">5</span>
+                </div>
+                <input type="range" id="min-size-slider" min="1" max="100" value="5">
+            </div>
+
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Max Size</label>
+                    <span class="val-display" id="val-max-size">500</span>
+                </div>
+                <input type="range" id="max-size-slider" min="10" max="2000" value="500">
+            </div>
+            
+            <div class="control-group" style="margin-bottom: 20px;">
+                <div class="switch-wrap">
+                    <input type="checkbox" id="invert-checkbox">
+                    <label for="invert-checkbox">Detect Dark Blobs</label>
+                </div>
+            </div>
+
+            <p style="color: var(--primary); font-size: 0.9rem; margin-bottom: 10px; font-weight: bold;">Fourier Transform</p>
+            <div class="control-row">
+                <div class="control-group" style="flex:1;">
+                    <label>K-max</label>
+                    <input type="number" id="kmax-input" value="1.5" step="0.1">
+                </div>
+                <div class="control-group" style="flex:1;">
+                    <label>Resolution</label>
+                    <input type="number" id="res-input" value="100" step="10">
+                </div>
+            </div>
+
+            <div class="control-row" style="margin-top: 10px;">
+                <div class="switch-wrap">
+                    <input type="checkbox" id="hide-center-checkbox">
+                    <label for="hide-center-checkbox">Hide Center</label>
+                </div>
+                <div class="switch-wrap">
+                    <input type="checkbox" id="noise-reduction-checkbox">
+                    <label for="noise-reduction-checkbox">Reduce Noise</label>
+                </div>
+            </div>
+
+            <div class="control-group" id="noise-thresh-group" style="display:none; margin-top: 10px;">
+                <div class="control-row">
+                    <label>Noise Threshold</label>
+                    <span class="val-display" id="val-noise-thresh">0.1</span>
+                </div>
+                <input type="range" id="noise-threshold-slider" min="0" max="1" value="0.1" step="0.01">
+            </div>
+
         </div>
 
     </div>
@@ -684,10 +705,26 @@
             scanLoopId = requestAnimationFrame(runScanLoop);
         }
 
-        // Force FT update if paused
-        function forceUpdateFT() {
-            if (currentMode === 'scan' && !scanActiveCheckbox.checked && detectedBlobs.length > 0) {
+        // Force FT & Blob update if paused
+        function forceUpdateScan() {
+            if (currentMode === 'scan' && !scanActiveCheckbox.checked) {
+                // If we have a frozen frame in processCanvas, re-run detection
+                const imgData = processCtx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                
+                const thr = parseInt(threshSlider.value);
+                const inv = invertCheckbox.checked;
+                const minA = parseInt(minSizeSlider.value);
+                const maxA = parseInt(maxSizeSlider.value);
+                
+                detectedBlobs = detectBlobs(imgData, thr, inv, minA, maxA);
+                
+                scanCameraCtx.drawImage(processCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                drawBlobsOverlay(scanCameraCtx, detectedBlobs);
+                
                 calculateAndDisplayFT(detectedBlobs, scanFtCtx, CANVAS_SIZE, CANVAS_SIZE);
+                scanStatus.innerText = `Blobs: ${detectedBlobs.length} | FPS: PAUSED`;
+            } else if (currentMode === 'calibration') {
+                runCalibration();
             }
         }
 
@@ -804,19 +841,18 @@
         // Sliders
         const updateVal = (slider, displayObj) => {
             displayObj.innerText = slider.value;
-            if (currentMode === 'calibration') runCalibration();
+            forceUpdateScan();
         };
 
         threshSlider.addEventListener('input', () => updateVal(threshSlider, valThresh));
         minSizeSlider.addEventListener('input', () => updateVal(minSizeSlider, valMinSize));
         maxSizeSlider.addEventListener('input', () => updateVal(maxSizeSlider, valMaxSize));
         
-        invertCheckbox.addEventListener('change', () => {
-            if (currentMode === 'calibration') runCalibration();
-        });
+        invertCheckbox.addEventListener('change', forceUpdateScan);
 
         noiseReductionCheckbox.addEventListener('change', () => {
             document.getElementById('noise-thresh-group').style.display = noiseReductionCheckbox.checked ? 'block' : 'none';
+            forceUpdateScan();
         });
 
         noiseThresholdSlider.addEventListener('input', () => {
@@ -824,9 +860,15 @@
         });
 
         // Listen to FT control changes to update immediately when paused
-        [kmaxInput, resInput, hideCenterCheckbox, noiseReductionCheckbox, noiseThresholdSlider].forEach(el => {
-            el.addEventListener('input', forceUpdateFT);
-            el.addEventListener('change', forceUpdateFT);
+        [kmaxInput, resInput, hideCenterCheckbox, noiseThresholdSlider].forEach(el => {
+            el.addEventListener('input', forceUpdateScan);
+            el.addEventListener('change', forceUpdateScan);
+        });
+        
+        scanActiveCheckbox.addEventListener('change', () => {
+            if (!scanActiveCheckbox.checked) {
+                scanStatus.innerText = `Blobs: ${detectedBlobs.length} | FPS: PAUSED`;
+            }
         });
 
         // Initialize empty state
