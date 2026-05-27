@@ -96,22 +96,6 @@
             display: block;
         }
 
-        @media (min-width: 600px) {
-            #view-scan {
-                flex-direction: row;
-                flex-wrap: wrap;
-            }
-            #view-scan .canvas-container {
-                width: 50%;
-                border-bottom: none !important;
-                border-right: 2px solid var(--primary);
-            }
-            #view-scan .controls-panel {
-                width: 100%;
-                border-top: 2px solid var(--primary);
-            }
-        }
-
         video { display: none; } /* Hidden, only used for capture */
 
         .controls-panel {
@@ -268,14 +252,15 @@
 
         <!-- SCAN VIEW -->
         <div id="view-scan" class="view-section">
-            <div class="canvas-container" style="border-bottom: 2px solid var(--primary);">
-                <!-- We will draw the camera feed + overlay here -->
-                <canvas id="scan-camera-canvas" width="400" height="400"></canvas>
-            </div>
-            
-            <div class="canvas-container">
-                <!-- FT Plot here -->
-                <canvas id="scan-ft-canvas" width="400" height="400"></canvas>
+            <div style="position: relative; width: 100%; aspect-ratio: 1/1; background: #000; overflow: hidden; flex-shrink: 0;">
+                <!-- Main FT Plot here -->
+                <canvas id="scan-ft-canvas" width="400" height="400" style="width: 100%; height: 100%; object-fit: cover; display: block;"></canvas>
+                
+                <!-- PiP Camera feed + overlay here -->
+                <canvas id="scan-camera-canvas" width="400" height="400" style="position: absolute; top: 15px; left: 15px; width: 33%; height: 33%; object-fit: cover; border: 2px solid var(--primary); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.8); z-index: 10; background: #000; cursor: pointer;"></canvas>
+                
+                <!-- Pause overlay on PiP -->
+                <div id="pip-pause-overlay" style="display:none; position: absolute; top: 15px; left: 15px; width: 33%; height: 33%; background: rgba(0,0,0,0.5); z-index: 11; border-radius: 8px; pointer-events: none; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 2rem;">❚❚</div>
             </div>
 
             <div class="controls-panel" style="flex: 0; padding-bottom: 0; border-top: none;">
@@ -865,11 +850,26 @@
             el.addEventListener('change', forceUpdateScan);
         });
         
-        scanActiveCheckbox.addEventListener('change', () => {
+        function toggleActiveScanning() {
+            scanActiveCheckbox.checked = !scanActiveCheckbox.checked;
+            handleScanToggle();
+        }
+
+        function handleScanToggle() {
+            const pipPause = document.getElementById('pip-pause-overlay');
             if (!scanActiveCheckbox.checked) {
                 scanStatus.innerText = `Blobs: ${detectedBlobs.length} | FPS: PAUSED`;
+                pipPause.style.display = 'flex';
+                forceUpdateScan();
+            } else {
+                pipPause.style.display = 'none';
             }
-        });
+        }
+
+        scanActiveCheckbox.addEventListener('change', handleScanToggle);
+
+        // Tap on PiP to toggle
+        document.getElementById('scan-camera-canvas').addEventListener('click', toggleActiveScanning);
 
         // Initialize empty state
         calibCtx.fillStyle = '#1e1e1e';
