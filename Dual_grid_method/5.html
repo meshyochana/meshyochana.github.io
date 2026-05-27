@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual Grid Method - Quasiperiodic Tilings</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.75);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --panel-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+        }
+
+        #canvas-container {
+            display: flex;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid var(--panel-border);
+        }
+
+        .canvas-wrapper:last-child {
+            border-right: none;
+        }
+
+        .canvas-label {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+            z-index: 5;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        #ui-panel {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            z-index: 10;
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #ui-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        #ui-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #ui-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        p.subtitle {
+            margin: -12px 0 0 0;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .control-val {
+            font-variant-numeric: tabular-nums;
+            background: rgba(0,0,0,0.2);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--panel-border);
+            margin: 4px 0;
+        }
+
+        #gamma-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .gamma-slider-thumb::-webkit-slider-thumb {
+            background: var(--slider-color) !important;
+            box-shadow: 0 0 10px var(--slider-shadow) !important;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .button-group button {
+            flex: 1;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="canvas-container">
+    <div class="canvas-wrapper">
+        <canvas id="dual-canvas"></canvas>
+        <div class="canvas-label">Dual Grid Space</div>
+    </div>
+    <div class="canvas-wrapper">
+        <canvas id="tiling-canvas"></canvas>
+        <div class="canvas-label">Tiling Space</div>
+    </div>
+</div>
+
+<div id="ui-panel">
+    <h1>Dual Grid Space</h1>
+    <p class="subtitle">Interactive Quasiperiodic Tiling Generator</p>
+
+    <div class="control-group">
+        <div class="control-header">
+            <label>Symmetry (N)</label>
+            <span class="control-val" id="n-val">5</span>
+        </div>
+        <input type="range" id="n-slider" min="3" max="15" value="5" step="1">
+    </div>
+
+    <div class="control-group">
+        <div class="control-header">
+            <label>Zoom Level</label>
+            <span class="control-val" id="zoom-val">50</span>
+        </div>
+        <input type="range" id="zoom-slider" min="10" max="250" value="50" step="1">
+    </div>
+
+    <div class="button-group">
+        <button id="btn-recenter">Recenter Origin</button>
+        <button id="btn-randomize">Randomize γ</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="gamma-controls">
+        <!-- Dynamically populated phase shifts -->
+    </div>
+</div>
+
+<script>
+    /**
+     * Dual Grid Method Simulation
+     * Architected with strict separation of concerns.
+     */
+
+    // --- 1. Math State (Strictly Separated) ---
+    const state = {
+        N: 5,
+        zoom: 50,
+        gammas: [], // Will be populated based on N
+        spacings: [], // Grid spacings
+        offsetX: 0,
+        offsetY: 0
+    };
+
+    // Initialize phase shifts to interesting default values avoiding singular intersections
+    function initGammasAndSpacings(N) {
+        state.gammas = [];
+        state.spacings = [];
+        for (let i = 0; i < N; i++) {
+            // Provide a small irrational-like shift to avoid trivial intersections at origin
+            state.gammas.push( (i * 0.6180339887) % 1 ); 
+            state.spacings.push(1.0);
+        }
+    }
+    initGammasAndSpacings(state.N);
+
+    // --- Topology Math ---
+    /**
+     * Calculates the de Bruijn index vector K for a given point (x, y) in the dual grid space.
+     * The point (x, y) should be a test point located inside an empty region (plaquette).
+     */
+    function calculateIndices(x, y) {
+        const { N, gammas } = state;
+        const indices = new Array(N);
+
+        for (let n = 0; n < N; n++) {
+            // Star vector a_n
+            const theta = 2 * Math.PI * n / N;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+
+            // Dot product: r · a_n
+            const dotProduct = (x * cosT) + (y * sinT);
+
+            // k_n = floor( (r · a_n) / w_n - gamma_n )
+            indices[n] = Math.floor(dotProduct / state.spacings[n] - gammas[n]);
+        }
+
+        return indices;
+    }
+
+    /**
+     * Maps an index vector K = (k_0, k_1, ..., k_N-1) to a physical vertex 
+     * in the final Tiling Space.
+     */
+    function calculateTilingVertex(indices) {
+        const { N, spacings } = state;
+        let vX = 0;
+        let vY = 0;
+
+        for (let n = 0; n < N; n++) {
+            // Star vector a_n
+            const theta = 2 * Math.PI * n / N;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+
+            const k = indices[n];
+
+            // V = sum (k_n * w_n * a_n)
+            vX += k * spacings[n] * cosT;
+            vY += k * spacings[n] * sinT;
+        }
+
+        // Return the physical coordinate in the Tiling Space
+        return { x: vX, y: vY };
+    }
+
+    // --- 2. Color System ---
+    function getColor(n, N) {
+        // Generates distinct, vibrant HSL colors distributed evenly across the hue spectrum
+        const hue = (n * 360) / N;
+        return `hsl(${hue}, 85%, 65%)`;
+    }
+
+    // --- 3. UI & DOM Management ---
+    const elements = {
+        dualCanvas: document.getElementById('dual-canvas'),
+        ctxDual: document.getElementById('dual-canvas').getContext('2d', { alpha: false }),
+        tilingCanvas: document.getElementById('tiling-canvas'),
+        ctxTiling: document.getElementById('tiling-canvas').getContext('2d', { alpha: false }),
+        nSlider: document.getElementById('n-slider'),
+        zoomSlider: document.getElementById('zoom-slider'),
+        nVal: document.getElementById('n-val'),
+        zoomVal: document.getElementById('zoom-val'),
+        gammaControls: document.getElementById('gamma-controls'),
+        btnRecenter: document.getElementById('btn-recenter'),
+        btnRandomize: document.getElementById('btn-randomize')
+    };
+
+    function updateGridControls() {
+        elements.gammaControls.innerHTML = '';
+        
+        for (let i = 0; i < state.N; i++) {
+            const color = getColor(i, state.N);
+            
+            const group = document.createElement('div');
+            group.className = 'control-group';
+            group.style.marginBottom = '8px';
+            group.style.paddingBottom = '12px';
+            group.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+            
+            const titleLabel = document.createElement('div');
+            titleLabel.textContent = `Grid ${i + 1}`;
+            titleLabel.style.color = color;
+            titleLabel.style.fontWeight = '600';
+            titleLabel.style.marginBottom = '8px';
+            group.appendChild(titleLabel);
+            
+            // Gamma Slider
+            const headerGamma = document.createElement('div');
+            headerGamma.className = 'control-header';
+            
+            const labelGamma = document.createElement('label');
+            labelGamma.textContent = `Phase Shift (γ)`;
+            
+            const valSpanGamma = document.createElement('span');
+            valSpanGamma.className = 'control-val';
+            valSpanGamma.textContent = state.gammas[i].toFixed(2);
+            
+            const sliderGamma = document.createElement('input');
+            sliderGamma.type = 'range';
+            sliderGamma.min = '0';
+            sliderGamma.max = '1';
+            sliderGamma.step = '0.01';
+            sliderGamma.value = state.gammas[i];
+            sliderGamma.className = 'gamma-slider-thumb';
+            
+            sliderGamma.style.setProperty('--slider-color', color);
+            sliderGamma.style.setProperty('--slider-shadow', color.replace('hsl', 'hsla').replace(')', ', 0.5)'));
+
+            sliderGamma.addEventListener('input', (e) => {
+                state.gammas[i] = parseFloat(e.target.value);
+                valSpanGamma.textContent = state.gammas[i].toFixed(2);
+                requestAnimationFrame(drawGrids);
+            });
+
+            headerGamma.appendChild(labelGamma);
+            headerGamma.appendChild(valSpanGamma);
+            group.appendChild(headerGamma);
+            group.appendChild(sliderGamma);
+            
+            // Spacing Slider
+            const headerSpacing = document.createElement('div');
+            headerSpacing.className = 'control-header';
+            headerSpacing.style.marginTop = '12px';
+            
+            const labelSpacing = document.createElement('label');
+            labelSpacing.textContent = `Spacing (w)`;
+            
+            const valSpanSpacing = document.createElement('span');
+            valSpanSpacing.className = 'control-val';
+            valSpanSpacing.textContent = state.spacings[i].toFixed(1);
+            
+            const sliderSpacing = document.createElement('input');
+            sliderSpacing.type = 'range';
+            sliderSpacing.min = '0.5';
+            sliderSpacing.max = '3.0';
+            sliderSpacing.step = '0.1';
+            sliderSpacing.value = state.spacings[i];
+            sliderSpacing.className = 'gamma-slider-thumb';
+            
+            sliderSpacing.style.setProperty('--slider-color', color);
+            sliderSpacing.style.setProperty('--slider-shadow', color.replace('hsl', 'hsla').replace(')', ', 0.5)'));
+
+            sliderSpacing.addEventListener('input', (e) => {
+                state.spacings[i] = parseFloat(e.target.value);
+                valSpanSpacing.textContent = state.spacings[i].toFixed(1);
+                requestAnimationFrame(drawGrids);
+            });
+
+            headerSpacing.appendChild(labelSpacing);
+            headerSpacing.appendChild(valSpanSpacing);
+            group.appendChild(headerSpacing);
+            group.appendChild(sliderSpacing);
+
+            elements.gammaControls.appendChild(group);
+        }
+    }
+
+    // --- 4. Rendering Logic ---
+    function resize() {
+        // High DPI Display Support
+        const dpr = window.devicePixelRatio || 1;
+        const width = window.innerWidth / 2;
+        const height = window.innerHeight;
+
+        elements.dualCanvas.width = width * dpr;
+        elements.dualCanvas.height = height * dpr;
+        elements.dualCanvas.style.width = `${width}px`;
+        elements.dualCanvas.style.height = `${height}px`;
+        elements.ctxDual.scale(dpr, dpr);
+
+        elements.tilingCanvas.width = width * dpr;
+        elements.tilingCanvas.height = height * dpr;
+        elements.tilingCanvas.style.width = `${width}px`;
+        elements.tilingCanvas.style.height = `${height}px`;
+        elements.ctxTiling.scale(dpr, dpr);
+
+        elements.width = width;
+        elements.height = height;
+
+        requestAnimationFrame(drawGrids);
+    }
+
+    function drawGrids() {
+        drawDualSpace();
+        drawTilingSpace();
+    }
+
+    function drawDualSpace() {
+        const { ctxDual: ctx, width, height } = elements;
+
+        // Background
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.save();
+        
+        // Transform: Absolute anchor for canvas transform around (0,0) focal point
+        // Apply panning offsets
+        ctx.translate(width / 2 + state.offsetX, height / 2 + state.offsetY);
+        ctx.scale(state.zoom, state.zoom);
+
+        const { N, gammas, zoom } = state;
+
+        // Calculate max radius needed based on screen size, zoom, and panning offset
+        const corners = [
+            { x: -width/2 - state.offsetX, y: -height/2 - state.offsetY },
+            { x: width/2 - state.offsetX,  y: -height/2 - state.offsetY },
+            { x: -width/2 - state.offsetX, y: height/2 - state.offsetY },
+            { x: width/2 - state.offsetX,  y: height/2 - state.offsetY }
+        ];
+        
+        let R_max = 0;
+        for (const c of corners) {
+            const dist = Math.sqrt(c.x**2 + c.y**2) / zoom;
+            if (dist > R_max) R_max = dist;
+        }
+
+        // Set consistent line width independent of zoom
+        ctx.lineWidth = 1.5 / zoom;
+        
+        // Add subtle glow to lines
+        ctx.globalCompositeOperation = 'screen';
+
+        for (let n = 0; n < N; n++) {
+            // Star Vector an = (cos(theta), sin(theta))
+            const theta = 2 * Math.PI * n / N;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+            const gamma = gammas[n];
+
+            ctx.strokeStyle = getColor(n, N);
+            ctx.beginPath();
+
+            // Lines are perpendicular to star vector
+            const dirX = -sinT;
+            const dirY = cosT;
+
+            // Determine integer k range to cover visible screen
+            const spacing = state.spacings[n];
+            const kMin = Math.ceil(-R_max / spacing - gamma);
+            const kMax = Math.floor(R_max / spacing - gamma);
+
+            // Line length must span the maximum diagonal distance
+            const lineLen = R_max * 2.5;
+
+            for (let k = kMin; k <= kMax; k++) {
+                const D = spacing * (k + gamma);
+                
+                // Point on line closest to origin
+                const pX = D * cosT;
+                const pY = D * sinT;
+
+                // Extending line in both directions
+                const startX = pX - dirX * lineLen;
+                const startY = pY - dirY * lineLen;
+                const endX = pX + dirX * lineLen;
+                const endY = pY + dirY * lineLen;
+
+                // Note: Standard math coordinates (y goes up), Canvas (y goes down)
+                // Flipping y for correct mathematical orientation
+                ctx.moveTo(startX, -startY); 
+                ctx.lineTo(endX, -endY);
+            }
+            
+            // Batch stroke per grid for performance
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    function drawTilingSpace() {
+        const { ctxTiling: ctx, width, height } = elements;
+        
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.save();
+        
+        ctx.translate(width / 2 + state.offsetX, height / 2 + state.offsetY);
+        ctx.scale(state.zoom, state.zoom);
+
+        const { N, gammas, zoom } = state;
+
+        // Determine visible bounds to avoid drawing the entire infinite space
+        const corners = [
+            { x: -width/2 - state.offsetX, y: -height/2 - state.offsetY },
+            { x: width/2 - state.offsetX,  y: -height/2 - state.offsetY },
+            { x: -width/2 - state.offsetX, y: height/2 - state.offsetY },
+            { x: width/2 - state.offsetX,  y: height/2 - state.offsetY }
+        ];
+        
+        let R_max = 0;
+        for (const c of corners) {
+            const dist = Math.sqrt(c.x**2 + c.y**2) / zoom;
+            if (dist > R_max) R_max = dist;
+        }
+
+        ctx.lineWidth = 1.5 / zoom;
+
+        // Phase 1: Find and group all intersections in dual space
+        const nodes = [];
+        
+        for (let i = 0; i < N - 1; i++) {
+            for (let j = i + 1; j < N; j++) {
+                const theta_i = 2 * Math.PI * i / N;
+                const theta_j = 2 * Math.PI * j / N;
+                
+                const c_i = Math.cos(theta_i);
+                const s_i = Math.sin(theta_i);
+                const c_j = Math.cos(theta_j);
+                const s_j = Math.sin(theta_j);
+                
+                const delta = c_i * s_j - s_i * c_j; 
+                if (Math.abs(delta) < 1e-6) continue;
+                
+                const w_i = state.spacings[i];
+                const w_j = state.spacings[j];
+                
+                const kMin_i = Math.ceil(-R_max / w_i - gammas[i]);
+                const kMax_i = Math.floor(R_max / w_i - gammas[i]);
+                const kMin_j = Math.ceil(-R_max / w_j - gammas[j]);
+                const kMax_j = Math.floor(R_max / w_j - gammas[j]);
+                
+                for (let k_i = kMin_i; k_i <= kMax_i; k_i++) {
+                    for (let k_j = kMin_j; k_j <= kMax_j; k_j++) {
+                        const D_i = w_i * (k_i + gammas[i]);
+                        const D_j = w_j * (k_j + gammas[j]);
+                        
+                        const x = (D_i * s_j - D_j * s_i) / delta;
+                        const y = (c_i * D_j - c_j * D_i) / delta;
+                        
+                        if (x*x + y*y > R_max*R_max) continue;
+                        
+                        // Check if this intersection node already exists (singularities)
+                        let found = false;
+                        for (const node of nodes) {
+                            const distSq = (node.x - x)**2 + (node.y - y)**2;
+                            if (distSq < 1e-10) {
+                                node.grids.set(i, k_i);
+                                node.grids.set(j, k_j);
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!found) {
+                            const grids = new Map();
+                            grids.set(i, k_i);
+                            grids.set(j, k_j);
+                            nodes.push({ x, y, grids });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Phase 2: Construct polygons for each intersection node
+        for (const node of nodes) {
+            const { x, y, grids } = node;
+            const I = Array.from(grids.keys());
+            const m = I.length;
+            
+            if (m < 2) continue; // Should not happen
+            
+            // Collect the 2m ray angles (tangent to the lines)
+            const rayAngles = [];
+            for (const n of I) {
+                const theta = 2 * Math.PI * n / N;
+                // A line with normal theta divides plane. Rays are along the line.
+                let a1 = (theta + Math.PI / 2) % (2 * Math.PI);
+                let a2 = (theta + 3 * Math.PI / 2) % (2 * Math.PI);
+                if (a1 < 0) a1 += 2 * Math.PI;
+                if (a2 < 0) a2 += 2 * Math.PI;
+                rayAngles.push(a1, a2);
+            }
+            
+            // Remove duplicates and sort angles cyclically
+            const uniqueRays = [];
+            for (const a of rayAngles) {
+                if (!uniqueRays.some(u => Math.abs(u - a) < 1e-6)) {
+                    uniqueRays.push(a);
+                }
+            }
+            uniqueRays.sort((a, b) => a - b);
+            
+            // Construct polygon vertices
+            const polyVertices = [];
+            
+            for (let s = 0; s < uniqueRays.length; s++) {
+                const aStart = uniqueRays[s];
+                const aEnd = uniqueRays[(s + 1) % uniqueRays.length];
+                
+                // Bisector angle pointing into the plaquette
+                let beta;
+                if (aEnd < aStart) {
+                    beta = (aStart + aEnd + 2 * Math.PI) / 2;
+                } else {
+                    beta = (aStart + aEnd) / 2;
+                }
+                
+                const K = new Array(N);
+                for (let n = 0; n < N; n++) {
+                    const theta = 2 * Math.PI * n / N;
+                    if (grids.has(n)) {
+                        const kn = grids.get(n);
+                        const dot = Math.cos(beta - theta);
+                        // Depending on the side of the line, the index shifts
+                        K[n] = dot > 0 ? kn : kn - 1;
+                    } else {
+                        // Unaffected grids remain constant in the epsilon neighborhood
+                        K[n] = Math.floor((x * Math.cos(theta) + y * Math.sin(theta)) / state.spacings[n] - gammas[n]);
+                    }
+                }
+                
+                // Map topological index to physical space
+                let vX = 0, vY = 0;
+                for (let n = 0; n < N; n++) {
+                    const theta = 2 * Math.PI * n / N;
+                    vX += K[n] * state.spacings[n] * Math.cos(theta);
+                    vY += K[n] * state.spacings[n] * Math.sin(theta);
+                }
+                
+                polyVertices.push({ x: vX, y: vY });
+            }
+            
+            // Draw polygon (flipping Y for canvas orientation)
+            ctx.beginPath();
+            ctx.moveTo(polyVertices[0].x, -polyVertices[0].y);
+            for (let v = 1; v < polyVertices.length; v++) {
+                ctx.lineTo(polyVertices[v].x, -polyVertices[v].y);
+            }
+            ctx.closePath();
+            
+            // Shape-Based Aesthetics
+            let baseColor;
+            if (m === 2) {
+                const i = I[0], j = I[1];
+                const d = Math.min(Math.abs(i - j), N - Math.abs(i - j));
+                const numShapes = Math.floor(N / 2);
+                baseColor = getColor(d, numShapes + 1);
+            } else {
+                // High order polygon (singularity). Make it pop!
+                const hue = (m * 45) % 360;
+                baseColor = `hsl(${hue}, 90%, 75%)`;
+            }
+            
+            ctx.fillStyle = baseColor.replace('hsl', 'hsla').replace(')', ', 0.4)');
+            ctx.fill();
+            ctx.strokeStyle = baseColor.replace('hsl', 'hsla').replace(')', ', 0.9)');
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    // --- 5. Event Listeners ---
+    elements.nSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        state.N = val;
+        elements.nVal.textContent = val;
+        
+        // Preserve existing gammas and spacings, add new ones if N increases
+        const oldGammas = [...state.gammas];
+        const oldSpacings = [...state.spacings];
+        state.gammas = [];
+        state.spacings = [];
+        for(let i=0; i<val; i++) {
+            state.gammas.push(i < oldGammas.length ? oldGammas[i] : (i * 0.6180339887) % 1);
+            state.spacings.push(i < oldSpacings.length ? oldSpacings[i] : 1.0);
+        }
+        
+        updateGridControls();
+        requestAnimationFrame(drawGrids);
+    });
+
+    elements.zoomSlider.addEventListener('input', (e) => {
+        state.zoom = parseInt(e.target.value);
+        elements.zoomVal.textContent = state.zoom;
+        requestAnimationFrame(drawGrids);
+    });
+
+    elements.btnRecenter.addEventListener('click', () => {
+        state.offsetX = 0;
+        state.offsetY = 0;
+        requestAnimationFrame(drawGrids);
+    });
+
+    elements.btnRandomize.addEventListener('click', () => {
+        for(let i=0; i<state.N; i++) {
+            state.gammas[i] = Math.random();
+        }
+        updateGridControls();
+        requestAnimationFrame(drawGrids);
+    });
+
+    // Panning (Mouse/Touch)
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+
+    const handleMouseDown = (e) => {
+        isDragging = true;
+        dragStart = { x: e.clientX - state.offsetX, y: e.clientY - state.offsetY };
+    };
+    elements.dualCanvas.addEventListener('mousedown', handleMouseDown);
+    elements.tilingCanvas.addEventListener('mousedown', handleMouseDown);
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        state.offsetX = e.clientX - dragStart.x;
+        state.offsetY = e.clientY - dragStart.y;
+        requestAnimationFrame(drawGrids);
+    });
+
+    // Zooming (Scroll)
+    const handleWheel = (e) => {
+        e.preventDefault();
+        const zoomSpeed = 0.002;
+        let zoomDelta = Math.exp(-e.deltaY * zoomSpeed);
+        
+        let newZoom = state.zoom * zoomDelta;
+        newZoom = Math.max(10, Math.min(newZoom, 250));
+        
+        state.zoom = newZoom;
+        elements.zoomSlider.value = newZoom;
+        elements.zoomVal.textContent = Math.round(newZoom);
+        
+        requestAnimationFrame(drawGrids);
+    };
+    
+    elements.dualCanvas.addEventListener('wheel', handleWheel, { passive: false });
+    elements.tilingCanvas.addEventListener('wheel', handleWheel, { passive: false });
+
+    window.addEventListener('resize', resize);
+
+    // --- 6. Initialization ---
+    updateGridControls();
+    resize(); // Will call drawGrids initially
+
+</script>
+</body>
+</html>

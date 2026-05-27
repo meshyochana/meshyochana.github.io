@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cut and Project Quasicrystal Engine</title>
+</head>
+<body>
+    <script>
+        /**
+         * MATHEMATICAL KERNEL: d-Dimensional Cut and Project Method
+         * 
+         * Architecture Overview:
+         * 1. LinAlg: Basic vector and matrix operations.
+         * 2. EngineState: Centralized data store (matrices, lattice radius, output vertices).
+         * 3. Projections: Generating Pi_parallel and Pi_perp.
+         * 4. CutAndProject: The core loop evaluating the cut condition and projecting.
+         */
+
+        // 1. Linear Algebra Helpers
+        const LinAlg = {
+            // Multiply matrix (MxN) by vector (Nx1), returns vector (Mx1)
+            matVecMul: (matrix, vec) => {
+                return matrix.map(row => 
+                    row.reduce((sum, val, i) => sum + val * vec[i], 0)
+                );
+            },
+            
+            // Generate Z^d lattice points within a bounded radius (L1 norm for simplicity)
+            // Recursive generator to avoid massive memory allocation upfront
+            *generateLattice(d, radius, current = []) {
+                if (current.length === d) {
+                    yield current;
+                    return;
+                }
+                for (let i = -radius; i <= radius; i++) {
+                    yield* this.generateLattice(d, radius, [...current, i]);
+                }
+            }
+        };
+
+        // 2. Data Structures & State Variables
+        const EngineState = {
+            // Configuration
+            d: 5,               // Dimensionality of hyperspace
+            latticeRadius: 5,   // Search radius in Z^d
+
+            // Projection Matrices
+            // Pi_parallel: 2 x d matrix mapping Z^d -> E_parallel (2D physical space)
+            Pi_parallel: [],
+            // Pi_perp: (d-2) x d matrix mapping Z^d -> E_perp (internal space)
+            Pi_perp: [],
+
+            // Acceptance Window Parameters in E_perp
+            // For simplicity, we define a hypercubic window of a certain radius
+            windowRadius: 0.5,
+
+            // Output State (Strictly mutated by updateTiling, read by renderer)
+            validVertices: [] // Array of { z: [int], parallel: [x, y], perp: [...] }
+        };
+
+        // 3. Projection Matrices
+        const Projections = {
+            /**
+             * Initializes the projection matrices based on standard quasicrystal symmetries.
+             * @param {number} d Dimensions
+             * @param {string} type 'penrose' (d=5) or 'ammann-beenker' (d=4)
+             */
+            initMatrices(d, type = 'penrose') {
+                EngineState.d = d;
+                EngineState.Pi_parallel = Array(2).fill(0).map(() => Array(d).fill(0));
+                EngineState.Pi_perp = Array(d - 2).fill(0).map(() => Array(d).fill(0));
+
+                if (d === 5 && type === 'penrose') {
+                    // Penrose (d=5)
+                    // E_parallel: standard 5-fold symmetry mapping to 2D
+                    for (let j = 0; j < 5; j++) {
+                        let angle = (2 * Math.PI * j) / 5;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        // E_perp: remaining 3 dimensions (2D orthogonal + 1D diagonal)
+                        let anglePerp = (4 * Math.PI * j) / 5;
+                        EngineState.Pi_perp[0][j] = Math.cos(anglePerp);
+                        EngineState.Pi_perp[1][j] = Math.sin(anglePerp);
+                        EngineState.Pi_perp[2][j] = 1 / Math.sqrt(2); // Main diagonal component
+                    }
+                } else if (d === 4 && type === 'ammann-beenker') {
+                    // Ammann-Beenker (d=4)
+                    for (let j = 0; j < 4; j++) {
+                        let angle = (Math.PI * j) / 4;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        // E_perp: 2 orthogonal dimensions mapping
+                        let anglePerp = (3 * Math.PI * j) / 4;
+                        EngineState.Pi_perp[0][j] = Math.cos(anglePerp);
+                        EngineState.Pi_perp[1][j] = Math.sin(anglePerp);
+                    }
+                } else {
+                    console.warn("Unsupported dimensionality/type combination.");
+                }
+            }
+        };
+
+        // 4. The Cut and Project Engine
+        const CutAndProject = {
+            /**
+             * The Cut Condition: Checks if the perpendicular projection falls inside window W.
+             * @param {Array<number>} perpVector The vector in E_perp
+             * @param {number} windowRadius The acceptance radius limit
+             * @returns {boolean} True if accepted
+             */
+            inWindow(perpVector, windowRadius) {
+                // Here we use the L_infinity norm (hypercube window) in E_perp
+                // Many actual quasicrystals use specific window shapes (e.g. Rhombic dodecahedron).
+                // This is an extendable boolean condition.
+                for (let i = 0; i < perpVector.length; i++) {
+                    if (Math.abs(perpVector[i]) > windowRadius) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+
+            /**
+             * Core Algorithm: Generates the tiling by iterating over Z^d,
+             * applying the cut condition, and projecting to E_parallel.
+             * STRICT RULE: Mutates EngineState.validVertices only. No DOM/rendering.
+             */
+            updateTiling() {
+                const { d, latticeRadius, Pi_parallel, Pi_perp, windowRadius } = EngineState;
+                
+                // Clear previous state
+                EngineState.validVertices = [];
+
+                // Iterate over integer lattice Z^d
+                const latticeGenerator = LinAlg.generateLattice(d, latticeRadius);
+                
+                for (const z of latticeGenerator) {
+                    // 1. Calculate Perpendicular Projection (x_perp = Pi_perp * z)
+                    const x_perp = LinAlg.matVecMul(Pi_perp, z);
+
+                    // 2. The Cut Condition: is x_perp in W?
+                    if (this.inWindow(x_perp, windowRadius)) {
+                        // 3. The Project: Calculate Parallel Projection (x_parallel = Pi_parallel * z)
+                        const x_parallel = LinAlg.matVecMul(Pi_parallel, z);
+                        
+                        // Store the valid vertex
+                        EngineState.validVertices.push({
+                            z: z,                   // Hyperspace coordinate
+                            parallel: x_parallel,   // 2D Real space coordinate
+                            perp: x_perp            // (d-2)D Internal space coordinate
+                        });
+                    }
+                }
+            }
+        };
+
+        // Initial setup for structural validation
+        Projections.initMatrices(5, 'penrose');
+        // CutAndProject.updateTiling(); // Invoke when ready to generate
+    </script>
+</body>
+</html>

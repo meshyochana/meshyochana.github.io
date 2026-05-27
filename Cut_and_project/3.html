@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cut and Project Quasicrystal Simulation</title>
+    <!-- Modern Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f172a; /* Deep slate dark background */
+            font-family: 'Inter', sans-serif;
+            color: #f8fafc;
+            display: flex;
+        }
+
+        /* Dashboard Layout */
+        #dashboard {
+            width: 320px;
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 32px 24px;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            z-index: 10;
+        }
+
+        /* Canvas Container */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Typography & Branding */
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .description {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* UI Controls */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            font-weight: 400;
+        }
+        .control-value {
+            font-weight: 600;
+            color: #38bdf8;
+            font-variant-numeric: tabular-nums;
+            background: rgba(56, 189, 248, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            min-width: 45px;
+            text-align: right;
+        }
+
+        /* Sliders / Range Inputs */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        input[type=range]:hover::-webkit-slider-runnable-track {
+            background: #475569;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.6);
+        }
+
+        /* Metrics Card */
+        .metrics-card {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .metrics-card div {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        .metrics-value {
+            color: #f8fafc;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Control Dashboard -->
+    <div id="dashboard">
+        <div>
+            <h1>Cut & Project</h1>
+            <p class="description">
+                Interactive simulation mapping a 2D integer lattice onto a 1D physical space to generate quasiperiodic structures.
+            </p>
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <span>Angle (&theta;)</span>
+                <span class="control-value" id="thetaVal">30.0&deg;</span>
+            </div>
+            <!-- Range 0 to 90 degrees -->
+            <input type="range" id="thetaSlider" min="0" max="90" step="0.1" value="30">
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <span>Window Width (W)</span>
+                <span class="control-value" id="widthVal">1.50</span>
+            </div>
+            <!-- Range 0.1 to 5.0 units -->
+            <input type="range" id="widthSlider" min="0.1" max="5.0" step="0.05" value="1.5">
+        </div>
+
+        <div class="metrics-card">
+            <div>
+                <span>Selected Points:</span>
+                <span class="metrics-value" id="statSelected">0</span>
+            </div>
+            <div>
+                <span>Lattice Density:</span>
+                <span class="metrics-value" id="statDensity">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualization -->
+    <div id="canvas-container">
+        <canvas id="simCanvas"></canvas>
+    </div>
+
+    <script>
+        /**
+         * 1. State Variables & Parameters
+         */
+        const SimulationState = {
+            theta: Math.PI / 4, 
+            windowWidth: 1.0,   
+            gridLimit: 20,      
+            
+            gridPoints: [],     
+            selectedPoints: [], 
+            projected1D: []     
+        };
+
+        /**
+         * 2. Data Structures
+         */
+        class LatticePoint {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.p_parallel = 0;      
+                this.p_perpendicular = 0; 
+                this.selected = false;    
+            }
+        }
+
+        /**
+         * 3. Math Engine
+         */
+        const MathEngine = {
+            updateSimulation() {
+                // Clear outputs
+                SimulationState.gridPoints = [];
+                SimulationState.selectedPoints = [];
+                SimulationState.projected1D = [];
+
+                const cosTheta = Math.cos(SimulationState.theta);
+                const sinTheta = Math.sin(SimulationState.theta);
+                const halfWindow = SimulationState.windowWidth / 2;
+                const limit = SimulationState.gridLimit;
+
+                for (let x = -limit; x <= limit; x++) {
+                    for (let y = -limit; y <= limit; y++) {
+                        const pt = new LatticePoint(x, y);
+
+                        pt.p_parallel = x * cosTheta + y * sinTheta;
+                        pt.p_perpendicular = -x * sinTheta + y * cosTheta;
+
+                        if (Math.abs(pt.p_perpendicular) <= halfWindow) {
+                            pt.selected = true;
+                            SimulationState.selectedPoints.push(pt);
+                            SimulationState.projected1D.push(pt.p_parallel);
+                        }
+
+                        SimulationState.gridPoints.push(pt);
+                    }
+                }
+
+                // Sequence logically
+                SimulationState.projected1D.sort((a, b) => a - b);
+            },
+
+            // Atomic state setter to prevent multi-calculating
+            setParams(newThetaRadians, newWidth) {
+                SimulationState.theta = newThetaRadians;
+                SimulationState.windowWidth = newWidth;
+                this.updateSimulation();
+            }
+        };
+
+        /**
+         * 4. Rendering Engine
+         */
+        const RenderConfig = {
+            scale: 40, // Base pixels per grid unit
+        };
+
+        function setupCanvas() {
+            const container = document.getElementById('canvas-container');
+            const canvas = document.getElementById('simCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            const dpr = window.devicePixelRatio || 1;
+            const rect = container.getBoundingClientRect();
+            
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            
+            ctx.scale(dpr, dpr);
+            
+            return { canvas, ctx, width: rect.width, height: rect.height };
+        }
+
+        function drawSimulation() {
+            const { canvas, ctx, width, height } = setupCanvas();
+            
+            const originX = width / 2;
+            const originY = height / 2;
+            const scale = RenderConfig.scale;
+
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.save();
+            ctx.translate(originX, originY);
+            ctx.scale(1, -1); 
+
+            const limit = SimulationState.gridLimit;
+
+            // 1. Draw 2D background grid (Dark mode subtle grey)
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.6)'; 
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = -limit; x <= limit; x++) {
+                ctx.moveTo(x * scale, -limit * scale);
+                ctx.lineTo(x * scale, limit * scale);
+            }
+            for (let y = -limit; y <= limit; y++) {
+                ctx.moveTo(-limit * scale, y * scale);
+                ctx.lineTo(limit * scale, y * scale);
+            }
+            ctx.stroke();
+
+            const cosTheta = Math.cos(SimulationState.theta);
+            const sinTheta = Math.sin(SimulationState.theta);
+            const lineLength = Math.max(width, height) * 2; 
+
+            // 3. Draw Selection Window / Band boundaries
+            const halfW = SimulationState.windowWidth / 2;
+            const dx = -sinTheta * halfW * scale;
+            const dy = cosTheta * halfW * scale;
+
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.08)'; // Deep blue-tinted band
+            ctx.beginPath();
+            ctx.moveTo(-lineLength * cosTheta + dx, -lineLength * sinTheta + dy);
+            ctx.lineTo(lineLength * cosTheta + dx, lineLength * sinTheta + dy);
+            ctx.lineTo(lineLength * cosTheta - dx, lineLength * sinTheta - dy);
+            ctx.lineTo(-lineLength * cosTheta - dx, -lineLength * sinTheta - dy);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-lineLength * cosTheta + dx, -lineLength * sinTheta + dy);
+            ctx.lineTo(lineLength * cosTheta + dx, lineLength * sinTheta + dy);
+            ctx.moveTo(-lineLength * cosTheta - dx, -lineLength * sinTheta - dy);
+            ctx.lineTo(lineLength * cosTheta - dx, lineLength * sinTheta - dy);
+            ctx.stroke();
+
+            // Draw unselected lattice points
+            ctx.fillStyle = '#475569';
+            SimulationState.gridPoints.forEach(pt => {
+                if (!pt.selected) {
+                    ctx.beginPath();
+                    ctx.arc(pt.x * scale, pt.y * scale, 2.5, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+
+            // 2. Draw 1D physical space line
+            ctx.strokeStyle = '#38bdf8'; // Light Blue
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-lineLength * cosTheta, -lineLength * sinTheta);
+            ctx.lineTo(lineLength * cosTheta, lineLength * sinTheta);
+            ctx.stroke();
+
+            // 4 & 5. Draw projection lines and highlighted selected points
+            SimulationState.selectedPoints.forEach(pt => {
+                const px = pt.x * scale;
+                const py = pt.y * scale;
+                
+                const projX = pt.p_parallel * cosTheta * scale;
+                const projY = pt.p_parallel * sinTheta * scale;
+
+                // 5. Projection lines dropping from selected points
+                ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)'; // Rose
+                ctx.setLineDash([4, 4]); 
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(projX, projY);
+                ctx.stroke();
+                ctx.setLineDash([]); 
+
+                // 4. Highlight the selected integer lattice points (red dots)
+                ctx.fillStyle = '#f43f5e'; // Vivid Rose
+                ctx.beginPath();
+                ctx.arc(px, py, 4.5, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // 6. Draw the final projected points on the physical space line (solid blue dots)
+                ctx.fillStyle = '#818cf8'; // Indigo
+                ctx.beginPath();
+                ctx.arc(projX, projY, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            ctx.restore();
+        }
+
+        /**
+         * 5. Event Binding & Initialization
+         */
+        function init() {
+            // DOM Elements
+            const thetaSlider = document.getElementById('thetaSlider');
+            const widthSlider = document.getElementById('widthSlider');
+            const thetaVal = document.getElementById('thetaVal');
+            const widthVal = document.getElementById('widthVal');
+            const statSelected = document.getElementById('statSelected');
+            const statDensity = document.getElementById('statDensity');
+            
+            // Interaction handler
+            function updateFromUI() {
+                const thetaDeg = parseFloat(thetaSlider.value);
+                const w = parseFloat(widthSlider.value);
+                
+                // Update UI Labels
+                thetaVal.innerHTML = `${thetaDeg.toFixed(1)}&deg;`;
+                widthVal.innerHTML = w.toFixed(2);
+                
+                // Mutate State cleanly
+                MathEngine.setParams(thetaDeg * Math.PI / 180, w);
+                
+                // Update Metrics Card
+                statSelected.textContent = SimulationState.selectedPoints.length;
+                statDensity.textContent = SimulationState.gridPoints.length;
+                
+                // Re-render
+                drawSimulation();
+            }
+
+            // Bind slider 'input' event for real-time smooth scrubbing
+            thetaSlider.addEventListener('input', updateFromUI);
+            widthSlider.addEventListener('input', updateFromUI);
+            
+            // Re-render on window resize to maintain full screen and center alignment
+            window.addEventListener('resize', drawSimulation);
+            
+            // Trigger initial render from default DOM values
+            updateFromUI();
+        }
+
+        // Boot the simulation
+        init();
+
+    </script>
+</body>
+</html>

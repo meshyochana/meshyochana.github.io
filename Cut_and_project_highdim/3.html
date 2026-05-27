@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cut and Project Quasicrystal Engine</title>
+    <style>
+        :root {
+            --bg-dark: #0d0d12;
+            --panel-bg: rgba(20, 20, 26, 0.95);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #4be0ff;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* 
+         * DASHBOARD LAYOUT 
+         */
+        #dashboard {
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            z-index: 10;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+            overflow-y: auto;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+        }
+
+        canvas { 
+            display: block; 
+            width: 100%;
+            height: 100%;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #fff;
+        }
+
+        .header p {
+            margin: 4px 0 0 0;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* 
+         * CONTROL UI ELEMENTS
+         */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .val-display {
+            font-size: 0.85rem;
+            font-family: monospace;
+            color: var(--accent);
+            background: rgba(75, 224, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        select {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--accent);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(75, 224, 255, 0.3);
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #fff;
+        }
+        
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="dashboard">
+        <div class="header">
+            <h1>Cut & Project</h1>
+            <p>High-Dimensional Tiling Engine</p>
+        </div>
+        
+        <div class="divider"></div>
+
+        <div class="control-group">
+            <label for="dim-select">Symmetry / Dimension</label>
+            <select id="dim-select">
+                <option value="4">Ammann-Beenker (d=4)</option>
+                <option value="5" selected>Penrose (d=5)</option>
+                <option value="6">Generic Hex-Harmonic (d=6)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <label for="density-slider">Lattice Density (R)</label>
+                <span class="val-display" id="density-val">4</span>
+            </div>
+            <input type="range" id="density-slider" min="1" max="8" step="1" value="4">
+            <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">
+                Generates points in an O(R^d) hyperspace grid.
+            </p>
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <label for="window-slider">Acceptance Window</label>
+                <span class="val-display" id="window-val">0.50</span>
+            </div>
+            <input type="range" id="window-slider" min="0.01" max="2.0" step="0.01" value="0.50">
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="control-group">
+            <div class="control-header">
+                <label for="zoom-slider">Camera Zoom</label>
+                <span class="val-display" id="zoom-val">80</span>
+            </div>
+            <input type="range" id="zoom-slider" min="10" max="300" step="1" value="80">
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="tiling-canvas"></canvas>
+    </div>
+
+    <script>
+        /**
+         * MATHEMATICAL KERNEL: d-Dimensional Cut and Project Method
+         */
+
+        // 1. Linear Algebra Helpers
+        const LinAlg = {
+            matVecMul: (matrix, vec) => {
+                return matrix.map(row => 
+                    row.reduce((sum, val, i) => sum + val * vec[i], 0)
+                );
+            },
+            
+            *generateLattice(d, radius, current = []) {
+                if (current.length === d) {
+                    yield current;
+                    return;
+                }
+                for (let i = -radius; i <= radius; i++) {
+                    yield* this.generateLattice(d, radius, [...current, i]);
+                }
+            }
+        };
+
+        // 2. Data Structures & State Variables
+        const EngineState = {
+            d: 5,               
+            latticeRadius: 4,   
+            Pi_parallel: [],
+            Pi_perp: [],
+            windowRadius: 0.5,
+            
+            // Optimization Architecture: DECOUPLED CACHE
+            // We cache the heavy matrix projection results of Z^d.
+            fullLatticeCache: [], 
+            cacheDirty: true,     // Triggered only on d or R changes
+
+            validVertices: [], 
+            edges: []          
+        };
+
+        // 3. Projection Matrices
+        const Projections = {
+            initMatrices(d, type = 'penrose') {
+                EngineState.d = d;
+                EngineState.Pi_parallel = Array(2).fill(0).map(() => Array(d).fill(0));
+                EngineState.Pi_perp = Array(d - 2).fill(0).map(() => Array(d).fill(0));
+
+                if (d === 5 && type === 'penrose') {
+                    for (let j = 0; j < 5; j++) {
+                        let angle = (2 * Math.PI * j) / 5;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        let anglePerp = (4 * Math.PI * j) / 5;
+                        EngineState.Pi_perp[0][j] = Math.cos(anglePerp);
+                        EngineState.Pi_perp[1][j] = Math.sin(anglePerp);
+                        EngineState.Pi_perp[2][j] = 1 / Math.sqrt(2); 
+                    }
+                } else if (d === 4 && type === 'ammann-beenker') {
+                    for (let j = 0; j < 4; j++) {
+                        let angle = (Math.PI * j) / 4;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        let anglePerp = (3 * Math.PI * j) / 4;
+                        EngineState.Pi_perp[0][j] = Math.cos(anglePerp);
+                        EngineState.Pi_perp[1][j] = Math.sin(anglePerp);
+                    }
+                } else {
+                    // Generic mapping for abstract higher dimensions via harmonics
+                    for (let j = 0; j < d; j++) {
+                        let angle = (2 * Math.PI * j) / d;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        // Map internal perpendicular space using higher harmonic frequencies
+                        let perpIdx = 0;
+                        let harmonic = 2;
+                        while (perpIdx < d - 2) {
+                            let anglePerp = (harmonic * 2 * Math.PI * j) / d;
+                            EngineState.Pi_perp[perpIdx][j] = Math.cos(anglePerp);
+                            if (perpIdx + 1 < d - 2) {
+                                EngineState.Pi_perp[perpIdx + 1][j] = Math.sin(anglePerp);
+                            }
+                            perpIdx += 2;
+                            harmonic++;
+                        }
+                    }
+                }
+            }
+        };
+
+        // 4. The Cut and Project Engine
+        const CutAndProject = {
+            inWindow(perpVector, windowRadius) {
+                for (let i = 0; i < perpVector.length; i++) {
+                    if (Math.abs(perpVector[i]) > windowRadius) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+
+            // Heavy computational pass: generate lattice and project everything.
+            generateLatticeCache() {
+                if (!EngineState.cacheDirty) return;
+                
+                const { d, latticeRadius, Pi_parallel, Pi_perp } = EngineState;
+                EngineState.fullLatticeCache = [];
+
+                const latticeGenerator = LinAlg.generateLattice(d, latticeRadius);
+                
+                for (const z of latticeGenerator) {
+                    const x_perp = LinAlg.matVecMul(Pi_perp, z);
+                    const x_parallel = LinAlg.matVecMul(Pi_parallel, z);
+                    
+                    EngineState.fullLatticeCache.push({
+                        z: z,                   
+                        parallel: x_parallel,   
+                        perp: x_perp            
+                    });
+                }
+                
+                EngineState.cacheDirty = false;
+            },
+
+            // Fast computational pass: filter from cache and construct edges.
+            updateTiling() {
+                // Ensure cache is valid for current D and R
+                this.generateLatticeCache();
+                
+                const { windowRadius } = EngineState;
+                EngineState.validVertices = [];
+                
+                // The Cut: Filter against the internal window bounds
+                for (let i = 0; i < EngineState.fullLatticeCache.length; i++) {
+                    const vertex = EngineState.fullLatticeCache[i];
+                    if (this.inWindow(vertex.perp, windowRadius)) {
+                        EngineState.validVertices.push(vertex);
+                    }
+                }
+                
+                this.computeEdges(); // Mutates connection state independently
+            },
+
+            computeEdges() {
+                EngineState.edges = [];
+                const vertices = EngineState.validVertices;
+                const vertexMap = new Map();
+                
+                vertices.forEach((v, idx) => {
+                    vertexMap.set(v.z.join(','), idx);
+                });
+
+                const d = EngineState.d;
+                for (let i = 0; i < vertices.length; i++) {
+                    const z = vertices[i].z;
+                    for (let dim = 0; dim < d; dim++) {
+                        const neighborZ = [...z];
+                        neighborZ[dim] += 1;
+                        const neighborKey = neighborZ.join(',');
+                        if (vertexMap.has(neighborKey)) {
+                            EngineState.edges.push([i, vertexMap.get(neighborKey)]);
+                        }
+                    }
+                }
+            }
+        };
+
+        // 5. The Render Engine
+        const RenderState = {
+            scale: 80, 
+            rotation: 0 
+        };
+
+        const RenderEngine = {
+            canvas: null,
+            ctx: null,
+
+            init() {
+                this.canvas = document.getElementById('tiling-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                const container = document.getElementById('canvas-container');
+                window.addEventListener('resize', () => this.resize(container));
+                this.resize(container);
+            },
+
+            resize(container) {
+                if (!container) container = document.getElementById('canvas-container');
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                this.drawTiling();
+            },
+
+            drawTiling() {
+                if (!this.ctx) return;
+                const { width, height } = this.canvas;
+                const ctx = this.ctx;
+                
+                ctx.clearRect(0, 0, width, height);
+
+                ctx.save();
+                ctx.translate(width / 2, height / 2);
+                ctx.scale(RenderState.scale, -RenderState.scale);
+                ctx.rotate(RenderState.rotation);
+
+                // Draw Edges
+                ctx.lineWidth = 1.5 / RenderState.scale;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; 
+                ctx.beginPath();
+                EngineState.edges.forEach(([i, j]) => {
+                    const v1 = EngineState.validVertices[i].parallel;
+                    const v2 = EngineState.validVertices[j].parallel;
+                    ctx.moveTo(v1[0], v1[1]);
+                    ctx.lineTo(v2[0], v2[1]);
+                });
+                ctx.stroke();
+
+                // Compute Degrees
+                const degrees = new Array(EngineState.validVertices.length).fill(0);
+                EngineState.edges.forEach(([i, j]) => {
+                    degrees[i]++;
+                    degrees[j]++;
+                });
+
+                // Palette
+                const colors = [
+                    '#2E3440', '#88C0D0', '#81A1C1', '#5E81AC', 
+                    '#A3BE8C', '#EBCB8B', '#D08770', '#BF616A', 
+                    '#B48EAD', '#ffffff'
+                ];
+
+                // Render Vertices
+                const pointRadius = 2.5 / RenderState.scale;
+                EngineState.validVertices.forEach((v, idx) => {
+                    const deg = degrees[idx] || 0;
+                    ctx.fillStyle = colors[Math.min(deg, colors.length - 1)];
+                    ctx.beginPath();
+                    ctx.arc(v.parallel[0], v.parallel[1], pointRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+
+                // Absolute Origin
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 4 / RenderState.scale, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 2 / RenderState.scale;
+                ctx.beginPath();
+                ctx.arc(0, 0, 9 / RenderState.scale, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        // 6. UI Controller
+        const UIController = {
+            init() {
+                const dimSelect = document.getElementById('dim-select');
+                const densitySlider = document.getElementById('density-slider');
+                const densityVal = document.getElementById('density-val');
+                const windowSlider = document.getElementById('window-slider');
+                const windowVal = document.getElementById('window-val');
+                const zoomSlider = document.getElementById('zoom-slider');
+                const zoomVal = document.getElementById('zoom-val');
+
+                // Helper to safely trigger a heavy update
+                const heavyUpdate = () => {
+                    document.body.style.cursor = 'wait';
+                    // Allow UI to paint cursor change before locking main thread
+                    setTimeout(() => {
+                        CutAndProject.updateTiling();
+                        RenderEngine.drawTiling();
+                        document.body.style.cursor = 'default';
+                    }, 10);
+                };
+
+                dimSelect.addEventListener('change', (e) => {
+                    const d = parseInt(e.target.value);
+                    const type = d === 5 ? 'penrose' : (d === 4 ? 'ammann-beenker' : 'generic');
+                    
+                    // Safety check: High dimensions exponentiate computation.
+                    if (d >= 6 && EngineState.latticeRadius > 3) {
+                        EngineState.latticeRadius = 3;
+                        densitySlider.value = 3;
+                        densityVal.innerText = 3;
+                    }
+                    
+                    Projections.initMatrices(d, type);
+                    EngineState.cacheDirty = true;
+                    heavyUpdate();
+                });
+
+                densitySlider.addEventListener('input', (e) => {
+                    let val = parseInt(e.target.value);
+                    
+                    if (EngineState.d >= 6 && val > 4) {
+                        val = 4;
+                        e.target.value = 4;
+                    }
+                    
+                    densityVal.innerText = val;
+                    EngineState.latticeRadius = val;
+                    EngineState.cacheDirty = true;
+                    // Debounce heavy updates on slide
+                    clearTimeout(this.densityTimeout);
+                    this.densityTimeout = setTimeout(heavyUpdate, 200);
+                });
+
+                // Window Size Change (FAST PATH - No cache invalidation)
+                windowSlider.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value).toFixed(2);
+                    windowVal.innerText = val;
+                    EngineState.windowRadius = parseFloat(val);
+                    
+                    // Crucial: Cache stays clean. We merely re-filter and re-render.
+                    // This creates an extremely smooth animation effect.
+                    CutAndProject.updateTiling(); 
+                    RenderEngine.drawTiling();
+                });
+
+                // Zoom Change (Render pass only)
+                zoomSlider.addEventListener('input', (e) => {
+                    const val = parseInt(e.target.value);
+                    zoomVal.innerText = val;
+                    RenderState.scale = val;
+                    RenderEngine.drawTiling();
+                });
+            }
+        };
+
+        // --- Execution Flow ---
+        // 1. Math Kernel Configuration
+        Projections.initMatrices(5, 'penrose'); 
+        EngineState.latticeRadius = 4; 
+        EngineState.windowRadius = 0.5;
+        
+        // 2. Initial Data Generation
+        CutAndProject.updateTiling();
+        
+        // 3. Render and UI Binding
+        RenderEngine.init();
+        UIController.init();
+
+    </script>
+</body>
+</html>

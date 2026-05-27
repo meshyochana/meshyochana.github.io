@@ -1,0 +1,83 @@
+/**
+* 1. State Variables & Parameters
+*/
+const SimulationState = {
+// Input Parameters
+theta: Math.PI / 4, // Angle of the 1D physical space line (radians)
+windowWidth: 1.0, // Width of the acceptance band (W)
+gridLimit: 20, // Evaluates grid from -gridLimit to +gridLimit
+
+// Output Data Structures
+gridPoints: [], // All evaluated 2D points with their projection values
+selectedPoints: [], // Points that fall within the cut window
+projected1D: [] // The final sorted 1D sequence in physical space
+};
+
+/**
+* 2. Data Structures
+*/
+class LatticePoint {
+constructor(x, y) {
+this.x = x;
+this.y = y;
+this.p_parallel = 0; // Coordinate in 1D physical space
+this.p_perpendicular = 0; // Coordinate in 1D perpendicular/internal space
+this.selected = false; // True if point falls within the cut window
+}
+}
+
+/**
+* 3. Math Engine
+*/
+const MathEngine = {
+/**
+* Core simulation loop.
+* Iterates over the grid, calculates projections, applies the cut,
+* and mutates the SimulationState.
+*/
+updateSimulation() {
+// Clear previous state outputs
+SimulationState.gridPoints = [];
+SimulationState.selectedPoints = [];
+SimulationState.projected1D = [];
+
+// Pre-compute trigonometric values for projection basis vectors
+const cosTheta = Math.cos(SimulationState.theta);
+const sinTheta = Math.sin(SimulationState.theta);
+
+// The acceptance window spans from -W/2 to W/2 in the perpendicular space
+const halfWindow = SimulationState.windowWidth / 2;
+
+const limit = SimulationState.gridLimit;
+
+// Iterate over the 2D integer Cartesian grid
+for (let x = -limit; x <= limit; x++) { for (let y=-limit; y <=limit; y++) { const pt=new LatticePoint(x, y); // Step 1:
+    Calculate orthogonal projections // Dot product with physical space basis vector: (cos(theta), sin(theta))
+    pt.p_parallel=x * cosTheta + y * sinTheta; // Dot product with perpendicular space basis vector: (-sin(theta),
+    cos(theta)) pt.p_perpendicular=-x * sinTheta + y * cosTheta; // Step 2: The Cut // Check if the point's
+    perpendicular coordinate falls inside the window if (Math.abs(pt.p_perpendicular) <=halfWindow) { pt.selected=true;
+    SimulationState.selectedPoints.push(pt); // Step 3: The Project // Store the 1D physical coordinate
+    SimulationState.projected1D.push(pt.p_parallel); } SimulationState.gridPoints.push(pt); } } // Sort the projected 1D
+    points spatially to construct the physical sequence SimulationState.projected1D.sort((a, b)=> a - b);
+    },
+
+    // --- State Mutators ---
+
+    setTheta(newThetaRadians) {
+    SimulationState.theta = newThetaRadians;
+    this.updateSimulation();
+    },
+
+    setWindowWidth(newWidth) {
+    SimulationState.windowWidth = newWidth;
+    this.updateSimulation();
+    },
+
+    setGridLimit(newLimit) {
+    SimulationState.gridLimit = Math.floor(newLimit);
+    this.updateSimulation();
+    }
+    };
+
+    // Initial calculation
+    MathEngine.updateSimulation();

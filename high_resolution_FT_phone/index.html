@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Camera FT Analyzer</title>
+    <style>
+        :root {
+            --primary: #007aff;
+            --bg-color: #121212;
+            --surface: #1e1e1e;
+            --text: #ffffff;
+            --text-secondary: #aaaaaa;
+            --border: #333333;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            padding: 15px;
+            background-color: var(--surface);
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        
+        h1 { font-size: 1.2rem; font-weight: 600; }
+
+        .tabs {
+            display: flex;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .view-section {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .view-section.active {
+            display: flex;
+        }
+
+        .canvas-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: #000;
+            position: relative;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        video { display: none; } /* Hidden, only used for capture */
+
+        .controls-panel {
+            padding: 20px;
+            background: var(--surface);
+            flex: 1;
+            border-top: 1px solid var(--border);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label { font-size: 0.9rem; color: var(--text-secondary); }
+        
+        .val-display { font-size: 0.9rem; font-family: monospace; color: var(--primary); }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+        }
+
+        input[type="number"] {
+            background: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px;
+            border-radius: 6px;
+            width: 80px;
+            text-align: right;
+            font-size: 1rem;
+        }
+
+        button, .file-upload-label {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            flex: 1;
+            display: inline-block;
+        }
+        
+        button.secondary {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        button:active, .file-upload-label:active { opacity: 0.8; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        input[type="file"] { display: none; }
+        
+        .switch-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* Checkbox styling */
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+        }
+
+        #camera-permission-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(220, 53, 69, 0.95);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Camera FT Analyzer</h1>
+    </header>
+
+    <div class="tabs">
+        <div class="tab active" id="tab-calibration" onclick="switchTab('calibration')">Calibration</div>
+        <div class="tab" id="tab-scan" onclick="switchTab('scan')">Scan Mode</div>
+    </div>
+
+    <div class="content">
+        
+        <!-- CALIBRATION VIEW -->
+        <div id="view-calibration" class="view-section active">
+            <div class="canvas-container">
+                <canvas id="calib-canvas" width="400" height="400"></canvas>
+                <div id="camera-permission-overlay">
+                    <p style="margin-bottom: 15px; color: #fff;">Camera access required for live frame capture.</p>
+                    <button onclick="startCamera()">Grant Access</button>
+                </div>
+            </div>
+            
+            <div class="controls-panel">
+                <div class="control-row" style="margin-bottom: 20px;">
+                    <button onclick="captureFrame()" id="btn-capture" disabled>Capture Frame</button>
+                    <label class="file-upload-label secondary">
+                        Upload Image
+                        <input type="file" id="image-upload" accept="image/*">
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-row">
+                        <label>Threshold</label>
+                        <span class="val-display" id="val-thresh">128</span>
+                    </div>
+                    <input type="range" id="thresh-slider" min="0" max="255" value="128">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-row">
+                        <label>Min Blob Size</label>
+                        <span class="val-display" id="val-min-size">5</span>
+                    </div>
+                    <input type="range" id="min-size-slider" min="1" max="100" value="5">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-row">
+                        <label>Max Blob Size</label>
+                        <span class="val-display" id="val-max-size">500</span>
+                    </div>
+                    <input type="range" id="max-size-slider" min="10" max="2000" value="500">
+                </div>
+                
+                <div class="control-group">
+                    <div class="switch-wrap">
+                        <input type="checkbox" id="invert-checkbox">
+                        <label for="invert-checkbox">Detect Dark Blobs (Invert)</label>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);" id="calib-status">Blobs detected: 0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCAN VIEW -->
+        <div id="view-scan" class="view-section">
+            <div class="canvas-container" style="border-bottom: 2px solid var(--primary);">
+                <!-- We will draw the camera feed + overlay here -->
+                <canvas id="scan-camera-canvas" width="400" height="400"></canvas>
+            </div>
+            
+            <div class="canvas-container">
+                <!-- FT Plot here -->
+                <canvas id="scan-ft-canvas" width="400" height="400"></canvas>
+            </div>
+
+            <div class="controls-panel">
+                <div class="control-group">
+                    <div class="switch-wrap">
+                        <input type="checkbox" id="scan-active-checkbox" checked>
+                        <label for="scan-active-checkbox">Active Scanning</label>
+                    </div>
+                </div>
+
+                <div class="control-row">
+                    <div class="control-group" style="flex:1;">
+                        <label>K-max</label>
+                        <input type="number" id="kmax-input" value="1.5" step="0.1">
+                    </div>
+                    <div class="control-group" style="flex:1;">
+                        <label>Resolution</label>
+                        <input type="number" id="res-input" value="100" step="10">
+                    </div>
+                </div>
+                
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;" id="scan-status">Blobs: 0 | FPS: 0</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Hidden video element for camera -->
+    <video id="video-feed" autoplay playsinline></video>
+    
+    <!-- Hidden canvas for processing raw frames -->
+    <canvas id="process-canvas" width="400" height="400" style="display:none;"></canvas>
+
+    <!-- Toast Notification -->
+    <div id="toast-msg" class="toast">Please place the camera on a clearer spot.</div>
+
+    <script>
+        // DOM Elements
+        const video = document.getElementById('video-feed');
+        const calibCanvas = document.getElementById('calib-canvas');
+        const calibCtx = calibCanvas.getContext('2d', { willReadFrequently: true });
+        
+        const scanCameraCanvas = document.getElementById('scan-camera-canvas');
+        const scanCameraCtx = scanCameraCanvas.getContext('2d', { willReadFrequently: true });
+        
+        const scanFtCanvas = document.getElementById('scan-ft-canvas');
+        const scanFtCtx = scanFtCanvas.getContext('2d');
+        
+        const processCanvas = document.getElementById('process-canvas');
+        const processCtx = processCanvas.getContext('2d', { willReadFrequently: true });
+
+        // UI Controls
+        const threshSlider = document.getElementById('thresh-slider');
+        const minSizeSlider = document.getElementById('min-size-slider');
+        const maxSizeSlider = document.getElementById('max-size-slider');
+        const invertCheckbox = document.getElementById('invert-checkbox');
+        const imageUpload = document.getElementById('image-upload');
+        const kmaxInput = document.getElementById('kmax-input');
+        const resInput = document.getElementById('res-input');
+        const scanActiveCheckbox = document.getElementById('scan-active-checkbox');
+        
+        // Displays
+        const valThresh = document.getElementById('val-thresh');
+        const valMinSize = document.getElementById('val-min-size');
+        const valMaxSize = document.getElementById('val-max-size');
+        const calibStatus = document.getElementById('calib-status');
+        const scanStatus = document.getElementById('scan-status');
+
+        // State
+        let stream = null;
+        let testImage = null; // Can be a captured frame or uploaded image
+        let detectedBlobs = [];
+        let currentMode = 'calibration'; // 'calibration' or 'scan'
+        let scanLoopId = null;
+        let lastFrameTime = 0;
+        let frameCount = 0;
+        let fps = 0;
+        let toastTimeout = null;
+
+        function showToast(msg) {
+            const t = document.getElementById('toast-msg');
+            t.innerText = msg;
+            t.classList.add('show');
+            if(toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                t.classList.remove('show');
+            }, 3000);
+        }
+
+        // Configuration
+        const CANVAS_SIZE = 400; // Work resolution
+
+        // --- Core Blob Detection Engine ---
+        // Returns an array of centroids: [{x, y, area}, ...]
+        function detectBlobs(imageData, threshold, invert, minArea, maxArea) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+            
+            // Create a binary mask: 1 for blob, 0 for background
+            const mask = new Uint8Array(width * height);
+            
+            for (let i = 0; i < data.length; i += 4) {
+                // Grayscale luminance
+                const r = data[i];
+                const g = data[i+1];
+                const b = data[i+2];
+                const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+                
+                let isBlob = false;
+                if (invert) {
+                    isBlob = lum < threshold; // Dark blobs
+                } else {
+                    isBlob = lum > threshold; // Light blobs
+                }
+                
+                mask[i / 4] = isBlob ? 1 : 0;
+            }
+
+            const blobs = [];
+            const visited = new Uint8Array(width * height);
+
+            // Fast Connected Components using BFS
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    
+                    if (mask[idx] === 1 && visited[idx] === 0) {
+                        // Start BFS
+                        let sumX = 0;
+                        let sumY = 0;
+                        let area = 0;
+                        
+                        const queue = [idx];
+                        visited[idx] = 1;
+                        
+                        let head = 0;
+                        while(head < queue.length) {
+                            const curIdx = queue[head++];
+                            const cx = curIdx % width;
+                            const cy = Math.floor(curIdx / width);
+                            
+                            sumX += cx;
+                            sumY += cy;
+                            area++;
+                            
+                            // Check 4 neighbors
+                            // Left
+                            if (cx > 0) {
+                                const nIdx = curIdx - 1;
+                                if (mask[nIdx] === 1 && visited[nIdx] === 0) {
+                                    visited[nIdx] = 1; queue.push(nIdx);
+                                }
+                            }
+                            // Right
+                            if (cx < width - 1) {
+                                const nIdx = curIdx + 1;
+                                if (mask[nIdx] === 1 && visited[nIdx] === 0) {
+                                    visited[nIdx] = 1; queue.push(nIdx);
+                                }
+                            }
+                            // Up
+                            if (cy > 0) {
+                                const nIdx = curIdx - width;
+                                if (mask[nIdx] === 1 && visited[nIdx] === 0) {
+                                    visited[nIdx] = 1; queue.push(nIdx);
+                                }
+                            }
+                            // Down
+                            if (cy < height - 1) {
+                                const nIdx = curIdx + width;
+                                if (mask[nIdx] === 1 && visited[nIdx] === 0) {
+                                    visited[nIdx] = 1; queue.push(nIdx);
+                                }
+                            }
+                        }
+                        
+                        if (area >= minArea && area <= maxArea) {
+                            blobs.push({
+                                x: sumX / area,
+                                y: sumY / area,
+                                area: area
+                            });
+                        }
+                    }
+                }
+            }
+            
+            return blobs;
+        }
+
+        // --- Fourier Transform Engine ---
+        function getViridisColor(t) {
+            t = Math.max(0, Math.min(1, t));
+            const colors = [[68,1,84],[72,35,116],[64,67,135],[52,94,141],[41,120,142],[32,144,140],[34,167,132],[68,190,112],[121,209,81],[189,223,38],[253,231,37]];
+            const i = Math.floor(t * (colors.length - 1));
+            const j = Math.min(i + 1, colors.length - 1);
+            const f = t * (colors.length - 1) - i;
+            return [
+                Math.round(colors[i][0] + f * (colors[j][0] - colors[i][0])),
+                Math.round(colors[i][1] + f * (colors[j][1] - colors[i][1])),
+                Math.round(colors[i][2] + f * (colors[j][2] - colors[i][2]))
+            ];
+        }
+
+        function calculateAndDisplayFT(points, ctx, width, height) {
+            const res = parseInt(resInput.value) || 100;
+            const k_max = parseFloat(kmaxInput.value) || 1.5;
+            
+            if(points.length === 0) {
+                ctx.clearRect(0, 0, width, height);
+                return;
+            }
+
+            // Center points around 0
+            // The points are in canvas coordinate space (0 to CANVAS_SIZE)
+            // Let's normalize them to -0.5 to 0.5 roughly based on canvas size
+            const ftPts = points.map(p => ({
+                x: (p.x - CANVAS_SIZE/2) / CANVAS_SIZE,
+                y: -(p.y - CANVAS_SIZE/2) / CANVAS_SIZE, // Flip Y for standard Cartesian
+                w: 1
+            }));
+
+            const mags = new Float32Array(res * res);
+            
+            // Calculate FT for each pixel in k-space
+            for(let py=0; py<res; py++){
+                for(let px=0; px<res; px++){
+                    const kx = (px-res/2)*(2*k_max/res); 
+                    const ky = (py-res/2)*(2*k_max/res);
+                    let re = 0, im = 0;
+                    
+                    for(let i=0; i<ftPts.length; i++){
+                        const p = ftPts[i];
+                        const dot = p.x*kx + p.y*ky;
+                        // Use negative dot product for forward FT
+                        re += p.w * Math.cos(-dot); 
+                        im += p.w * Math.sin(-dot);
+                    }
+                    
+                    const idx = py*res + px;
+                    mags[idx] = Math.log(1 + Math.sqrt(re*re + im*im));
+                }
+            }
+
+            let maxM = 0; 
+            const cM = Math.round(res*0.02); // Center mask size
+            
+            // Find max for normalization, ignoring the DC component at center
+            for(let i=0; i<mags.length; i++){
+                const x = i%res, y = Math.floor(i/res);
+                if(Math.hypot(x-res/2, y-res/2) >= cM && mags[i] > maxM) {
+                    maxM = mags[i];
+                }
+            }
+
+            // Render to ImageData
+            const out = ctx.createImageData(res, res);
+            for(let i=0; i<mags.length; i++){
+                const x = i%res, y = Math.floor(i/res);
+                const isC = Math.hypot(x-res/2, y-res/2) < cM;
+                
+                if (isC) {
+                    out.data.set([0,0,0, 255], i*4); // Black out DC
+                } else {
+                    const col = getViridisColor(mags[i]/(maxM||1));
+                    out.data.set([...col, 255], i*4);
+                }
+            }
+            
+            // Draw to canvas by scaling up the small result
+            const tC = document.createElement('canvas'); 
+            tC.width = tC.height = res;
+            tC.getContext('2d').putImageData(out, 0, 0);
+            
+            ctx.clearRect(0, 0, width, height); 
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(tC, 0, 0, width, height);
+        }
+
+
+        // --- App Logic ---
+
+        function drawBlobsOverlay(ctx, blobs) {
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+            for (let b of blobs) {
+                // Draw a cross
+                ctx.fillRect(b.x - 1, b.y - 4, 3, 9);
+                ctx.fillRect(b.x - 4, b.y - 1, 9, 3);
+            }
+        }
+
+        function runCalibration() {
+            if (!testImage) return;
+
+            // 1. Draw test image to process canvas
+            processCtx.drawImage(testImage, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            
+            // 2. Extract ImageData
+            const imgData = processCtx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            
+            // 3. Detect Blobs
+            const thr = parseInt(threshSlider.value);
+            const inv = invertCheckbox.checked;
+            const minA = parseInt(minSizeSlider.value);
+            const maxA = parseInt(maxSizeSlider.value);
+            
+            detectedBlobs = detectBlobs(imgData, thr, inv, minA, maxA);
+            
+            // 4. Draw to UI
+            calibCtx.drawImage(processCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            drawBlobsOverlay(calibCtx, detectedBlobs);
+            
+            calibStatus.innerText = `Blobs detected: ${detectedBlobs.length}`;
+        }
+
+        function runScanLoop() {
+            if (currentMode !== 'scan') return;
+            
+            if (scanActiveCheckbox.checked && video.readyState === video.HAVE_ENOUGH_DATA) {
+                // Determine crop to make video square
+                const size = Math.min(video.videoWidth, video.videoHeight);
+                const sx = (video.videoWidth - size) / 2;
+                const sy = (video.videoHeight - size) / 2;
+
+                // Draw square crop from video to process canvas
+                processCtx.drawImage(video, sx, sy, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                
+                // Extract ImageData
+                const imgData = processCtx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                
+                // Detect Blobs using calibrated params
+                const thr = parseInt(threshSlider.value);
+                const inv = invertCheckbox.checked;
+                const minA = parseInt(minSizeSlider.value);
+                const maxA = parseInt(maxSizeSlider.value);
+                
+                const tStart = performance.now();
+                const blobs = detectBlobs(imgData, thr, inv, minA, maxA);
+                const tEnd = performance.now();
+                
+                if (blobs.length === 0 || (tEnd - tStart) > 100) {
+                    showToast("Please place the camera on a clearer spot.");
+                }
+                
+                // Draw Camera View
+                scanCameraCtx.drawImage(processCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                drawBlobsOverlay(scanCameraCtx, blobs);
+                
+                // Calculate FT
+                calculateAndDisplayFT(blobs, scanFtCtx, CANVAS_SIZE, CANVAS_SIZE);
+                
+                // Calculate FPS
+                frameCount++;
+                const now = performance.now();
+                if (now - lastFrameTime >= 1000) {
+                    fps = frameCount;
+                    frameCount = 0;
+                    lastFrameTime = now;
+                }
+                
+                scanStatus.innerText = `Blobs: ${blobs.length} | FPS: ${fps}`;
+            }
+            
+            scanLoopId = requestAnimationFrame(runScanLoop);
+        }
+
+        // --- Event Listeners & UI ---
+
+        function switchTab(mode) {
+            currentMode = mode;
+            document.getElementById('tab-calibration').classList.remove('active');
+            document.getElementById('tab-scan').classList.remove('active');
+            document.getElementById('view-calibration').classList.remove('active');
+            document.getElementById('view-scan').classList.remove('active');
+            
+            document.getElementById(`tab-${mode}`).classList.add('active');
+            document.getElementById(`view-${mode}`).classList.add('active');
+            
+            if (mode === 'scan') {
+                if (stream && video.readyState === video.HAVE_ENOUGH_DATA) {
+                    lastFrameTime = performance.now();
+                    frameCount = 0;
+                    runScanLoop();
+                } else if (!stream) {
+                    startCamera().then(() => {
+                        lastFrameTime = performance.now();
+                        frameCount = 0;
+                        runScanLoop();
+                    });
+                }
+            } else {
+                if (scanLoopId) {
+                    cancelAnimationFrame(scanLoopId);
+                    scanLoopId = null;
+                }
+                if (testImage) {
+                    runCalibration();
+                }
+            }
+        }
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } } 
+                });
+                video.srcObject = stream;
+                document.getElementById('camera-permission-overlay').style.display = 'none';
+                document.getElementById('btn-capture').disabled = false;
+                
+                // Play and wait for metadata
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+            } catch (err) {
+                console.error("Camera error:", err);
+                alert("Failed to access camera. Please allow permissions.");
+            }
+        }
+
+        function captureFrame() {
+            if (!stream) return;
+            
+            // Create a canvas to hold the full res image
+            const tempC = document.createElement('canvas');
+            const size = Math.min(video.videoWidth, video.videoHeight);
+            tempC.width = CANVAS_SIZE;
+            tempC.height = CANVAS_SIZE;
+            
+            const sx = (video.videoWidth - size) / 2;
+            const sy = (video.videoHeight - size) / 2;
+            
+            tempC.getContext('2d').drawImage(video, sx, sy, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            
+            const img = new Image();
+            img.onload = () => {
+                testImage = img;
+                runCalibration();
+            };
+            img.src = tempC.toDataURL('image/jpeg');
+        }
+
+        imageUpload.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const img = new Image();
+                img.onload = () => {
+                    // Create square crop for testing
+                    const tempC = document.createElement('canvas');
+                    tempC.width = CANVAS_SIZE;
+                    tempC.height = CANVAS_SIZE;
+                    
+                    const size = Math.min(img.width, img.height);
+                    const sx = (img.width - size) / 2;
+                    const sy = (img.height - size) / 2;
+                    
+                    tempC.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                    
+                    const finalImg = new Image();
+                    finalImg.onload = () => {
+                        testImage = finalImg;
+                        runCalibration();
+                    };
+                    finalImg.src = tempC.toDataURL('image/jpeg');
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Sliders
+        const updateVal = (slider, displayObj) => {
+            displayObj.innerText = slider.value;
+            if (currentMode === 'calibration') runCalibration();
+        };
+
+        threshSlider.addEventListener('input', () => updateVal(threshSlider, valThresh));
+        minSizeSlider.addEventListener('input', () => updateVal(minSizeSlider, valMinSize));
+        maxSizeSlider.addEventListener('input', () => updateVal(maxSizeSlider, valMaxSize));
+        
+        invertCheckbox.addEventListener('change', () => {
+            if (currentMode === 'calibration') runCalibration();
+        });
+
+        // Initialize empty state
+        calibCtx.fillStyle = '#1e1e1e';
+        calibCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        calibCtx.fillStyle = '#aaaaaa';
+        calibCtx.font = '14px Arial';
+        calibCtx.textAlign = 'center';
+        calibCtx.fillText("No test image loaded", CANVAS_SIZE/2, CANVAS_SIZE/2);
+
+    </script>
+</body>
+</html>

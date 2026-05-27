@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual Grid Method - Quasiperiodic Tilings</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.75);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --panel-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        #ui-panel {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            z-index: 10;
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #ui-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        #ui-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #ui-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        p.subtitle {
+            margin: -12px 0 0 0;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .control-val {
+            font-variant-numeric: tabular-nums;
+            background: rgba(0,0,0,0.2);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--panel-border);
+            margin: 4px 0;
+        }
+
+        #gamma-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .gamma-slider-thumb::-webkit-slider-thumb {
+            background: var(--slider-color) !important;
+            box-shadow: 0 0 10px var(--slider-shadow) !important;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .button-group button {
+            flex: 1;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="canvas-container">
+    <canvas id="tiling-canvas"></canvas>
+</div>
+
+<div id="ui-panel">
+    <h1>Dual Grid Space</h1>
+    <p class="subtitle">Interactive Quasiperiodic Tiling Generator</p>
+
+    <div class="control-group">
+        <div class="control-header">
+            <label>Symmetry (N)</label>
+            <span class="control-val" id="n-val">5</span>
+        </div>
+        <input type="range" id="n-slider" min="3" max="15" value="5" step="1">
+    </div>
+
+    <div class="control-group">
+        <div class="control-header">
+            <label>Zoom Level</label>
+            <span class="control-val" id="zoom-val">50</span>
+        </div>
+        <input type="range" id="zoom-slider" min="10" max="250" value="50" step="1">
+    </div>
+
+    <div class="button-group">
+        <button id="btn-recenter">Recenter Origin</button>
+        <button id="btn-randomize">Randomize γ</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="gamma-controls">
+        <!-- Dynamically populated phase shifts -->
+    </div>
+</div>
+
+<script>
+    /**
+     * Dual Grid Method Simulation
+     * Architected with strict separation of concerns.
+     */
+
+    // --- 1. Math State (Strictly Separated) ---
+    const state = {
+        N: 5,
+        zoom: 50,
+        gammas: [], // Will be populated based on N
+        offsetX: 0,
+        offsetY: 0
+    };
+
+    // Initialize phase shifts to interesting default values avoiding singular intersections
+    function initGammas(N) {
+        state.gammas = [];
+        for (let i = 0; i < N; i++) {
+            // Provide a small irrational-like shift to avoid trivial intersections at origin
+            state.gammas.push( (i * 0.6180339887) % 1 ); 
+        }
+    }
+    initGammas(state.N);
+
+    // --- 2. Color System ---
+    function getColor(n, N) {
+        // Generates distinct, vibrant HSL colors distributed evenly across the hue spectrum
+        const hue = (n * 360) / N;
+        return `hsl(${hue}, 85%, 65%)`;
+    }
+
+    // --- 3. UI & DOM Management ---
+    const elements = {
+        canvas: document.getElementById('tiling-canvas'),
+        ctx: document.getElementById('tiling-canvas').getContext('2d', { alpha: false }),
+        nSlider: document.getElementById('n-slider'),
+        zoomSlider: document.getElementById('zoom-slider'),
+        nVal: document.getElementById('n-val'),
+        zoomVal: document.getElementById('zoom-val'),
+        gammaControls: document.getElementById('gamma-controls'),
+        btnRecenter: document.getElementById('btn-recenter'),
+        btnRandomize: document.getElementById('btn-randomize')
+    };
+
+    function updateGammaSliders() {
+        elements.gammaControls.innerHTML = '<div class="control-header"><label>Phase Shifts (γ)</label></div>';
+        
+        for (let i = 0; i < state.N; i++) {
+            const color = getColor(i, state.N);
+            
+            const group = document.createElement('div');
+            group.className = 'control-group';
+            
+            const header = document.createElement('div');
+            header.className = 'control-header';
+            
+            const label = document.createElement('label');
+            label.textContent = `Grid ${i + 1}`;
+            label.style.color = color;
+            label.style.fontWeight = '600';
+            
+            const valSpan = document.createElement('span');
+            valSpan.className = 'control-val';
+            valSpan.textContent = state.gammas[i].toFixed(2);
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = '0';
+            slider.max = '1';
+            slider.step = '0.01';
+            slider.value = state.gammas[i];
+            slider.className = 'gamma-slider-thumb';
+            
+            // Custom CSS vars for colored sliders
+            slider.style.setProperty('--slider-color', color);
+            // Parse HSL to add opacity for shadow
+            slider.style.setProperty('--slider-shadow', color.replace('hsl', 'hsla').replace(')', ', 0.5)'));
+
+            slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                state.gammas[i] = val;
+                valSpan.textContent = val.toFixed(2);
+                requestAnimationFrame(drawGrids);
+            });
+
+            header.appendChild(label);
+            header.appendChild(valSpan);
+            group.appendChild(header);
+            group.appendChild(slider);
+            elements.gammaControls.appendChild(group);
+        }
+    }
+
+    // --- 4. Rendering Logic ---
+    function resize() {
+        // High DPI Display Support
+        const dpr = window.devicePixelRatio || 1;
+        elements.canvas.width = window.innerWidth * dpr;
+        elements.canvas.height = window.innerHeight * dpr;
+        elements.canvas.style.width = `${window.innerWidth}px`;
+        elements.canvas.style.height = `${window.innerHeight}px`;
+        elements.ctx.scale(dpr, dpr);
+        requestAnimationFrame(drawGrids);
+    }
+
+    function drawGrids() {
+        const { canvas, ctx } = elements;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // Background
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.save();
+        
+        // Transform: Absolute anchor for canvas transform around (0,0) focal point
+        // Apply panning offsets
+        ctx.translate(width / 2 + state.offsetX, height / 2 + state.offsetY);
+        ctx.scale(state.zoom, state.zoom);
+
+        const { N, gammas, zoom } = state;
+
+        // Calculate max radius needed based on screen size, zoom, and panning offset
+        const corners = [
+            { x: -width/2 - state.offsetX, y: -height/2 - state.offsetY },
+            { x: width/2 - state.offsetX,  y: -height/2 - state.offsetY },
+            { x: -width/2 - state.offsetX, y: height/2 - state.offsetY },
+            { x: width/2 - state.offsetX,  y: height/2 - state.offsetY }
+        ];
+        
+        let R_max = 0;
+        for (const c of corners) {
+            const dist = Math.sqrt(c.x**2 + c.y**2) / zoom;
+            if (dist > R_max) R_max = dist;
+        }
+
+        // Set consistent line width independent of zoom
+        ctx.lineWidth = 1.5 / zoom;
+        
+        // Add subtle glow to lines
+        ctx.globalCompositeOperation = 'screen';
+
+        for (let n = 0; n < N; n++) {
+            // Star Vector an = (cos(theta), sin(theta))
+            const theta = 2 * Math.PI * n / N;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+            const gamma = gammas[n];
+
+            ctx.strokeStyle = getColor(n, N);
+            ctx.beginPath();
+
+            // Lines are perpendicular to star vector
+            const dirX = -sinT;
+            const dirY = cosT;
+
+            // Determine integer k range to cover visible screen
+            const kMin = Math.ceil(-R_max - gamma);
+            const kMax = Math.floor(R_max - gamma);
+
+            // Line length must span the maximum diagonal distance
+            const lineLen = R_max * 2.5;
+
+            for (let k = kMin; k <= kMax; k++) {
+                const D = k + gamma;
+                
+                // Point on line closest to origin
+                const pX = D * cosT;
+                const pY = D * sinT;
+
+                // Extending line in both directions
+                const startX = pX - dirX * lineLen;
+                const startY = pY - dirY * lineLen;
+                const endX = pX + dirX * lineLen;
+                const endY = pY + dirY * lineLen;
+
+                // Note: Standard math coordinates (y goes up), Canvas (y goes down)
+                // Flipping y for correct mathematical orientation
+                ctx.moveTo(startX, -startY); 
+                ctx.lineTo(endX, -endY);
+            }
+            
+            // Batch stroke per grid for performance
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    // --- 5. Event Listeners ---
+    elements.nSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        state.N = val;
+        elements.nVal.textContent = val;
+        
+        // Preserve existing gammas, add new ones if N increases
+        const oldGammas = [...state.gammas];
+        state.gammas = [];
+        for(let i=0; i<val; i++) {
+            state.gammas.push(i < oldGammas.length ? oldGammas[i] : (i * 0.6180339887) % 1);
+        }
+        
+        updateGammaSliders();
+        requestAnimationFrame(drawGrids);
+    });
+
+    elements.zoomSlider.addEventListener('input', (e) => {
+        state.zoom = parseInt(e.target.value);
+        elements.zoomVal.textContent = state.zoom;
+        requestAnimationFrame(drawGrids);
+    });
+
+    elements.btnRecenter.addEventListener('click', () => {
+        state.offsetX = 0;
+        state.offsetY = 0;
+        requestAnimationFrame(drawGrids);
+    });
+
+    elements.btnRandomize.addEventListener('click', () => {
+        for(let i=0; i<state.N; i++) {
+            state.gammas[i] = Math.random();
+        }
+        updateGammaSliders();
+        requestAnimationFrame(drawGrids);
+    });
+
+    // Panning (Mouse/Touch)
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+
+    elements.canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        dragStart = { x: e.clientX - state.offsetX, y: e.clientY - state.offsetY };
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        state.offsetX = e.clientX - dragStart.x;
+        state.offsetY = e.clientY - dragStart.y;
+        requestAnimationFrame(drawGrids);
+    });
+
+    // Zooming (Scroll)
+    elements.canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomSpeed = 0.002;
+        let zoomDelta = Math.exp(-e.deltaY * zoomSpeed);
+        
+        let newZoom = state.zoom * zoomDelta;
+        newZoom = Math.max(10, Math.min(newZoom, 250));
+        
+        state.zoom = newZoom;
+        elements.zoomSlider.value = newZoom;
+        elements.zoomVal.textContent = Math.round(newZoom);
+        
+        requestAnimationFrame(drawGrids);
+    }, { passive: false });
+
+    window.addEventListener('resize', resize);
+
+    // --- 6. Initialization ---
+    updateGammaSliders();
+    resize(); // Will call drawGrids initially
+
+</script>
+</body>
+</html>

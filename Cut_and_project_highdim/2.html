@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cut and Project Quasicrystal Engine</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #0d0d12; /* Deep modern dark aesthetics */
+        }
+        canvas { 
+            display: block; 
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        /**
+         * MATHEMATICAL KERNEL: d-Dimensional Cut and Project Method
+         */
+
+        // 1. Linear Algebra Helpers
+        const LinAlg = {
+            matVecMul: (matrix, vec) => {
+                return matrix.map(row => 
+                    row.reduce((sum, val, i) => sum + val * vec[i], 0)
+                );
+            },
+            
+            *generateLattice(d, radius, current = []) {
+                if (current.length === d) {
+                    yield current;
+                    return;
+                }
+                for (let i = -radius; i <= radius; i++) {
+                    yield* this.generateLattice(d, radius, [...current, i]);
+                }
+            }
+        };
+
+        // 2. Data Structures & State Variables
+        const EngineState = {
+            d: 5,               
+            latticeRadius: 5,   
+            Pi_parallel: [],
+            Pi_perp: [],
+            windowRadius: 0.5,
+            validVertices: [], // Array of { z: [int], parallel: [x, y], perp: [...] }
+            edges: []          // Array of [indexA, indexB] bridging adjacent Z^d vertices
+        };
+
+        // 3. Projection Matrices
+        const Projections = {
+            initMatrices(d, type = 'penrose') {
+                EngineState.d = d;
+                EngineState.Pi_parallel = Array(2).fill(0).map(() => Array(d).fill(0));
+                EngineState.Pi_perp = Array(d - 2).fill(0).map(() => Array(d).fill(0));
+
+                if (d === 5 && type === 'penrose') {
+                    for (let j = 0; j < 5; j++) {
+                        let angle = (2 * Math.PI * j) / 5;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        let anglePerp = (4 * Math.PI * j) / 5;
+                        EngineState.Pi_perp[0][j] = Math.cos(anglePerp);
+                        EngineState.Pi_perp[1][j] = Math.sin(anglePerp);
+                        EngineState.Pi_perp[2][j] = 1 / Math.sqrt(2); 
+                    }
+                } else if (d === 4 && type === 'ammann-beenker') {
+                    for (let j = 0; j < 4; j++) {
+                        let angle = (Math.PI * j) / 4;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        let anglePerp = (3 * Math.PI * j) / 4;
+                        EngineState.Pi_perp[0][j] = Math.cos(anglePerp);
+                        EngineState.Pi_perp[1][j] = Math.sin(anglePerp);
+                    }
+                }
+            }
+        };
+
+        // 4. The Cut and Project Engine
+        const CutAndProject = {
+            inWindow(perpVector, windowRadius) {
+                for (let i = 0; i < perpVector.length; i++) {
+                    if (Math.abs(perpVector[i]) > windowRadius) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+
+            updateTiling() {
+                const { d, latticeRadius, Pi_parallel, Pi_perp, windowRadius } = EngineState;
+                EngineState.validVertices = [];
+
+                const latticeGenerator = LinAlg.generateLattice(d, latticeRadius);
+                
+                for (const z of latticeGenerator) {
+                    const x_perp = LinAlg.matVecMul(Pi_perp, z);
+
+                    if (this.inWindow(x_perp, windowRadius)) {
+                        const x_parallel = LinAlg.matVecMul(Pi_parallel, z);
+                        EngineState.validVertices.push({
+                            z: z,                   
+                            parallel: x_parallel,   
+                            perp: x_perp            
+                        });
+                    }
+                }
+                this.computeEdges(); // Mutates state independently
+            },
+
+            computeEdges() {
+                EngineState.edges = [];
+                const vertices = EngineState.validVertices;
+                const vertexMap = new Map();
+                
+                // Hash integer coordinates to find geometrical neighbors in O(1)
+                vertices.forEach((v, idx) => {
+                    vertexMap.set(v.z.join(','), idx);
+                });
+
+                const d = EngineState.d;
+                for (let i = 0; i < vertices.length; i++) {
+                    const z = vertices[i].z;
+                    // Connect vertices in 2D real space if pre-images in Z^d 
+                    // are separated by exactly one standard basis vector (+1 offset).
+                    for (let dim = 0; dim < d; dim++) {
+                        const neighborZ = [...z];
+                        neighborZ[dim] += 1;
+                        const neighborKey = neighborZ.join(',');
+                        if (vertexMap.has(neighborKey)) {
+                            EngineState.edges.push([i, vertexMap.get(neighborKey)]);
+                        }
+                    }
+                }
+            }
+        };
+
+        // 5. The Render Engine
+        const RenderState = {
+            scale: 80, // Pixels per math unit
+            rotation: 0 // In radians
+        };
+
+        const RenderEngine = {
+            canvas: null,
+            ctx: null,
+
+            init() {
+                this.canvas = document.createElement('canvas');
+                document.body.appendChild(this.canvas);
+                this.ctx = this.canvas.getContext('2d');
+                
+                window.addEventListener('resize', () => this.resize());
+                this.resize();
+            },
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                this.drawTiling();
+            },
+
+            drawTiling() {
+                if (!this.ctx) return;
+                const { width, height } = this.canvas;
+                const ctx = this.ctx;
+                
+                ctx.clearRect(0, 0, width, height);
+
+                // Absolute Geometry Translation
+                // Note: z=[0,0,0,0,0] projects to x_perp=[0,0,0] which ALWAYS satisfies
+                // the hypercubic window condition if windowRadius >= 0.
+                // Thus, an exact point always sits precisely at the Euclidean origin (0,0).
+                ctx.save();
+                
+                // Absolute mapping of the (0,0) canvas point to the screen center
+                ctx.translate(width / 2, height / 2);
+                ctx.scale(RenderState.scale, -RenderState.scale); // Math coordinates (Y up)
+                ctx.rotate(RenderState.rotation); // Rotations strictly pivot around this absolute zero
+
+                // Draw Edges
+                ctx.lineWidth = 1.5 / RenderState.scale;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; // Subtle translucent glassmorphic lines
+                ctx.beginPath();
+                EngineState.edges.forEach(([i, j]) => {
+                    const v1 = EngineState.validVertices[i].parallel;
+                    const v2 = EngineState.validVertices[j].parallel;
+                    ctx.moveTo(v1[0], v1[1]);
+                    ctx.lineTo(v2[0], v2[1]);
+                });
+                ctx.stroke();
+
+                // Compute Vertex Degrees for Configuration Color Coding
+                const degrees = new Array(EngineState.validVertices.length).fill(0);
+                EngineState.edges.forEach(([i, j]) => {
+                    degrees[i]++;
+                    degrees[j]++;
+                });
+
+                // Dynamic Vibrant Color Palette based on local vertex topology (degree count)
+                const colors = [
+                    '#2E3440', // 0 deg (isolated/unlikely)
+                    '#88C0D0', // 1 deg 
+                    '#81A1C1', // 2 deg
+                    '#5E81AC', // 3 deg
+                    '#A3BE8C', // 4 deg
+                    '#EBCB8B', // 5 deg
+                    '#D08770', // 6 deg
+                    '#BF616A', // 7 deg
+                    '#B48EAD', // 8 deg
+                    '#ffffff'  // 9+ deg
+                ];
+
+                // Render Vertices
+                const pointRadius = 2.5 / RenderState.scale;
+                EngineState.validVertices.forEach((v, idx) => {
+                    const deg = degrees[idx] || 0;
+                    ctx.fillStyle = colors[Math.min(deg, colors.length - 1)];
+                    ctx.beginPath();
+                    ctx.arc(v.parallel[0], v.parallel[1], pointRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+
+                // Mark the Absolute Origin Explicitly
+                // This reinforces the rigid coordinate frame.
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 4 / RenderState.scale, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 2 / RenderState.scale;
+                ctx.beginPath();
+                ctx.arc(0, 0, 9 / RenderState.scale, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        // --- Execution Flow ---
+        // 1. Math Kernel Configuration
+        Projections.initMatrices(5, 'penrose'); 
+        EngineState.latticeRadius = 4; // Limits Z^d sweep space to 9^5 operations
+        EngineState.windowRadius = 0.5;
+        
+        // 2. State Mutation (Data separated from view)
+        CutAndProject.updateTiling();
+        
+        // 3. Render Pass
+        RenderEngine.init();
+
+    </script>
+</body>
+</html>

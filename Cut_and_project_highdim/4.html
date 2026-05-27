@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cut and Project Quasicrystal Engine - Dual Space</title>
+    <style>
+        :root {
+            --bg-dark: #0d0d12;
+            --panel-bg: rgba(20, 20, 26, 0.95);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #4be0ff;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* DASHBOARD LAYOUT */
+        #dashboard {
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+            overflow-y: auto;
+        }
+
+        #split-container {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+        }
+
+        .view-pane {
+            flex: 1;
+            position: relative;
+            border-right: 1px solid var(--border);
+        }
+        .view-pane:last-child {
+            border-right: none;
+        }
+
+        canvas { 
+            display: block; 
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        .view-label {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #fff;
+            pointer-events: none;
+            z-index: 5;
+            backdrop-filter: blur(4px);
+        }
+
+        .header h1 { margin: 0; font-size: 1.2rem; color: #fff; }
+        .header p { margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted); }
+
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        .control-header { display: flex; justify-content: space-between; align-items: center; }
+        label { font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .val-display {
+            font-size: 0.85rem;
+            font-family: monospace;
+            color: var(--accent);
+            background: rgba(75, 224, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        select {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .divider { height: 1px; background: var(--border); margin: 4px 0; }
+        .hint { margin: 0; font-size: 0.75rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div id="dashboard">
+        <div class="header">
+            <h1>Cut & Project</h1>
+            <p>Dual-Space Visualizer</p>
+        </div>
+        
+        <div class="divider"></div>
+
+        <div class="control-group">
+            <label>Dimension / Basis</label>
+            <select id="dim-select">
+                <option value="4">Ammann-Beenker (d=4)</option>
+                <option value="5" selected>Penrose (d=5)</option>
+                <option value="6">Generic Hex-Harmonic (d=6)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <label>Lattice Density (R)</label>
+                <span class="val-display" id="density-val">4</span>
+            </div>
+            <input type="range" id="density-slider" min="1" max="8" step="1" value="4">
+            <p class="hint">Warning: Z^d search space.</p>
+        </div>
+        
+        <div class="divider"></div>
+
+        <div class="control-group">
+            <label>E_perp Window Shape</label>
+            <select id="shape-select">
+                <option value="polygon" selected>Regular Polygon (d-fold)</option>
+                <option value="circle">Circle</option>
+                <option value="square">Square</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <label>Window Radius</label>
+                <span class="val-display" id="window-val">0.50</span>
+            </div>
+            <input type="range" id="window-slider" min="0.01" max="2.0" step="0.01" value="0.50">
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <label>Window Rotation</label>
+                <span class="val-display" id="rotation-val">0.00</span>
+            </div>
+            <input type="range" id="rotation-slider" min="0" max="6.28" step="0.01" value="0.00">
+        </div>
+
+        <div class="divider"></div>
+        <p class="hint" style="color: var(--accent)">
+            Interaction: Scroll on either canvas to zoom independently. The (0,0) origin remains strictly anchored.
+        </p>
+    </div>
+
+    <div id="split-container">
+        <div class="view-pane">
+            <div class="view-label">E_perp (Internal Space)</div>
+            <canvas id="perp-canvas"></canvas>
+        </div>
+        <div class="view-pane">
+            <div class="view-label">E_parallel (Physical Tiling)</div>
+            <canvas id="parallel-canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * MATHEMATICAL KERNEL: Dual-Space Cut and Project
+         */
+
+        const LinAlg = {
+            matVecMul: (matrix, vec) => {
+                return matrix.map(row => 
+                    row.reduce((sum, val, i) => sum + val * vec[i], 0)
+                );
+            },
+            
+            *generateLattice(d, radius, current = []) {
+                if (current.length === d) {
+                    yield current;
+                    return;
+                }
+                for (let i = -radius; i <= radius; i++) {
+                    yield* this.generateLattice(d, radius, [...current, i]);
+                }
+            }
+        };
+
+        const EngineState = {
+            d: 5,               
+            latticeRadius: 4,   
+            Pi_parallel: [],
+            Pi_perp: [],
+            
+            windowShape: 'polygon',
+            windowRadius: 0.5,
+            windowRotation: 0,
+            
+            fullLatticeCache: [], 
+            cacheDirty: true,    
+
+            validVertices: [], 
+            edges: []          
+        };
+
+        const Projections = {
+            initMatrices(d, type = 'penrose') {
+                EngineState.d = d;
+                EngineState.Pi_parallel = Array(2).fill(0).map(() => Array(d).fill(0));
+                EngineState.Pi_perp = Array(d - 2).fill(0).map(() => Array(d).fill(0));
+
+                if (d === 5 && type === 'penrose') {
+                    for (let j = 0; j < 5; j++) {
+                        let angle = (2 * Math.PI * j) / 5;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        let anglePerp = (4 * Math.PI * j) / 5;
+                        EngineState.Pi_perp[0][j] = Math.cos(anglePerp);
+                        EngineState.Pi_perp[1][j] = Math.sin(anglePerp);
+                        EngineState.Pi_perp[2][j] = 1 / Math.sqrt(2); 
+                    }
+                } else if (d === 4 && type === 'ammann-beenker') {
+                    for (let j = 0; j < 4; j++) {
+                        let angle = (Math.PI * j) / 4;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        let anglePerp = (3 * Math.PI * j) / 4;
+                        EngineState.Pi_perp[0][j] = Math.cos(anglePerp);
+                        EngineState.Pi_perp[1][j] = Math.sin(anglePerp);
+                    }
+                } else {
+                    for (let j = 0; j < d; j++) {
+                        let angle = (2 * Math.PI * j) / d;
+                        EngineState.Pi_parallel[0][j] = Math.cos(angle);
+                        EngineState.Pi_parallel[1][j] = Math.sin(angle);
+                        
+                        let perpIdx = 0;
+                        let harmonic = 2;
+                        while (perpIdx < d - 2) {
+                            let anglePerp = (harmonic * 2 * Math.PI * j) / d;
+                            EngineState.Pi_perp[perpIdx][j] = Math.cos(anglePerp);
+                            if (perpIdx + 1 < d - 2) {
+                                EngineState.Pi_perp[perpIdx + 1][j] = Math.sin(anglePerp);
+                            }
+                            perpIdx += 2;
+                            harmonic++;
+                        }
+                    }
+                }
+            }
+        };
+
+        const CutAndProject = {
+            inWindow(perpVector, radius, shape, rotation) {
+                // Focus geometric condition strictly on the primary 2D E_perp projection
+                const px = perpVector[0];
+                const py = perpVector[1];
+                
+                // Inverse rotate the point to simulate window rotation
+                const cosT = Math.cos(-rotation);
+                const sinT = Math.sin(-rotation);
+                const rx = px * cosT - py * sinT;
+                const ry = px * sinT + py * cosT;
+                
+                let accepted = false;
+                
+                if (shape === 'circle') {
+                    accepted = (rx * rx + ry * ry) <= radius * radius;
+                } 
+                else if (shape === 'square') {
+                    accepted = Math.abs(rx) <= radius && Math.abs(ry) <= radius;
+                } 
+                else if (shape === 'polygon') {
+                    const N = EngineState.d;
+                    // Math: Calculates distance to the boundary of an N-gon with apothem = radius
+                    const angle = Math.atan2(ry, rx);
+                    const baseAngle = (2 * Math.PI) / N;
+                    let normalizedAngle = ((angle % baseAngle) + baseAngle) % baseAngle; 
+                    normalizedAngle -= Math.PI / N; // Centered on an edge
+                    
+                    const distToEdge = radius / Math.cos(normalizedAngle);
+                    const r = Math.sqrt(rx * rx + ry * ry);
+                    accepted = r <= distToEdge;
+                }
+
+                // Strict hypercubic clipping for dimensions > 2 in E_perp to prevent overlapping chaos
+                // A point must lie flat enough in the remaining hidden dimensions.
+                for (let i = 2; i < perpVector.length; i++) {
+                    if (Math.abs(perpVector[i]) > 0.6) return false;
+                }
+                
+                return accepted;
+            },
+
+            generateLatticeCache() {
+                if (!EngineState.cacheDirty) return;
+                
+                const { d, latticeRadius, Pi_parallel, Pi_perp } = EngineState;
+                EngineState.fullLatticeCache = [];
+
+                const latticeGenerator = LinAlg.generateLattice(d, latticeRadius);
+                
+                for (const z of latticeGenerator) {
+                    const x_perp = LinAlg.matVecMul(Pi_perp, z);
+                    const x_parallel = LinAlg.matVecMul(Pi_parallel, z);
+                    
+                    EngineState.fullLatticeCache.push({
+                        z: z,                   
+                        parallel: x_parallel,   
+                        perp: x_perp,
+                        accepted: false
+                    });
+                }
+                EngineState.cacheDirty = false;
+            },
+
+            updateTiling() {
+                this.generateLatticeCache();
+                
+                const { windowRadius, windowShape, windowRotation } = EngineState;
+                EngineState.validVertices = [];
+                
+                // Filter the pre-computed grid using the dynamic window geometry
+                for (let i = 0; i < EngineState.fullLatticeCache.length; i++) {
+                    const vertex = EngineState.fullLatticeCache[i];
+                    vertex.accepted = this.inWindow(vertex.perp, windowRadius, windowShape, windowRotation);
+                    
+                    if (vertex.accepted) {
+                        EngineState.validVertices.push(vertex);
+                    }
+                }
+                
+                this.computeEdges(); 
+            },
+
+            computeEdges() {
+                EngineState.edges = [];
+                const vertices = EngineState.validVertices;
+                const vertexMap = new Map();
+                
+                vertices.forEach((v, idx) => {
+                    vertexMap.set(v.z.join(','), idx);
+                });
+
+                const d = EngineState.d;
+                for (let i = 0; i < vertices.length; i++) {
+                    const z = vertices[i].z;
+                    for (let dim = 0; dim < d; dim++) {
+                        const neighborZ = [...z];
+                        neighborZ[dim] += 1;
+                        const neighborKey = neighborZ.join(',');
+                        if (vertexMap.has(neighborKey)) {
+                            EngineState.edges.push([i, vertexMap.get(neighborKey)]);
+                        }
+                    }
+                }
+            }
+        };
+
+        // 5. The Dual Render Engine
+        const RenderState = {
+            scalePerp: 150,
+            scaleParallel: 80
+        };
+
+        const DualRenderEngine = {
+            canvasPerp: null, ctxPerp: null,
+            canvasParallel: null, ctxParallel: null,
+
+            init() {
+                this.canvasPerp = document.getElementById('perp-canvas');
+                this.ctxPerp = this.canvasPerp.getContext('2d');
+                this.setupMouseWheel(this.canvasPerp, 'scalePerp');
+
+                this.canvasParallel = document.getElementById('parallel-canvas');
+                this.ctxParallel = this.canvasParallel.getContext('2d');
+                this.setupMouseWheel(this.canvasParallel, 'scaleParallel');
+                
+                window.addEventListener('resize', () => this.resizeAll());
+                this.resizeAll();
+            },
+
+            setupMouseWheel(canvas, scaleKey) {
+                canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    // Geometric progression for smooth exponential zoom
+                    const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+                    RenderState[scaleKey] *= zoomDelta;
+                    // Enforce visual bounds without clamping the math
+                    RenderState[scaleKey] = Math.max(10, Math.min(2000, RenderState[scaleKey]));
+                    this.drawAll();
+                }, { passive: false });
+            },
+
+            resizeAll() {
+                const parent = document.getElementById('split-container');
+                const paneWidth = parent.clientWidth / 2;
+                const paneHeight = parent.clientHeight;
+
+                this.canvasPerp.width = paneWidth;
+                this.canvasPerp.height = paneHeight;
+                
+                this.canvasParallel.width = paneWidth;
+                this.canvasParallel.height = paneHeight;
+
+                this.drawAll();
+            },
+
+            drawAll() {
+                this.drawPerpView();
+                this.drawParallelView();
+            },
+
+            drawPerpView() {
+                const ctx = this.ctxPerp;
+                const { width, height } = this.canvasPerp;
+                
+                ctx.clearRect(0, 0, width, height);
+                ctx.save();
+                
+                // Fixed Absolute Origin
+                ctx.translate(width / 2, height / 2);
+                ctx.scale(RenderState.scalePerp, -RenderState.scalePerp);
+
+                // 1. Draw Valid Window Geometry
+                ctx.save();
+                ctx.rotate(EngineState.windowRotation);
+                ctx.strokeStyle = 'rgba(75, 224, 255, 0.8)';
+                ctx.lineWidth = 2 / RenderState.scalePerp;
+                ctx.fillStyle = 'rgba(75, 224, 255, 0.15)';
+                
+                const r = EngineState.windowRadius;
+                ctx.beginPath();
+                
+                if (EngineState.windowShape === 'circle') {
+                    ctx.arc(0, 0, r, 0, 2 * Math.PI);
+                } 
+                else if (EngineState.windowShape === 'square') {
+                    ctx.rect(-r, -r, r * 2, r * 2);
+                } 
+                else if (EngineState.windowShape === 'polygon') {
+                    const N = EngineState.d;
+                    const rOut = r / Math.cos(Math.PI / N);
+                    for(let i = 0; i <= N; i++) {
+                        const a = (i * 2 * Math.PI / N) - Math.PI / N;
+                        if(i === 0) ctx.moveTo(rOut * Math.cos(a), rOut * Math.sin(a));
+                        else ctx.lineTo(rOut * Math.cos(a), rOut * Math.sin(a));
+                    }
+                }
+                
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+
+                // 2. Draw Cached Lattice Points
+                const pointRadius = 2.5 / RenderState.scalePerp;
+                EngineState.fullLatticeCache.forEach(v => {
+                    // Rejected points are rendered dim red. Accepted are bright white.
+                    ctx.fillStyle = v.accepted ? '#ffffff' : 'rgba(255, 75, 75, 0.3)';
+                    
+                    ctx.beginPath();
+                    // Render using the first two dimensions of E_perp
+                    ctx.arc(v.perp[0], v.perp[1], pointRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+
+                // 3. Mark the anchor origin
+                ctx.fillStyle = '#4be0ff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 4 / RenderState.scalePerp, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.restore();
+            },
+
+            drawParallelView() {
+                const ctx = this.ctxParallel;
+                const { width, height } = this.canvasParallel;
+                
+                ctx.clearRect(0, 0, width, height);
+                ctx.save();
+                
+                // Fixed Absolute Origin
+                ctx.translate(width / 2, height / 2);
+                ctx.scale(RenderState.scaleParallel, -RenderState.scaleParallel);
+
+                // Draw Edges
+                ctx.lineWidth = 1.5 / RenderState.scaleParallel;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; 
+                ctx.beginPath();
+                EngineState.edges.forEach(([i, j]) => {
+                    const v1 = EngineState.validVertices[i].parallel;
+                    const v2 = EngineState.validVertices[j].parallel;
+                    ctx.moveTo(v1[0], v1[1]);
+                    ctx.lineTo(v2[0], v2[1]);
+                });
+                ctx.stroke();
+
+                // Compute Degrees
+                const degrees = new Array(EngineState.validVertices.length).fill(0);
+                EngineState.edges.forEach(([i, j]) => {
+                    degrees[i]++;
+                    degrees[j]++;
+                });
+
+                const colors = [
+                    '#2E3440', '#88C0D0', '#81A1C1', '#5E81AC', 
+                    '#A3BE8C', '#EBCB8B', '#D08770', '#BF616A', 
+                    '#B48EAD', '#ffffff'
+                ];
+
+                // Render Vertices
+                const pointRadius = 2.5 / RenderState.scaleParallel;
+                EngineState.validVertices.forEach((v, idx) => {
+                    const deg = degrees[idx] || 0;
+                    ctx.fillStyle = colors[Math.min(deg, colors.length - 1)];
+                    ctx.beginPath();
+                    ctx.arc(v.parallel[0], v.parallel[1], pointRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+
+                // Anchor Origin
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 4 / RenderState.scaleParallel, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 2 / RenderState.scaleParallel;
+                ctx.beginPath();
+                ctx.arc(0, 0, 9 / RenderState.scaleParallel, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        // 6. UI Controller (Triggers Render on fast paths)
+        const UIController = {
+            init() {
+                const dimSelect = document.getElementById('dim-select');
+                const densitySlider = document.getElementById('density-slider');
+                const shapeSelect = document.getElementById('shape-select');
+                const windowSlider = document.getElementById('window-slider');
+                const rotationSlider = document.getElementById('rotation-slider');
+
+                const heavyUpdate = () => {
+                    document.body.style.cursor = 'wait';
+                    setTimeout(() => {
+                        CutAndProject.updateTiling();
+                        DualRenderEngine.drawAll();
+                        document.body.style.cursor = 'default';
+                    }, 10);
+                };
+
+                dimSelect.addEventListener('change', (e) => {
+                    const d = parseInt(e.target.value);
+                    const type = d === 5 ? 'penrose' : (d === 4 ? 'ammann-beenker' : 'generic');
+                    
+                    if (d >= 6 && EngineState.latticeRadius > 3) {
+                        EngineState.latticeRadius = 3;
+                        densitySlider.value = 3;
+                        document.getElementById('density-val').innerText = 3;
+                    }
+                    
+                    Projections.initMatrices(d, type);
+                    EngineState.cacheDirty = true;
+                    heavyUpdate();
+                });
+
+                densitySlider.addEventListener('input', (e) => {
+                    let val = parseInt(e.target.value);
+                    if (EngineState.d >= 6 && val > 4) {
+                        val = 4;
+                        e.target.value = 4;
+                    }
+                    document.getElementById('density-val').innerText = val;
+                    EngineState.latticeRadius = val;
+                    EngineState.cacheDirty = true;
+                    clearTimeout(this.densityTimeout);
+                    this.densityTimeout = setTimeout(heavyUpdate, 200);
+                });
+
+                // Fast Path Bindings
+                shapeSelect.addEventListener('change', (e) => {
+                    EngineState.windowShape = e.target.value;
+                    CutAndProject.updateTiling();
+                    DualRenderEngine.drawAll();
+                });
+
+                windowSlider.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value).toFixed(2);
+                    document.getElementById('window-val').innerText = val;
+                    EngineState.windowRadius = parseFloat(val);
+                    CutAndProject.updateTiling(); 
+                    DualRenderEngine.drawAll();
+                });
+
+                rotationSlider.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value).toFixed(2);
+                    document.getElementById('rotation-val').innerText = val;
+                    EngineState.windowRotation = parseFloat(val);
+                    CutAndProject.updateTiling(); 
+                    DualRenderEngine.drawAll();
+                });
+            }
+        };
+
+        // Execution
+        Projections.initMatrices(5, 'penrose'); 
+        EngineState.latticeRadius = 4; 
+        
+        CutAndProject.updateTiling();
+        DualRenderEngine.init();
+        UIController.init();
+
+    </script>
+</body>
+</html>
