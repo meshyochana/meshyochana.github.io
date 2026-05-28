@@ -114,9 +114,17 @@
             color: green;
         }
 
+        .slider-container {
+            display: inline-flex;
+            flex-direction: column;
+            width: 400px;
+            max-width: 100%;
+        }
+
         input[type="range"] {
             cursor: pointer;
-            width: 220px;
+            width: 100%;
+            margin: 0;
         }
 
         .slider-label {
@@ -218,8 +226,24 @@
             <!-- V0 Slider -->
             <div class="controls">
                 <span class="slider-label">$\hat{V_0}$ =</span>
-                <input type="range" id="v0Slider" min="1" max="200" value="45" step="1"
-                    oninput="scheduleUpdate(this.value)">
+                <div class="slider-container">
+                    <input type="range" id="v0Slider" min="0" max="2000" value="1221" step="1"
+                        oninput="scheduleUpdate(this.value)">
+                    <div class="slider-ticks" style="display: flex; justify-content: space-between; font-size: 0.8em; color: #555; padding-top: 2px; position: relative; font-family: Arial, sans-serif;">
+                        <span style="display: flex; flex-direction: column; align-items: center;">
+                            <span style="height: 4px; width: 1px; background: #888; margin-bottom: 2px;"></span>
+                            0
+                        </span>
+                        <span style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;">
+                            <span style="height: 4px; width: 1px; background: #888; margin-bottom: 2px;"></span>
+                            1
+                        </span>
+                        <span style="display: flex; flex-direction: column; align-items: center;">
+                            <span style="height: 4px; width: 1px; background: #888; margin-bottom: 2px;"></span>
+                            200
+                        </span>
+                    </div>
+                </div>
                 <span class="slider-value" id="v0Display">45</span>
                 <button id="toggleAxesBtn" class="state-btn" onclick="toggleFixedAxes()" style="margin-left:15px;">Lock Axes</button>
             </div>
@@ -272,11 +296,46 @@
         // ─────────────────────────────────────────────────────────────────────────
         // Debounce: fire onV0Change only after the slider stops moving for 80 ms
         // ─────────────────────────────────────────────────────────────────────────
+        function sliderToV0(S) {
+            S = parseFloat(S);
+            if (S <= 1000) {
+                return S / 1000;
+            } else {
+                const fraction = (S - 1000) / 1000;
+                return 1 + Math.round(fraction * 199);
+            }
+        }
+
+        function v0ToSlider(V0) {
+            V0 = parseFloat(V0);
+            if (V0 <= 1) {
+                return V0 * 1000;
+            } else {
+                const fraction = (V0 - 1) / 199;
+                return 1000 + fraction * 1000;
+            }
+        }
+
+        function formatV0(val) {
+            if (val <= 1) {
+                if (val === 0) return "0";
+                let s = val.toFixed(3);
+                if (s.indexOf('.') !== -1) {
+                    while (s.endsWith('0')) s = s.slice(0, -1);
+                    if (s.endsWith('.')) s = s.slice(0, -1);
+                }
+                return s;
+            } else {
+                return Math.round(val).toString();
+            }
+        }
+
         let _debounceTimer = null;
         function scheduleUpdate(val) {
-            document.getElementById('v0Display').textContent = val; // instant label update
+            const mappedVal = sliderToV0(val);
+            document.getElementById('v0Display').textContent = formatV0(mappedVal); // instant label update
             clearTimeout(_debounceTimer);
-            _debounceTimer = setTimeout(() => onV0Change(val), 80);
+            _debounceTimer = setTimeout(() => onV0Change(mappedVal), 80);
         }
 
         // ─────────────────────────────────────────────────────────────────────────
@@ -600,8 +659,9 @@
         // Master update — called on slider change and on load
         // ─────────────────────────────────────────────────────────────────────────
         function onV0Change(val) {
-            currentV0 = parseInt(val);
-            document.getElementById('v0Display').textContent = currentV0;
+            currentV0 = parseFloat(val);
+            document.getElementById('v0Display').textContent = formatV0(currentV0);
+            document.getElementById('v0Slider').value = Math.round(v0ToSlider(currentV0));
 
             const prevN = _selectedN || 1;
 
@@ -634,7 +694,7 @@
                 btn.style.color = '';
                 btn.style.background = '';
             }
-            onV0Change(document.getElementById('v0Slider').value);
+            onV0Change(sliderToV0(document.getElementById('v0Slider').value));
         }
 
         let _showGrayWaves = false;
@@ -654,6 +714,41 @@
             }
             updateWavefunctionPlot(_selectedN);
         }
+
+        // Keyboard event listener for Arrow keys to handle non-uniform stepping
+        document.getElementById('v0Slider').addEventListener('keydown', function(e) {
+            let handled = false;
+            let step = 0;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                step = 1;
+                handled = true;
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                step = -1;
+                handled = true;
+            }
+
+            if (handled) {
+                e.preventDefault();
+                let nextV0;
+                if (step > 0) {
+                    if (currentV0 >= 1) {
+                        nextV0 = Math.min(200, Math.round(currentV0) + 1);
+                    } else {
+                        nextV0 = Math.min(1.0, Math.round(currentV0 * 1000 + 1) / 1000);
+                    }
+                } else {
+                    if (currentV0 > 1) {
+                        nextV0 = Math.max(1.0, Math.round(currentV0) - 1);
+                    } else {
+                        nextV0 = Math.max(0.0, Math.round(currentV0 * 1000 - 1) / 1000);
+                    }
+                }
+                
+                const nextS = Math.round(v0ToSlider(nextV0));
+                this.value = nextS;
+                scheduleUpdate(nextS);
+            }
+        });
 
         // Initial render
         onV0Change(45);
