@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legendre Polynomials</title>
+    <meta name="description" content="Interactive exploration of Associated Legendre Polynomials: ODE, solutions P(l,m,x) and Q(l,m,x), plots, and eigenfunction expansion.">
+
+    <!-- MathJax -->
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], tags: 'ams' },
+            options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --surface2: #f1f5f9;
+            --border: #e2e8f0;
+            --accent: #2563eb;
+            --accent2: #7c3aed;
+            --accent3: #059669;
+            --accent4: #db2777;
+            --text: #0f172a;
+            --text-muted: #475569;
+            --text-dim: #64748b;
+            --p-color: #2563eb;
+            --q-color: #db2777;
+            --radius: 12px;
+            --shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ─── Header ─── */
+        header {
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 48px 32px 36px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at 20% 50%, rgba(37,99,235,0.06) 0%, transparent 60%),
+                        radial-gradient(ellipse at 80% 50%, rgba(124,58,237,0.04) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        header h1 {
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #1e40af, #6d28d9, #2563eb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        header p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* ─── Navigation pills ─── */
+        nav {
+            display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+            padding: 20px 32px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+        }
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 6px 16px;
+            border-radius: 99px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        nav a:hover { color: var(--accent); border-color: var(--accent); background: rgba(37,99,235,0.05); }
+
+        /* ─── Main layout ─── */
+        main { max-width: 1280px; margin: 0 auto; padding: 40px 24px 80px; }
+
+        /* ─── Section ─── */
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 36px;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow);
+        }
+        .section-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-title .badge {
+            font-size: 0.7rem;
+            background: var(--accent);
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 99px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        .section-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 28px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        /* ─── ODE box ─── */
+        .ode-box {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            font-size: 1.05rem;
+            overflow-x: auto;
+        }
+        .ode-box.q-border { border-left-color: var(--q-color); }
+        .ode-note {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            margin-top: 10px;
+        }
+
+        /* ─── Rodrigues box ─── */
+        .rodrigues-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 24px;
+        }
+        @media(max-width: 768px) { .rodrigues-box { grid-template-columns: 1fr; } }
+
+        .rodrigues-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .rodrigues-card h4 {
+            color: var(--accent);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+        }
+        .rodrigues-card.q-card h4 { color: var(--q-color); }
+
+        /* ─── Solution table ─── */
+        .sol-table-wrap { overflow-x: auto; margin-top: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+        thead tr { background: var(--surface2); }
+        th {
+            text-align: left; padding: 12px 16px;
+            color: var(--text-muted); font-weight: 600;
+            font-size: 0.8rem; text-transform: none; letter-spacing: 0.06em;
+            border-bottom: 1px solid var(--border);
+        }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(37,99,235,0.03); }
+        .lm-badge {
+            display: inline-flex; gap: 4px; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+        .lval { color: var(--accent); font-weight: 600; }
+        .mval { color: var(--accent2); font-weight: 600; }
+        .formula-cell { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #334155; }
+
+        /* ─── Tab switch ─── */
+        .tab-row {
+            display: flex; gap: 4px; margin-bottom: 24px;
+            background: var(--surface2);
+            border-radius: 8px;
+            padding: 4px;
+            width: fit-content;
+        }
+        .tab-btn {
+            padding: 8px 20px; border-radius: 6px;
+            border: none; cursor: pointer;
+            font-size: 0.9rem; font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            background: transparent; color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        .tab-btn.active { background: var(--accent); color: #fff; }
+        .tab-btn.q-active { background: var(--q-color); color: #fff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ─── Controls ─── */
+        .controls-row {
+            display: flex; flex-wrap: wrap; gap: 28px; align-items: center;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+        .ctrl-group { display: flex; flex-direction: column; gap: 6px; }
+        .ctrl-label {
+            font-size: 0.82rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .ctrl-val { color: var(--accent); font-weight: 700; font-size: 1rem; }
+        .ctrl-val.q-val { color: var(--q-color); }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 220px; height: 4px;
+            background: var(--border); border-radius: 2px;
+            outline: none; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px;
+            background: var(--accent); border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(37,99,235,0.3);
+        }
+        input[type="range"].q-slider::-webkit-slider-thumb { background: var(--q-color); box-shadow: 0 0 6px rgba(219,39,119,0.3); }
+
+        select {
+            background: var(--surface); color: var(--text);
+            border: 1px solid var(--border); border-radius: 6px;
+            padding: 8px 12px; font-size: 0.9rem;
+            font-family: 'Inter', sans-serif; cursor: pointer; outline: none;
+        }
+        select:focus { border-color: var(--accent); }
+
+        /* ─── Plot containers ─── */
+        .plot-wrap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; }
+        .dual-plots { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media(max-width: 900px) { .dual-plots { grid-template-columns: 1fr; } }
+
+        .plot-div { height: 420px; }
+        .plot-div-tall { height: 460px; }
+
+        /* ─── Expansion section ─── */
+        .exp-controls {
+            display: flex; flex-wrap: wrap; gap: 24px; align-items: center;
+            margin-bottom: 20px;
+        }
+        .coeff-count-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+        .coeff-btn {
+            width: 36px; height: 36px;
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text-muted); border-radius: 6px;
+            cursor: pointer; font-size: 0.9rem; font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .coeff-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .coeff-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        .func-toggle-row { display: flex; gap: 8px; }
+        .func-toggle {
+            padding: 8px 18px; border-radius: 99px;
+            border: 1px solid var(--border); cursor: pointer;
+            font-size: 0.85rem; font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            background: transparent; color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        .func-toggle.active { background: var(--accent3); border-color: var(--accent3); color: #fff; }
+
+        /* ─── Info pills ─── */
+        .info-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.15);
+            color: var(--accent); border-radius: 99px;
+            padding: 3px 12px; font-size: 0.8rem; font-weight: 500;
+        }
+
+        /* ─── Footer ─── */
+        footer {
+            text-align: center;
+            padding: 32px 24px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        /* ─── Responsive ─── */
+        @media(max-width: 640px) {
+            .section { padding: 20px 16px; }
+            nav { padding: 12px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Associated Legendre Polynomials</h1>
+    <p>Interactive reference: the ODE, solutions P<sub>l</sub><sup>m</sup>(x) and Q<sub>l</sub><sup>m</sup>(x), the Rodrigues formula, and function expansion.</p>
+</header>
+
+<nav>
+    <a href="#ode">The ODE</a>
+    <a href="#solutions">Solutions Table</a>
+    <a href="#plots">Interactive Plots</a>
+    <a href="#expansion">Function Expansion</a>
+</nav>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 1 – THE ODE
+══════════════════════════════════════════════════════ -->
+<div class="section" id="ode">
+    <div class="section-title">1. The Associated Legendre ODE <span class="badge">Theory</span></div>
+    <div class="section-subtitle">
+        The general (associated) Legendre equation arises in separation of variables for Laplace's equation in spherical coordinates, with $x = \cos\theta \in [-1,1]$.
+    </div>
+
+    <div class="ode-box">
+        $$(1-x^2)\frac{d^2 y}{dx^2} - 2x\frac{dy}{dx} + \left[l(l+1) - \frac{m^2}{1-x^2}\right]y = 0$$
+        <p class="ode-note">
+            Or in an equivalent form: $\;\dfrac{d}{dx}\!\left[(1-x^2)\dfrac{dy}{dx}\right] + \left[l(l+1) - \dfrac{m^2}{1-x^2}\right]y = 0$.
+        </p>
+        <p class="ode-note" style="margin-top: 15px; font-weight: 600; color: var(--text);">
+            General Solution: $\;y(x) = c_1 P_l^m(x) + c_2 Q_l^m(x)$
+        </p>
+    </div>
+
+    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">
+        The equation has two linearly independent solutions for each pair $(l,m)$. The parameter $l$ must be a non-negative integer for the solutions to remain finite on $[-1,1]$.
+        The parameter $m$ is the <em>order</em> of the associated polynomial.
+    </p>
+
+    <div class="rodrigues-box">
+        <div class="rodrigues-card">
+            <h4>&#9654; First kind: P<sub>l</sub><sup>m</sup>(x) — General form</h4>
+            $$P_l^m(x) = \frac{(-1)^m}{2^l\,l!}(1-x^2)^{m/2}\frac{d^{l+m}}{dx^{l+m}}(x^2-1)^l$$
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:10px;">
+                Rodrigues formula for $m=0$: $\;P_l(x) = \dfrac{1}{2^l l!}\dfrac{d^l}{dx^l}(x^2-1)^l$. &nbsp;
+                Recurrence: $(l-m+1)P_{l+1}^m = (2l+1)x\,P_l^m - (l+m)P_{l-1}^m$
+            </p>
+        </div>
+        <div class="rodrigues-card q-card">
+            <h4>&#9654; Second kind: Q<sub>l</sub><sup>m</sup>(x) — general form</h4>
+            $$Q_l^m(x) = (-1)^m(1-x^2)^{m/2}\frac{d^m}{dx^m}Q_l(x)$$
+            where $\;Q_l(x) = \frac{1}{2}P_l(x)\ln\!\frac{1+x}{1-x} - W_{l-1}(x)$
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:10px;">
+                $Q_l$ is singular at $x = \pm 1$ and is excluded from physical applications requiring finite boundary conditions.
+                See the <a href="https://dlmf.nist.gov/14.7" target="_blank" style="color: var(--accent); font-weight: 500; text-decoration: underline;">DLMF Section 14.7</a> for further details.
+            </p>
+        </div>
+    </div>
+
+    <div style="margin-top:20px; padding:16px; background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+        <strong style="color:var(--accent2)">Key properties of $P_l^m(x)$:</strong>
+        <ul style="margin-top:10px; padding-left:20px; color:var(--text-muted); font-size:0.9rem; display:flex; flex-direction:column; gap:6px;">
+            <li><strong style="color:var(--text)">Orthogonality:</strong> $\displaystyle\int_{-1}^{1} P_l^m(x)\,P_{l'}^m(x)\,dx = \frac{2}{2l+1}\frac{(l+m)!}{(l-m)!}\,\delta_{ll'}$</li>
+            <li><strong style="color:var(--text)">Symmetry:</strong> $P_l^{-m}(x) = (-1)^m\dfrac{(l-m)!}{(l+m)!}P_l^m(x)$</li>
+            <li><strong style="color:var(--text)">Connection to spherical harmonics:</strong> $Y_l^m(\theta,\phi) = \sqrt{\frac{2l+1}{4\pi}\frac{(l-m)!}{(l+m)!}}\,P_l^m(\cos\theta)\,e^{im\phi}$</li>
+        </ul>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 2 – SOLUTIONS TABLE
+══════════════════════════════════════════════════════ -->
+<div class="section" id="solutions">
+    <div class="section-title">2. First 8 Solutions <span class="badge">Reference</span></div>
+    <div class="section-subtitle">
+        Explicit closed-form expressions for $l = 0, 1, \ldots, 7$ with $m = 0$.
+        Switch between the first-kind $P_l^m$ and second-kind $Q_l^m$ solutions.
+    </div>
+
+    <div class="tab-row">
+        <button class="tab-btn active" id="tabBtnP" onclick="switchTab('P')">P<sub>l</sub>(x) — First Kind</button>
+        <button class="tab-btn" id="tabBtnQ" onclick="switchTab('Q')">Q<sub>l</sub>(x) — Second Kind</button>
+    </div>
+
+    <!-- P solutions -->
+    <div class="tab-content active" id="tabP">
+        <div class="sol-table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>l</th>
+                        <th>P<sub>l</sub>(x) &nbsp;<span style="color:var(--text-dim)">[m = 0]</span></th>
+                        <th>P<sub>l</sub><sup>1</sup>(x) &nbsp;<span style="color:var(--text-dim)">[m = 1]</span></th>
+                        <th>P<sub>l</sub><sup>2</sup>(x) &nbsp;<span style="color:var(--text-dim)">[m = 2]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="lval">0</span></td>
+                        <td>$1$</td>
+                        <td>—</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">1</span></td>
+                        <td>$x$</td>
+                        <td>$-(1-x^2)^{1/2}$</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">2</span></td>
+                        <td>$\frac{1}{2}(3x^2-1)$</td>
+                        <td>$-3x(1-x^2)^{1/2}$</td>
+                        <td>$3(1-x^2)$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">3</span></td>
+                        <td>$\frac{1}{2}(5x^3-3x)$</td>
+                        <td>$-\frac{3}{2}(5x^2-1)(1-x^2)^{1/2}$</td>
+                        <td>$15x(1-x^2)$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">4</span></td>
+                        <td>$\frac{1}{8}(35x^4-30x^2+3)$</td>
+                        <td>$-\frac{5}{2}(7x^3-3x)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{15}{2}(7x^2-1)(1-x^2)$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">5</span></td>
+                        <td>$\frac{1}{8}(63x^5-70x^3+15x)$</td>
+                        <td>$-\frac{15}{8}(21x^4-14x^2+1)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{105}{2}(3x^3-x)(1-x^2)$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">6</span></td>
+                        <td>$\frac{1}{16}(231x^6-315x^4+105x^2-5)$</td>
+                        <td>$-\frac{21}{8}(33x^5-30x^3+5x)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{105}{8}(33x^4-18x^2+1)(1-x^2)$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">7</span></td>
+                        <td>$\frac{1}{16}(429x^7-693x^5+315x^3-35x)$</td>
+                        <td>$-\frac{7}{16}(429x^6-495x^4+135x^2-5)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{315}{8}(11x^5-10x^3+x)(1-x^2)$</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-top:12px;">
+            <span class="info-pill">Rodrigues</span>
+            &nbsp;$P_l(x) = \dfrac{1}{2^l l!}\dfrac{d^l}{dx^l}(x^2-1)^l$, &nbsp;&nbsp;
+            $P_l^m(x) = (-1)^m(1-x^2)^{m/2}\dfrac{d^m}{dx^m}P_l(x)$
+        </p>
+    </div>
+
+    <!-- Q solutions -->
+    <div class="tab-content" id="tabQ">
+        <div class="sol-table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>l</th>
+                        <th>Q<sub>l</sub>(x) &nbsp;<span style="color:var(--text-dim)">[m = 0]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="lval">0</span></td>
+                        <td>$\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">1</span></td>
+                        <td>$x\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) - 1$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">2</span></td>
+                        <td>$\frac{1}{2}(3x^2 - 1)\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) - \frac{3x}{2}$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">3</span></td>
+                        <td>$-\frac{5x^2}{2} - \frac{1}{2}(3 - 5x^2)x\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) + \frac{2}{3}$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">4</span></td>
+                        <td>$-\frac{35x^3}{8} + \frac{1}{8}(35x^4 - 30x^2 + 3)\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) + \frac{55x}{24}$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">5</span></td>
+                        <td>$-\frac{63x^4}{8} + \frac{49x^2}{8} + \frac{1}{8}(63x^4 - 70x^2 + 15)x\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) - \frac{8}{15}$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">6</span></td>
+                        <td>$-\frac{231x^5}{16} + \frac{119x^3}{8} + \frac{1}{16}(231x^6 - 315x^4 + 105x^2 - 5)\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) - \frac{231x}{80}$</td>
+                    </tr>
+                    <tr>
+                        <td><span class="lval">7</span></td>
+                        <td>$-\frac{429x^6}{16} + \frac{275x^4}{8} - \frac{849x^2}{80} - \frac{1}{16}(-429x^6 + 693x^4 - 315x^2 + 35)x\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) + \frac{16}{35}$</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-top:12px;">
+            <span class="info-pill" style="background:rgba(219,39,119,0.06); border-color:rgba(219,39,119,0.15); color:var(--q-color);">Note</span>
+            &nbsp;$Q_l^m(x) = (-1)^m(1-x^2)^{m/2}\dfrac{d^m}{dx^m}Q_l(x)$. &nbsp;
+            $Q_l(x) = \dfrac{1}{2}P_l(x)(\log(x+1) - \log(1-x)) - W_{l-1}(x)$ where $W_{l-1}$ is a degree-$(l-1)$ polynomial.
+            The solutions diverge logarithmically at $x = \pm 1$.
+        </p>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 3 – INTERACTIVE PLOTS
+══════════════════════════════════════════════════════ -->
+<div class="section" id="plots">
+    <div class="section-title">3. Interactive Plots <span class="badge">Interactive</span></div>
+    <div class="section-subtitle">
+        Plot the first 8 associated Legendre functions $P_l^m(x)$ and $Q_l^m(x)$ for $x \in [-1,1]$.
+        Use the slider to vary the order $m$ from $-3$ to $3$.
+    </div>
+
+    <div class="controls-row">
+        <div class="ctrl-group">
+            <span class="ctrl-label">Order m</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <input type="range" id="mSlider" min="-3" max="3" step="1" value="0" style="width:200px;">
+                <span class="ctrl-val" id="mVal">m = 0</span>
+            </div>
+        </div>
+        <div class="ctrl-group">
+            <span class="ctrl-label">Max l shown</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <input type="range" id="lMaxSlider" min="1" max="7" step="1" value="7" style="width:140px;">
+                <span class="ctrl-val" id="lMaxVal">l = 0…7</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dual-plots">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="color:var(--accent); font-size:0.85rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">
+                    ▸ First Kind P<sub>l</sub><sup>m</sup>(x)
+                </span>
+                <label style="font-size: 0.78rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="autoScaleP" style="cursor: pointer;"> Auto-rescale Y
+                </label>
+            </div>
+            <div class="plot-wrap">
+                <div id="plotP" class="plot-div-tall"></div>
+            </div>
+        </div>
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="color:var(--q-color); font-size:0.85rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">
+                    ▸ Second Kind Q<sub>l</sub><sup>m</sup>(x)
+                </span>
+                <label style="font-size: 0.78rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="autoScaleQ" style="cursor: pointer;"> Auto-rescale Y
+                </label>
+            </div>
+            <div class="plot-wrap">
+                <div id="plotQ" class="plot-div-tall"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 4 – FUNCTION EXPANSION
+══════════════════════════════════════════════════════ -->
+<div class="section" id="expansion">
+    <div class="section-title">4. Function Expansion in P<sub>l</sub>(x) <span class="badge">Interactive</span></div>
+    <div class="section-subtitle">
+        Any square-integrable function on $[-1,1]$ can be expanded as
+        $f(x) = \sum_{l=0}^{\infty} c_l\, P_l(x)$
+        with coefficients $\;c_l = \dfrac{2l+1}{2}\displaystyle\int_{-1}^{1} f(x)\,P_l(x)\,dx$.
+        Choose a target function, set the number of terms, and watch the expansion converge.
+    </div>
+
+    <div class="exp-controls">
+        <div class="ctrl-group">
+            <span class="ctrl-label">Target function</span>
+            <div class="func-toggle-row">
+                <button class="func-toggle active" id="btnSine" onclick="setFunc('sine')">sin(πx)</button>
+                <button class="func-toggle" id="btnStep" onclick="setFunc('step')">Step</button>
+                <button class="func-toggle" id="btnAbs" onclick="setFunc('abs')">|x|</button>
+                <button class="func-toggle" id="btnGauss" onclick="setFunc('gauss')">Gaussian</button>
+            </div>
+        </div>
+
+        <div class="ctrl-group">
+            <span class="ctrl-label">Number of terms N</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="coeff-count-btns" id="nBtns">
+                    <!-- filled by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dual-plots">
+        <div>
+            <div style="color:var(--accent3); font-size:0.85rem; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.06em;">
+                ▸ <span id="nTermsLabel">N</span> Polynomials
+            </div>
+            <div class="plot-wrap">
+                <div id="plotApprox" class="plot-div-tall"></div>
+            </div>
+        </div>
+        <div>
+            <div style="color:var(--accent2); font-size:0.85rem; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.06em;">
+                ▸ Expansion Coefficients c<sub>l</sub>
+            </div>
+            <div class="plot-wrap">
+                <div id="plotCoeffs" class="plot-div-tall"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</main>
+
+<footer>
+    Updated by Meshy Ochana (2026), based on Ron Lifshitz's Mathematica Notebook (2016) | Built with Plotly.js &amp; MathJax
+</footer>
+
+<!-- ══════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────
+//  Utility: numerical Gauss-Legendre quadrature (64-pt)
+// ─────────────────────────────────────────────────────
+const GL_N = [
+    -0.9894009349916499, -0.9445750230732326, -0.8656312023341837,
+    -0.7554044083550030, -0.6178762444026438, -0.4580167776572274,
+    -0.2816035507792589, -0.0950125098360373,
+     0.0950125098360373,  0.2816035507792589,  0.4580167776572274,
+     0.6178762444026438,  0.7554044083550030,  0.8656312023341837,
+     0.9445750230732326,  0.9894009349916499
+];
+const GL_W = [
+    0.0271524594117541, 0.0622535239386480, 0.0951585116824928,
+    0.1246289712555339, 0.1495959888165767, 0.1691565193950025,
+    0.1826034150449236, 0.1894506104550685,
+    0.1894506104550685, 0.1826034150449236, 0.1691565193950025,
+    0.1495959888165767, 0.1246289712555339, 0.0951585116824928,
+    0.0622535239386480, 0.0271524594117541
+];
+
+function integrate(f, a, b) {
+    const c = (b - a) / 2, d = (b + a) / 2;
+    let s = 0;
+    for (let i = 0; i < GL_N.length; i++) s += GL_W[i] * f(c * GL_N[i] + d);
+    return c * s;
+}
+
+// ─────────────────────────────────────────────────────
+//  Associated Legendre P_l^m(x) — recursive computation
+//  Works for m >= 0. For m < 0, apply the symmetry relation.
+// ─────────────────────────────────────────────────────
+function legendreP(l, m, x) {
+    const mAbs = Math.abs(m);
+    if (mAbs > l) return 0;
+
+    const xi = Math.max(-0.9999999, Math.min(0.9999999, x));
+
+    // Start from P_m^m
+    let Pmm = 1.0;
+    if (mAbs > 0) {
+        const somx2 = Math.sqrt((1 - xi) * (1 + xi));
+        let fact = 1.0;
+        for (let i = 1; i <= mAbs; i++) {
+            Pmm *= -fact * somx2;
+            fact += 2.0;
+        }
+    }
+    if (l === mAbs) {
+        return applyNegM(l, m, mAbs, Pmm);
+    }
+
+    let Pmp1m = xi * (2 * mAbs + 1) * Pmm;
+    if (l === mAbs + 1) {
+        return applyNegM(l, m, mAbs, Pmp1m);
+    }
+
+    let Plm = 0;
+    for (let ll = mAbs + 2; ll <= l; ll++) {
+        Plm = ((2 * ll - 1) * xi * Pmp1m - (ll + mAbs - 1) * Pmm) / (ll - mAbs);
+        Pmm = Pmp1m;
+        Pmp1m = Plm;
+    }
+    return applyNegM(l, m, mAbs, Plm);
+}
+
+function applyNegM(l, m, mAbs, val) {
+    if (m >= 0) return val;
+    // P_l^{-m} = (-1)^m * (l-m)!/(l+m)! * P_l^m
+    let ratio = 1.0;
+    for (let i = l - mAbs + 1; i <= l + mAbs; i++) ratio *= i;
+    return Math.pow(-1, mAbs) / ratio * val;
+}
+
+// ─────────────────────────────────────────────────────
+//  Q_l(x) — second kind (m=0), recursive
+// ─────────────────────────────────────────────────────
+function legendreQ0(l, x) {
+    const xi = Math.max(-0.9999, Math.min(0.9999, x));
+    const Q0 = 0.5 * Math.log((1 + xi) / (1 - xi));
+    const Q1 = xi * Q0 - 1;
+    if (l === 0) return Q0;
+    if (l === 1) return Q1;
+    let Qprev = Q0, Qcurr = Q1;
+    for (let ll = 2; ll <= l; ll++) {
+        const Qnext = ((2 * ll - 1) * xi * Qcurr - (ll - 1) * Qprev) / ll;
+        Qprev = Qcurr;
+        Qcurr = Qnext;
+    }
+    return Qcurr;
+}
+
+// Compute Q_l^m(x) for all l from 0 to 12 using stable recurrence on order m
+function computeAllQlm(m, x) {
+    const mAbs = Math.abs(m);
+    const xi = Math.max(-0.9999, Math.min(0.9999, x));
+
+    // We need Q_l^0 for l = 0 to 12
+    const Q = [];
+    for (let l = 0; l <= 12; l++) {
+        Q.push(legendreQ0(l, xi));
+    }
+
+    // Now recurse to get Q_l^k for k = 1 to mAbs
+    let currentQ = Q; // this is order 0
+    for (let k = 0; k < mAbs; k++) {
+        const nextQ = [];
+        // if currentQ has length L, nextQ will have length L-1
+        for (let n = 0; n < currentQ.length - 1; n++) {
+            const val = ((n - k + 1) * currentQ[n + 1] - (n + k + 1) * xi * currentQ[n]) / Math.sqrt(1 - xi * xi);
+            nextQ.push(val);
+        }
+        currentQ = nextQ;
+    }
+
+    // Now currentQ contains Q_l^mAbs for l = mAbs to 12.
+    // Let's create an object or array indexed by l
+    const result = {};
+    for (let l = mAbs; l <= 12; l++) {
+        let val = currentQ[l - mAbs];
+        if (m < 0) {
+            // Apply symmetry relation:
+            // Q_l^{-m} = (-1)^m * (l-m)!/(l+m)! * Q_l^m
+            let ratio = 1.0;
+            for (let i = l - mAbs + 1; i <= l + mAbs; i++) ratio *= i;
+            val = Math.pow(-1, mAbs) / ratio * val;
+        }
+        result[l] = val;
+    }
+    return result;
+}
+
+// Q_l^m(x) using the stable recurrence relation on order m
+function legendreQm(l, m, x) {
+    const vals = computeAllQlm(m, x);
+    return vals[l] !== undefined ? vals[l] : 0;
+}
+
+function factorial(n) {
+    if (n <= 1) return 1;
+    let r = 1;
+    for (let i = 2; i <= n; i++) r *= i;
+    return r;
+}
+
+// ─────────────────────────────────────────────────────
+//  Plotly styling helpers (Light Mode Theme)
+// ─────────────────────────────────────────────────────
+const P_COLORS = ['#1e40af','#0ea5e9','#0f766e','#16a34a','#84cc16','#4f46e5','#7c3aed','#0284c7'];
+const Q_COLORS = ['#b91c1c','#ea580c','#d97706','#e11d48','#db2777','#9333ea','#c084fc','#f43f5e'];
+
+const LIGHT_LAYOUT = {
+    paper_bgcolor: '#ffffff',
+    plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', color: '#0f172a', size: 12 },
+    xaxis: {
+        color: '#475569', gridcolor: '#f1f5f9', zerolinecolor: '#cbd5e1',
+        tickcolor: '#475569', linecolor: '#e2e8f0'
+    },
+    yaxis: {
+        color: '#475569', gridcolor: '#f1f5f9', zerolinecolor: '#cbd5e1',
+        tickcolor: '#475569', linecolor: '#e2e8f0'
+    },
+    legend: { bgcolor: '#f8fafc', bordercolor: '#e2e8f0', borderwidth: 1, font: { size: 11 } },
+    margin: { l: 55, r: 20, t: 40, b: 50 },
+    hovermode: 'x unified',
+    hoverlabel: { bgcolor: '#ffffff', bordercolor: '#e2e8f0', font: { color: '#0f172a' } }
+};
+
+function makeLayout(extra) {
+    return Object.assign({}, LIGHT_LAYOUT,
+        { xaxis: Object.assign({}, LIGHT_LAYOUT.xaxis, extra.xaxis),
+          yaxis: Object.assign({}, LIGHT_LAYOUT.yaxis, extra.yaxis) },
+        extra);
+}
+
+// ─────────────────────────────────────────────────────
+//  X grid
+// ─────────────────────────────────────────────────────
+const NX = 600;
+const xGrid = [];
+for (let i = 0; i <= NX; i++) xGrid.push(-1 + 2 * i / NX);
+const xGridInner = xGrid.map(v => Math.max(-0.9999, Math.min(0.9999, v)));
+
+// ─────────────────────────────────────────────────────
+//  SECTION 3: Plot P and Q
+// ─────────────────────────────────────────────────────
+let currentM = 0;
+let currentLMax = 7;
+
+function buildPTraces(m, lMax) {
+    const traces = [];
+    for (let l = Math.abs(m); l <= lMax; l++) {
+        const y = xGridInner.map(x => legendreP(l, m, x));
+        traces.push({
+            x: xGrid, y,
+            type: 'scatter', mode: 'lines',
+            line: { color: P_COLORS[l % P_COLORS.length], width: 2 },
+            name: `P<sub>${l}</sub><sup>${m}</sup>(x)`
+        });
+    }
+    return traces;
+}
+
+// Q_l^m(x) using the stable recurrence relation on order m
+function buildQTraces(m, lMax) {
+    const traces = [];
+    const mAbs = Math.abs(m);
+    // clipValue increases with mAbs to avoid clipping normal parts of the curves at high order
+    const clipValue = (mAbs === 0) ? 20 : (mAbs === 1) ? 50 : (mAbs === 2) ? 200 : 1500;
+    for (let l = mAbs; l <= lMax; l++) {
+        const y = xGridInner.map(x => {
+            const v = legendreQm(l, m, x);
+            return (Math.abs(v) > clipValue) ? null : v; // clip huge values near ±1
+        });
+        traces.push({
+            x: xGrid, y,
+            type: 'scatter', mode: 'lines',
+            line: { color: Q_COLORS[l % Q_COLORS.length], width: 2 },
+            name: `Q<sub>${l}</sub><sup>${m}</sup>(x)`,
+            connectgaps: false
+        });
+    }
+    return traces;
+}
+
+function updatePlots() {
+    const m = currentM;
+    const lMax = currentLMax;
+    document.getElementById('mVal').textContent = `m = ${m}`;
+    document.getElementById('lMaxVal').textContent = `l = ${Math.abs(m)}…${lMax}`;
+
+    const pTraces = buildPTraces(m, lMax);
+    const qTraces = buildQTraces(m, lMax);
+
+    const autoScaleP = document.getElementById('autoScaleP').checked;
+    const autoScaleQ = document.getElementById('autoScaleQ').checked;
+
+    // Smart default ranges based on mAbs to fit the curves beautifully
+    const mAbs = Math.abs(m);
+    let pRange, qRange;
+    if (mAbs === 0) {
+        pRange = [-1.2, 1.2];
+        qRange = [-4, 4];
+    } else if (mAbs === 1) {
+        pRange = [-10, 10];
+        qRange = [-15, 15];
+    } else if (mAbs === 2) {
+        pRange = [-60, 60];
+        qRange = [-80, 80];
+    } else { // mAbs === 3
+        pRange = [-400, 400];
+        qRange = [-600, 600];
+    }
+
+    const yaxisP = autoScaleP ? {} : { range: pRange };
+    const yaxisQ = autoScaleQ ? {} : { range: qRange };
+
+    Plotly.react('plotP', pTraces, makeLayout({
+        title: { text: `P<sub>l</sub><sup>${m}</sup>(x)`, font: { size: 14 } },
+        xaxis: { title: 'x', range: [-1, 1] },
+        yaxis: Object.assign({ title: 'P' }, yaxisP)
+    }));
+
+    Plotly.react('plotQ', qTraces, makeLayout({
+        title: { text: `Q<sub>l</sub><sup>${m}</sup>(x)`, font: { size: 14 } },
+        xaxis: { title: 'x', range: [-1, 1] },
+        yaxis: Object.assign({ title: 'Q' }, yaxisQ)
+    }));
+}
+
+document.getElementById('mSlider').addEventListener('input', function() {
+    currentM = parseInt(this.value);
+    updatePlots();
+});
+document.getElementById('lMaxSlider').addEventListener('input', function() {
+    currentLMax = parseInt(this.value);
+    updatePlots();
+});
+document.getElementById('autoScaleP').addEventListener('change', updatePlots);
+document.getElementById('autoScaleQ').addEventListener('change', updatePlots);
+
+// ─────────────────────────────────────────────────────
+//  SECTION 4: Expansion
+// ─────────────────────────────────────────────────────
+let currentFunc = 'sine';
+let currentN = 5;
+
+const nOptions = [1,2,3,4,5,6,7,8,9,10,12,15,20];
+function buildNButtons() {
+    const container = document.getElementById('nBtns');
+    container.innerHTML = '';
+    nOptions.forEach(n => {
+        const btn = document.createElement('button');
+        btn.className = 'coeff-btn' + (n === currentN ? ' active' : '');
+        btn.id = `nbtn_${n}`;
+        btn.textContent = n;
+        btn.onclick = () => { currentN = n; updateNBtns(); updateExpansion(); };
+        container.appendChild(btn);
+    });
+}
+function updateNBtns() {
+    nOptions.forEach(n => {
+        const el = document.getElementById(`nbtn_${n}`);
+        if (el) el.classList.toggle('active', n === currentN);
+    });
+}
+
+const targetFunctions = {
+    sine:  { label: 'sin(πx)',  fn: x => Math.sin(Math.PI * x) },
+    step:  { label: 'Step',     fn: x => (x >= 0 ? 1 : -1) },
+    abs:   { label: '|x|',      fn: x => Math.abs(x) },
+    gauss: { label: 'Gaussian', fn: x => Math.exp(-10 * x * x) }
+};
+
+function setFunc(name) {
+    currentFunc = name;
+    ['sine','step','abs','gauss'].forEach(k => {
+        const btn = document.getElementById('btn' + k.charAt(0).toUpperCase() + k.slice(1));
+        if (btn) btn.classList.toggle('active', k === name);
+    });
+    updateExpansion();
+}
+
+function computeCoeffs(fObj, Nterms) {
+    const coeffs = [];
+    for (let l = 0; l < Nterms; l++) {
+        const cl = ((2 * l + 1) / 2) * integrate(x => fObj.fn(x) * legendreP(l, 0, x), -1, 1);
+        coeffs.push(cl);
+    }
+    return coeffs;
+}
+
+function updateExpansion() {
+    const fObj = targetFunctions[currentFunc];
+    const N = currentN;
+    document.getElementById('nTermsLabel').textContent = N;
+
+    const coeffs = computeCoeffs(fObj, N);
+
+    const yExact = xGrid.map(x => fObj.fn(x));
+    const yApprox = xGrid.map(x => {
+        let s = 0;
+        for (let l = 0; l < N; l++) s += coeffs[l] * legendreP(l, 0, x);
+        return s;
+    });
+
+    Plotly.react('plotApprox', [
+        {
+            x: xGrid, y: yApprox, type: 'scatter', mode: 'lines',
+            line: { color: '#059669', width: 2.5 },
+            name: `${N} term${N > 1 ? 's' : ''}`
+        },
+        {
+            x: xGrid, y: yExact, type: 'scatter', mode: 'lines',
+            line: { color: 'rgba(249, 115, 22, 0.65)', width: 3.5, dash: 'dot' },
+            name: fObj.label
+        }
+    ], makeLayout({
+        title: { text: `${N} Polynomials`, font: { size: 14 } },
+        xaxis: { title: 'x', range: [-1, 1] },
+        yaxis: { title: 'f(x)' },
+        legend: { orientation: 'h', y: 1.08, x: 0.5, xanchor: 'center' }
+    }));
+
+    const ls = Array.from({ length: N }, (_, i) => i);
+    const stemTraces = [];
+
+    ls.forEach(l => {
+        stemTraces.push({
+            x: [l, l], y: [0, coeffs[l]],
+            type: 'scatter', mode: 'lines',
+            line: { color: '#2563eb', width: 1.5 },
+            showlegend: false, hoverinfo: 'skip'
+        });
+    });
+
+    stemTraces.push({
+        x: ls, y: coeffs,
+        type: 'scatter', mode: 'markers',
+        marker: { color: '#2563eb', size: 8, line: { color: '#3b82f6', width: 1.5 } },
+        name: 'c<sub>l</sub>',
+        hovertemplate: 'l=%{x}<br>c=%{y:.4f}<extra></extra>'
+    });
+
+    stemTraces.push({
+        x: [-0.5, N - 0.5], y: [0, 0],
+        type: 'scatter', mode: 'lines',
+        line: { color: '#cbd5e1', width: 1 },
+        showlegend: false, hoverinfo: 'skip'
+    });
+
+    Plotly.react('plotCoeffs', stemTraces, makeLayout({
+        title: { text: 'Expansion Coefficients', font: { size: 14 } },
+        xaxis: { title: 'l', dtick: 1, tickmode: 'linear', range: [-0.5, N - 0.5] },
+        yaxis: { title: 'c<sub>l</sub>' },
+        showlegend: false
+    }));
+}
+
+// ─────────────────────────────────────────────────────
+//  Tab switch
+// ─────────────────────────────────────────────────────
+function switchTab(which) {
+    document.getElementById('tabP').classList.toggle('active', which === 'P');
+    document.getElementById('tabQ').classList.toggle('active', which === 'Q');
+    document.getElementById('tabBtnP').classList.toggle('active', which === 'P');
+    document.getElementById('tabBtnQ').classList.toggle('active', which === 'Q');
+    document.getElementById('tabBtnQ').classList.toggle('q-active', which === 'Q');
+    if (window.MathJax) MathJax.typesetPromise();
+}
+
+// ─────────────────────────────────────────────────────
+//  Init
+// ─────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+    buildNButtons();
+    updatePlots();
+    updateExpansion();
+});
+</script>
+</body>
+</html>

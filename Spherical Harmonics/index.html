@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spherical Harmonics — Interactive Reference</title>
+    <meta name="description"
+        content="Interactive reference for Spherical Harmonics Y_l^m: Laplace equation derivation, explicit formulas for l=0..4, 2D angular plots, and 3D hydrogen atom visualization.">
+
+    <!-- MathJax -->
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], tags: 'ams' },
+            options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --surface2: #f1f5f9;
+            --surface3: #e2e8f0;
+            --border: #e2e8f0;
+            --accent: #2563eb;
+            --accent2: #7c3aed;
+            --accent3: #059669;
+            --accent4: #db2777;
+            --accent5: #d97706;
+            --text: #0f172a;
+            --text-muted: #475569;
+            --text-dim: #64748b;
+            --radius: 12px;
+            --shadow: 0 4px 20px rgba(15, 23, 42, 0.07);
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ─── Header ─── */
+        header {
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 52px 32px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(37, 99, 235, 0.07) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 50%, rgba(124, 58, 237, 0.05) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        header h1 {
+            font-size: clamp(1.9rem, 5vw, 3rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #1e40af 0%, #6d28d9 50%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            max-width: 680px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* ─── Navigation ─── */
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            padding: 16px 32px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 6px 16px;
+            border-radius: 99px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        /* ─── Main layout ─── */
+        main {
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        /* ─── Section ─── */
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 36px;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow);
+        }
+
+        .section-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title .badge {
+            font-size: 0.68rem;
+            background: var(--accent);
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 99px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .badge-theory {
+            background: var(--accent2) !important;
+        }
+
+        .badge-ref {
+            background: var(--accent5) !important;
+        }
+
+        .badge-2d {
+            background: var(--accent3) !important;
+        }
+
+        .badge-3d {
+            background: var(--accent4) !important;
+        }
+
+        .section-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 28px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        /* ─── Equation boxes ─── */
+        .eq-box {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px 28px;
+            margin-bottom: 18px;
+            font-size: 1rem;
+            overflow-x: auto;
+        }
+
+        .eq-box.purple {
+            border-left-color: var(--accent2);
+        }
+
+        .eq-box.green {
+            border-left-color: var(--accent3);
+        }
+
+        .eq-box.orange {
+            border-left-color: var(--accent5);
+        }
+
+        .eq-note {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            margin-top: 10px;
+        }
+
+        /* ─── Info box ─── */
+        .info-box {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px 24px;
+            margin-top: 18px;
+        }
+
+        .info-box strong {
+            color: var(--accent2);
+        }
+
+        /* ─── Controls ─── */
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            align-items: center;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+
+        .ctrl-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .ctrl-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .no-uppercase {
+            text-transform: none !important;
+        }
+
+        .ctrl-val {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ctrl-val.purple {
+            color: var(--accent2);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 180px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(37, 99, 235, 0.3);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        input[type="range"].purple-slider::-webkit-slider-thumb {
+            background: var(--accent2);
+            box-shadow: 0 0 6px rgba(124, 58, 237, 0.3);
+        }
+
+        /* ─── Toggle / Tab groups ─── */
+        .toggle-group {
+            display: flex;
+            gap: 4px;
+            background: var(--surface3);
+            border-radius: 8px;
+            padding: 4px;
+        }
+
+        .toggle-btn {
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .toggle-btn.active-g {
+            background: var(--accent3);
+            color: #fff;
+        }
+
+        /* ─── L buttons ─── */
+        .l-btn-grid {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .l-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .l-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .l-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        /* ─── Plot containers ─── */
+        .plot-wrap {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .plot-div {
+            height: 440px;
+        }
+
+        .plot-div-sm {
+            height: 380px;
+        }
+
+        .plot-div-3d {
+            height: 560px;
+        }
+
+        .dual-plots {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .triple-plots {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media(max-width: 1100px) {
+            .triple-plots {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media(max-width: 900px) {
+            .dual-plots {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width: 700px) {
+            .triple-plots {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ─── "All m" grid – dynamic columns ─── */
+        #allMGrid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .plot-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .plot-label.blue {
+            color: var(--accent);
+        }
+
+        .plot-label.purple {
+            color: var(--accent2);
+        }
+
+        .plot-label.green {
+            color: var(--accent3);
+        }
+
+        /* ─── Formula strip ─── */
+        .formula-strip {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+            overflow-x: auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .formula-strip .label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* ─── Table ─── */
+        .sol-table-wrap {
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.91rem;
+        }
+
+        thead tr {
+            background: var(--surface2);
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-transform: none;
+            letter-spacing: 0.07em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(37, 99, 235, 0.03);
+        }
+
+        /* ─── Footer ─── */
+        footer {
+            text-align: center;
+            padding: 32px 24px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        @media(max-width: 640px) {
+            .section {
+                padding: 20px 16px;
+            }
+
+            nav {
+                padding: 12px 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Spherical Harmonics</h1>
+        <p>Interactive reference: Laplace's equation in spherical coordinates, explicit $Y_l^m(\theta,\varphi)$, angular
+            surface plots, and the hydrogen atom in 3D.</p>
+    </header>
+
+    <nav>
+        <a href="#laplace">Laplace's Equation</a>
+        <a href="#formulas">Explicit Formulas</a>
+        <a href="#angular-plot">Angular Plots</a>
+        <a href="#components">Real &amp; Imaginary</a>
+        <a href="#hydrogen">Hydrogen Atom 3D</a>
+    </nav>
+
+    <main>
+
+        <!-- ══════════════════════════════════════════════════════
+     SECTION 1 – LAPLACE'S EQUATION
+══════════════════════════════════════════════════════ -->
+        <div class="section" id="laplace">
+            <div class="section-title">1. Laplace's Equation in Spherical Coordinates <span
+                    class="badge badge-theory">Theory</span></div>
+            <div class="section-subtitle">
+                Separation of variables in spherical coordinates leads directly to the spherical harmonics as
+                eigenfunctions of the angular part.
+            </div>
+
+            <div class="eq-box">
+                $$\nabla^2 f = \frac{1}{r^2}\frac{\partial}{\partial r}\!\left(r^2\frac{\partial f}{\partial r}\right)
+                + \frac{1}{r^2\sin\theta}\frac{\partial}{\partial\theta}\!\left(\sin\theta\frac{\partial
+                f}{\partial\theta}\right)
+                + \frac{1}{r^2\sin^2\theta}\frac{\partial^2 f}{\partial\varphi^2} = 0$$
+            </div>
+
+            <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:18px;">
+                Consider solutions of the form $f(r,\theta,\varphi) = R(r)\,Y(\theta,\varphi)$. Substituting and
+                separating gives one radial and one angular equation:
+            </p>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px;">
+                <div class="eq-box" style="margin-bottom:0;">
+                    <strong
+                        style="font-size:0.8rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.06em;">Radial
+                        equation</strong>
+                    $$\frac{1}{R}\frac{d}{dr}\!\left(r^2\frac{dR}{dr}\right) = \lambda$$
+                    <p class="eq-note">$\lambda = l(l+1)$, $l=0,1,2,\ldots$, for regularity at the origin.</p>
+                </div>
+                <div class="eq-box purple" style="margin-bottom:0;">
+                    <strong
+                        style="font-size:0.8rem; color:var(--accent2); text-transform:uppercase; letter-spacing:0.06em;">Angular
+                        equation</strong>
+                    $$\frac{1}{Y\sin\theta}\frac{\partial}{\partial\theta}\!\left(\sin\theta\frac{\partial
+                    Y}{\partial\theta}\right)
+                    + \frac{1}{Y\sin^2\!\theta}\frac{\partial^2 Y}{\partial\varphi^2} = -\lambda$$
+                </div>
+            </div>
+
+            <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:14px;">
+                Setting $Y(\theta,\varphi)=\Theta(\theta)\Phi(\varphi)$ and separating again:
+            </p>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+                <div class="eq-box green" style="margin-bottom:0;">
+                    <strong
+                        style="font-size:0.8rem; color:var(--accent3); text-transform:uppercase; letter-spacing:0.06em;">Azimuthal
+                        equation</strong>
+                    $$\frac{1}{\Phi}\frac{d^2\Phi}{d\varphi^2} = -m^2$$
+                    <p class="eq-note">Solution: $\Phi(\varphi)=e^{im\varphi}$, $\;m\in\mathbb{Z}$.</p>
+                </div>
+                <div class="eq-box orange" style="margin-bottom:0;">
+                    <strong
+                        style="font-size:0.8rem; color:var(--accent5); text-transform:uppercase; letter-spacing:0.06em;">Polar
+                        (Legendre) equation</strong>
+                    $$\lambda\sin^2\!\theta +
+                    \frac{\sin\theta}{\Theta}\frac{d}{d\theta}\!\left(\sin\theta\frac{d\Theta}{d\theta}\right) = m^2$$
+                    <p class="eq-note">After $x=\cos\theta$: the associated Legendre ODE with solution
+                        $P_l^m(\cos\theta)$.</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>General solution — Spherical Harmonics:</strong>
+                $$Y_l^m(\theta,\varphi) = \mathcal{N}_{lm}\,P_l^{|m|}(\cos\theta)\,e^{im\varphi}, \qquad
+                \mathcal{N}_{lm} = \sqrt{\frac{2l+1}{4\pi}\frac{(l-|m|)!}{(l+|m|)!}}$$
+                The general solution to Laplace's equation regular at the origin is
+                $$f(r,\theta,\varphi) = \sum_{l=0}^{\infty}\sum_{m=-l}^{l}\!\left(A_{lm}\,r^l +
+                B_{lm}\,r^{-(l+1)}\right)Y_l^m(\theta,\varphi).$$
+                <p style="color:var(--text-muted); font-size:0.88rem; margin-top:14px;">
+                    <strong style="color:var(--text);">Orthonormality:</strong>
+                    $\displaystyle\int_0^{2\pi}\!\!\int_0^{\pi} \bigl(Y_l^m\bigr)^*
+                    Y_{l'}^{m'}\sin\theta\,d\theta\,d\varphi = \delta_{ll'}\delta_{mm'}$
+                    &ensp;·&ensp;
+                    <strong style="color:var(--text);">Conjugate:</strong>
+                    $Y_l^{-m}=(-1)^m(Y_l^m)^*$
+                </p>
+            </div>
+        </div>
+
+
+        <!-- ══════════════════════════════════════════════════════
+     SECTION 2 – EXPLICIT FORMULAS
+══════════════════════════════════════════════════════ -->
+        <div class="section" id="formulas">
+            <div class="section-title">2. Explicit Formulas &nbsp;<span class="badge badge-ref">Reference</span></div>
+            <div class="section-subtitle">
+                Closed-form expressions for $Y_l^m(\theta,\varphi)$, $m\in[0,l]$. Negative $m$:
+                $Y_l^{-m}=(-1)^m(Y_l^m)^*$.
+            </div>
+
+            <!-- l selector for formulas section -->
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+                <span
+                    style="font-size:0.82rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.07em;">Choose
+                    l:</span>
+                <div class="l-btn-grid" id="formulaLBtns">
+                    <button class="l-btn active" id="flbtn0" onclick="setFormulaL(0)">0</button>
+                    <button class="l-btn" id="flbtn1" onclick="setFormulaL(1)">1</button>
+                    <button class="l-btn" id="flbtn2" onclick="setFormulaL(2)">2</button>
+                    <button class="l-btn" id="flbtn3" onclick="setFormulaL(3)">3</button>
+                    <button class="l-btn" id="flbtn4" onclick="setFormulaL(4)">4</button>
+                </div>
+            </div>
+
+            <!-- Formula panels, one per l -->
+            <div id="formulaPanel0" class="formula-panel">
+                <div class="sol-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="no-uppercase">m</th>
+                                <th>$Y_0^m(\theta,\varphi)$</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">0</td>
+                                <td>$\dfrac{1}{2\sqrt{\pi}}$</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="formulaPanel1" class="formula-panel" style="display:none;">
+                <div class="sol-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="no-uppercase">m</th>
+                                <th>$Y_1^m(\theta,\varphi)$</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">0</td>
+                                <td>$\dfrac{1}{2}\sqrt{\dfrac{3}{\pi}}\,\cos\theta$</td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">1</td>
+                                <td>$-\dfrac{1}{2}\sqrt{\dfrac{3}{2\pi}}\,\sin\theta\;e^{i\varphi}$</td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">−1</td>
+                                <td>$\dfrac{1}{2}\sqrt{\dfrac{3}{2\pi}}\,\sin\theta\;e^{-i\varphi}$</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="formulaPanel2" class="formula-panel" style="display:none;">
+                <div class="sol-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="no-uppercase">m</th>
+                                <th>$Y_2^m(\theta,\varphi)$</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">0</td>
+                                <td>$\dfrac{1}{4}\sqrt{\dfrac{5}{\pi}}\,(3\cos^2\!\theta-1)$</td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±1</td>
+                                <td>$\mp\dfrac{1}{2}\sqrt{\dfrac{15}{2\pi}}\,\sin\theta\cos\theta\;e^{\pm i\varphi}$
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±2</td>
+                                <td>$\dfrac{1}{4}\sqrt{\dfrac{15}{2\pi}}\,\sin^2\!\theta\;e^{\pm 2i\varphi}$</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="formulaPanel3" class="formula-panel" style="display:none;">
+                <div class="sol-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="no-uppercase">m</th>
+                                <th>$Y_3^m(\theta,\varphi)$</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">0</td>
+                                <td>$\dfrac{1}{4}\sqrt{\dfrac{7}{\pi}}\,(5\cos^3\!\theta-3\cos\theta)$</td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±1</td>
+                                <td>$\mp\dfrac{1}{8}\sqrt{\dfrac{21}{\pi}}\,\sin\theta(5\cos^2\!\theta-1)\;e^{\pm
+                                    i\varphi}$</td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±2</td>
+                                <td>$\dfrac{1}{4}\sqrt{\dfrac{105}{2\pi}}\,\sin^2\!\theta\cos\theta\;e^{\pm 2i\varphi}$
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±3</td>
+                                <td>$\mp\dfrac{1}{8}\sqrt{\dfrac{35}{\pi}}\,\sin^3\!\theta\;e^{\pm 3i\varphi}$</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="formulaPanel4" class="formula-panel" style="display:none;">
+                <div class="sol-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="no-uppercase">m</th>
+                                <th>$Y_4^m(\theta,\varphi)$</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">0</td>
+                                <td>$\dfrac{3}{16\sqrt{\pi}}\,(35\cos^4\!\theta-30\cos^2\!\theta+3)$</td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±1</td>
+                                <td>$\mp\dfrac{3}{8}\sqrt{\dfrac{5}{\pi}}\,\sin\theta(7\cos^3\!\theta-3\cos\theta)\;e^{\pm
+                                    i\varphi}$</td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±2</td>
+                                <td>$\dfrac{3}{8}\sqrt{\dfrac{5}{2\pi}}\,\sin^2\!\theta(7\cos^2\!\theta-1)\;e^{\pm
+                                    2i\varphi}$</td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±3</td>
+                                <td>$\mp\dfrac{3}{8}\sqrt{\dfrac{35}{\pi}}\,\sin^3\!\theta\cos\theta\;e^{\pm 3i\varphi}$
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--accent2);font-weight:600;">±4</td>
+                                <td>$\dfrac{3}{16}\sqrt{\dfrac{35}{2\pi}}\,\sin^4\!\theta\;e^{\pm 4i\varphi}$</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ══════════════════════════════════════════════════════
+     SECTION 3 – ANGULAR PLOTS  |Y_l^m|
+══════════════════════════════════════════════════════ -->
+        <div class="section" id="angular-plot">
+            <div class="section-title">3. Angular Plots — $|Y_l^m(\theta,\varphi)|$ <span
+                    class="badge badge-2d">Interactive</span></div>
+            <div class="section-subtitle">
+                3D polar surface where the radius equals $|Y_l^m|$. Choose a mode: <strong>All m</strong> shows one plot
+                per $m$ value side by side; <strong>Single m</strong> shows one surface with a full color map.
+            </div>
+
+            <div class="controls-row">
+                <div class="ctrl-group">
+                    <span class="ctrl-label">l value</span>
+                    <div class="l-btn-grid">
+                        <button class="l-btn active" id="lbtn3_0" onclick="setL3(0)">0</button>
+                        <button class="l-btn" id="lbtn3_1" onclick="setL3(1)">1</button>
+                        <button class="l-btn" id="lbtn3_2" onclick="setL3(2)">2</button>
+                        <button class="l-btn" id="lbtn3_3" onclick="setL3(3)">3</button>
+                        <button class="l-btn" id="lbtn3_4" onclick="setL3(4)">4</button>
+                    </div>
+                </div>
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Mode</span>
+                    <div class="toggle-group">
+                        <button class="toggle-btn active-g" id="showAllBtn" onclick="setShowAll(true)">All m</button>
+                        <button class="toggle-btn" id="showOneBtn" onclick="setShowAll(false)">Single m</button>
+                    </div>
+                </div>
+                <div class="ctrl-group" id="mSingleCtrl" style="display:none;">
+                    <span class="ctrl-label">m = <span class="ctrl-val" id="mSingleVal">0</span></span>
+                    <input type="range" id="mSingleSlider" min="0" max="4" step="1" value="0">
+                </div>
+            </div>
+
+            <!-- "All m" grid: one plot per m, created dynamically -->
+            <div id="allMGrid"></div>
+
+            <!-- Single m plot -->
+            <div id="singleMWrap" style="display:none;">
+                <div class="plot-wrap">
+                    <div id="plotAbsYlm" class="plot-div"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ══════════════════════════════════════════════════════
+     SECTION 4 – COMPONENTS  Re / Im / Abs
+══════════════════════════════════════════════════════ -->
+        <div class="section" id="components">
+            <div class="section-title">4. Components of $Y_l^m(\theta,\varphi)$ <span class="badge"
+                    style="background:var(--accent2);">Interactive</span></div>
+            <div class="section-subtitle">
+                For any $(l,m)$ with $l\in[0,7]$, $m\in[-l,l]$, display the magnitude $|Y_l^m|$, real part, and
+                imaginary part as polar-surface plots.
+            </div>
+
+            <div class="controls-row">
+                <div class="ctrl-group">
+                    <span class="ctrl-label no-uppercase">l &nbsp;<span class="ctrl-val" id="compLval">0</span></span>
+                    <input type="range" id="compLslider" min="0" max="7" step="1" value="0">
+                </div>
+                <div class="ctrl-group">
+                    <span class="ctrl-label no-uppercase">m &nbsp;<span class="ctrl-val purple" id="compMval">0</span></span>
+                    <input type="range" class="purple-slider" id="compMslider" min="0" max="0" step="1" value="0">
+                </div>
+            </div>
+
+            <div id="compFormulaStrip" class="formula-strip">
+                <span class="label">Current:</span>
+                <span id="compFormula">$Y_0^0(\theta,\varphi)$</span>
+            </div>
+
+            <div class="triple-plots">
+                <div>
+                    <div class="plot-label blue">▸ |Y<sub>l</sub><sup>m</sup>| &nbsp;(magnitude)</div>
+                    <div class="plot-wrap">
+                        <div id="plotCompAbs" class="plot-div-sm"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="plot-label green">▸ Re(Y<sub>l</sub><sup>m</sup>)</div>
+                    <div class="plot-wrap">
+                        <div id="plotCompRe" class="plot-div-sm"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="plot-label purple">▸ Im(Y<sub>l</sub><sup>m</sup>)</div>
+                    <div class="plot-wrap">
+                        <div id="plotCompIm" class="plot-div-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ══════════════════════════════════════════════════════
+     SECTION 5 – HYDROGEN ATOM 3D
+══════════════════════════════════════════════════════ -->
+        <div class="section" id="hydrogen">
+            <div class="section-title">5. Hydrogen Atom — Full 3D Solution <span class="badge badge-3d">3D
+                    Interactive</span></div>
+            <div class="section-subtitle">
+                Visualise the hydrogen wavefunction $\psi_{nlm}(r,\theta,\varphi)$ as a 3D isosurface of constant
+                probability density $|\psi|^2$.
+                The orbital shape emerges from the product of the radial part $R_{nl}(r)$ and the angular part
+                $Y_l^m(\theta,\varphi)$.
+            </div>
+
+            <div class="eq-box orange" style="margin-bottom:20px;">
+                <strong
+                    style="font-size:0.8rem; color:var(--accent5); text-transform:uppercase; letter-spacing:0.06em;">Full
+                    hydrogen wavefunction</strong>
+                $$\psi_{nlm}(r,\theta,\varphi)
+                = \underbrace{\sqrt{\!\left(\frac{2}{na_0}\right)^{\!3}\frac{(n\!-\!l\!-\!1)!}{2n\,(n\!+\!l)!}}\;
+                e^{-r/(na_0)}\!\left(\frac{2r}{na_0}\right)^{\!l}
+                L_{n-l-1}^{2l+1}\!\!\left(\frac{2r}{na_0}\right)}_{R_{nl}(r)}
+                \;\cdot\; Y_l^m(\theta,\varphi),
+                \qquad E_n = -\frac{13.6\;\text{eV}}{n^2}$$
+                <p class="eq-note">$a_0$ is the Bohr radius, &ensp;$L_p^q$ are associated Laguerre polynomials.</p>
+            </div>
+
+            <div class="sol-table-wrap" style="margin-bottom:24px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="no-uppercase">n</th>
+                            <th class="no-uppercase">l</th>
+                            <th>$R_{nl}(r)$</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="color:var(--accent);font-weight:700;">1</td>
+                            <td>0</td>
+                            <td>$2\,e^{-r}$</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="2"
+                                style="color:var(--accent);font-weight:700;vertical-align:top;padding-top:14px;">2</td>
+                            <td>0</td>
+                            <td>$\dfrac{1}{2\sqrt{2}}(2-r)\,e^{-r/2}$</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>$\dfrac{1}{2\sqrt{6}}\,r\,e^{-r/2}$</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="3"
+                                style="color:var(--accent);font-weight:700;vertical-align:top;padding-top:14px;">3</td>
+                            <td>0</td>
+                            <td>$\dfrac{2}{81\sqrt{3}}(27-18r+2r^2)e^{-r/3}$</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>$\dfrac{8}{27\sqrt{6}}(6-r)\,r\,e^{-r/3}$</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>$\dfrac{4}{81\sqrt{30}}\,r^2\,e^{-r/3}$</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="4"
+                                style="color:var(--accent);font-weight:700;vertical-align:top;padding-top:14px;">4</td>
+                            <td>0</td>
+                            <td>$\dfrac{1}{768}(192-144r+24r^2-r^3)e^{-r/4}$</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>$\dfrac{1}{256\sqrt{15}}(80-20r+r^2)\,r\,e^{-r/4}$</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>$\dfrac{1}{768\sqrt{5}}(12-r)\,r^2\,e^{-r/4}$</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>$\dfrac{1}{768\sqrt{35}}\,r^3\,e^{-r/4}$</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="controls-row">
+                <div class="ctrl-group">
+                    <span class="ctrl-label no-uppercase">n &nbsp;<span class="ctrl-val" id="hydNval">1</span></span>
+                    <input type="range" id="hydNslider" min="1" max="4" step="1" value="1">
+                </div>
+                <div class="ctrl-group">
+                    <span class="ctrl-label no-uppercase">l &nbsp;<span class="ctrl-val" id="hydLval">0</span></span>
+                    <input type="range" id="hydLslider" min="0" max="0" step="1" value="0">
+                </div>
+                <div class="ctrl-group">
+                    <span class="ctrl-label no-uppercase">m &nbsp;<span class="ctrl-val purple" id="hydMval">0</span></span>
+                    <input type="range" class="purple-slider" id="hydMslider" min="0" max="0" step="1" value="0">
+                </div>
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Background</span>
+                    <div class="toggle-group">
+                        <button class="toggle-btn active" id="hydBgLightBtn" onclick="setHydBg(false)">Light</button>
+                        <button class="toggle-btn" id="hydBgDarkBtn" onclick="setHydBg(true)">Dark</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="hydFormulaStrip" class="formula-strip">
+                <span class="label">Orbital:</span>
+                <span id="hydFormula">$\psi_{100}$</span>
+                <span style="color:var(--text-muted); font-size:0.88rem;">&ensp;—&ensp;</span>
+                <span id="hydEnergyLabel" style="color:var(--accent5); font-size:0.88rem;">$E_1 =
+                    -13.6\;\text{eV}$</span>
+            </div>
+
+            <div class="plot-wrap">
+                <div id="plotHydrogen" class="plot-div-3d"></div>
+            </div>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:14px;">
+                Isosurface of $|\psi_{nlm}|^2$ at a threshold chosen to enclose the bulk of the probability density.
+                Color encodes the wavefunction amplitude.
+                The orbital shape comes from the full product $R_{nl}(r)\,Y_l^m(\theta,\varphi)$, showing radial nodes
+                and angular structure together.
+            </p>
+        </div>
+
+    </main>
+
+    <footer>
+        Updated by Meshy Ochana (2026), based on Ron Lifshitz's Mathematica Notebook (2016) | 
+        Built with Plotly.js &amp; MathJax
+    </footer>
+
+    <!-- ══════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════ -->
+    <script>
+        'use strict';
+
+        // ─────────────────────────────────────────────────────
+        //  MATH: Associated Legendre P_l^m  (m >= 0 seed, handles negative m)
+        // ─────────────────────────────────────────────────────
+        function legendreP(l, mIn, x) {
+            const mAbs = Math.abs(mIn);
+            if (mAbs > l) return 0;
+            x = Math.max(-0.9999999, Math.min(0.9999999, x));
+            // Seed: P_{mAbs}^{mAbs}
+            let Pmm = 1.0;
+            if (mAbs > 0) {
+                const s = Math.sqrt(1 - x * x);
+                let fact = 1.0;
+                for (let i = 1; i <= mAbs; i++) { Pmm *= -fact * s; fact += 2; }
+            }
+            if (l === mAbs) return Pmm;
+            let Pmp1m = x * (2 * mAbs + 1) * Pmm;
+            if (l === mAbs + 1) return Pmp1m;
+            let Plm = 0;
+            for (let ll = mAbs + 2; ll <= l; ll++) {
+                Plm = ((2 * ll - 1) * x * Pmp1m - (ll + mAbs - 1) * Pmm) / (ll - mAbs);
+                Pmm = Pmp1m; Pmp1m = Plm;
+            }
+            return Plm;
+        }
+
+        // Normalisation N_lm (positive m convention; same magnitude for ±m)
+        function Nlm(l, m) {
+            const mAbs = Math.abs(m);
+            let ratio = 1.0;
+            for (let k = l - mAbs + 1; k <= l + mAbs; k++) ratio *= k;
+            return Math.sqrt((2 * l + 1) / (4 * Math.PI) / ratio);
+        }
+
+        // Full Y_l^m — returns { re, im, abs, phase }
+        function Ylm(l, m, theta, phi) {
+            const mAbs = Math.abs(m);
+            const N = Nlm(l, mAbs);           // normalisation uses |m|
+            const P = legendreP(l, mAbs, Math.cos(theta));
+            // Condon-Shortley: (-1)^m for m>0 already included in legendreP seed sign
+            // For m >= 0: Y = N * P * exp(imφ)
+            // For m < 0:  Y = (-1)^|m| * conj( Y_l^|m| )
+            //           = (-1)^|m| * N * P * exp(-i|m|φ)
+            let re, im;
+            if (m >= 0) {
+                re = N * P * Math.cos(m * phi);
+                im = N * P * Math.sin(m * phi);
+            } else {
+                const sign = (mAbs % 2 === 0) ? 1 : -1;
+                re = sign * N * P * Math.cos(mAbs * phi);
+                im = -sign * N * P * Math.sin(mAbs * phi);
+            }
+            return { re, im, abs: Math.sqrt(re * re + im * im), phase: Math.atan2(im, re) };
+        }
+
+        // ─────────────────────────────────────────────────────
+        //  MATH: Radial H-atom R_nl(r)
+        // ─────────────────────────────────────────────────────
+        function assocLaguerre(p, q, x) {
+            if (p < 0) return 1;
+            if (p === 0) return 1;
+            let L0 = 1, L1 = 1 + q - x;
+            if (p === 1) return L1;
+            let Lk = 0;
+            for (let k = 2; k <= p; k++) {
+                Lk = ((2 * k - 1 + q - x) * L1 - (k - 1 + q) * L0) / k;
+                L0 = L1; L1 = Lk;
+            }
+            return Lk;
+        }
+        function factorial(n) { let f = 1; for (let i = 2; i <= n; i++) f *= i; return f; }
+        // R_nl(r) matching the standard hydrogen formula:
+        // sqrt((2/(n*a0))^3 * (n-l-1)! / (2n*(n+l)!)) * exp(-ρ/2) * ρ^l * L_{n-l-1}^{2l+1}(ρ)
+        // where ρ = 2r/(n*a0), a0=1.
+        function R_nl(n, l, r) {
+            const p = n - l - 1;  // degree of the Laguerre polynomial
+            if (p < 0) return 0;
+            const rho = 2 * r / n;
+            const pref = Math.sqrt(Math.pow(2 / n, 3) * factorial(p) / (2 * n * factorial(n + l)));
+            return pref * Math.exp(-rho / 2) * Math.pow(rho, l) * assocLaguerre(p, 2 * l + 1, rho);
+        }
+
+        // ─────────────────────────────────────────────────────
+        //  PLOTTING HELPERS  — mesh3d with proper triangulation
+        // ─────────────────────────────────────────────────────
+
+        // Build a mesh3d-compatible UV sphere with explicit triangulation.
+        // Returns { x, y, z, intensity, i, j, k } — all flat arrays.
+        //
+        // Topology:
+        //   • 1 vertex at the north pole (θ = 0)
+        //   • (N_theta − 1) rings of N_phi vertices each
+        //   • 1 vertex at the south pole (θ = π)
+        //   • Triangle fans connect poles to the first / last ring
+        //   • Interior rings are connected by quad-split triangle strips
+        //   • φ wraps correctly (last column connects to first)
+        //
+        function buildMesh(l, m, N_theta, N_phi, valueFunc, colorFunc) {
+            const vx = [], vy = [], vz = [], vc = [];
+
+            // Helper: push a vertex for (θ, φ)
+            function addVert(th, ph) {
+                const v = Ylm(l, m, th, ph);
+                let r = valueFunc(v);
+                if (!isFinite(r) || r < 0) r = 0;
+                vx.push(r * Math.sin(th) * Math.cos(ph));
+                vy.push(r * Math.sin(th) * Math.sin(ph));
+                vz.push(r * Math.cos(th));
+                vc.push(colorFunc(v));
+            }
+
+            // 0. North pole  (index 0)
+            addVert(1e-8, 0);                       // tiny offset avoids sin(0)=0 degeneracy
+
+            // 1. Interior rings  i = 1 … N_theta−1,  j = 0 … N_phi−1
+            //    vertex index = 1 + (i-1)*N_phi + j
+            for (let i = 1; i < N_theta; i++) {
+                const th = i * Math.PI / N_theta;
+                for (let j = 0; j < N_phi; j++) {
+                    const ph = j * 2 * Math.PI / N_phi;
+                    addVert(th, ph);
+                }
+            }
+
+            // 2. South pole  (index = 1 + (N_theta-1)*N_phi  — but wait, rings are i=1..N_theta-1
+            //    so there are N_theta-1 rings → index = 1 + (N_theta-1-1)*N_phi + N_phi - 1 + 1
+            //    = 1 + (N_theta-2)*N_phi + N_phi = 1 + (N_theta-1)*N_phi)
+            // Actually: number of interior vertices = (N_theta-1)*N_phi, so south pole index is:
+            const southIdx = 1 + (N_theta - 1) * N_phi;
+            addVert(Math.PI - 1e-8, 0);
+
+            // Build triangle arrays
+            const ti = [], tj = [], tk = [];
+
+            // Helper: ring vertex index (ring numbered 0 = first interior ring, i.e. i=1 above)
+            function rv(ring, col) {
+                return 1 + ring * N_phi + (col % N_phi);
+            }
+
+            // North-pole fan → connects pole (0) to first ring (ring 0)
+            for (let j = 0; j < N_phi; j++) {
+                ti.push(0);
+                tj.push(rv(0, j));
+                tk.push(rv(0, j + 1));
+            }
+
+            // Interior quad strips between successive rings
+            const nRings = N_theta - 1;
+            for (let ring = 0; ring < nRings - 1; ring++) {
+                for (let j = 0; j < N_phi; j++) {
+                    const a = rv(ring, j);
+                    const b = rv(ring, j + 1);
+                    const c = rv(ring + 1, j);
+                    const d = rv(ring + 1, j + 1);
+                    ti.push(a); tj.push(b); tk.push(c);
+                    ti.push(b); tj.push(d); tk.push(c);
+                }
+            }
+
+            // South-pole fan → connects last ring to south pole
+            const lastRing = nRings - 1;
+            for (let j = 0; j < N_phi; j++) {
+                ti.push(rv(lastRing, j));
+                tj.push(rv(lastRing, j + 1));
+                tk.push(southIdx);
+            }
+
+            return { x: vx, y: vy, z: vz, intensity: vc, i: ti, j: tj, k: tk };
+        }
+
+        // Create a Plotly mesh3d trace from the mesh data
+        function makeMeshTrace(l, m, NT, NP, valueFunc, colorFunc, colorscale, showscale) {
+            const mesh = buildMesh(l, m, NT, NP, valueFunc, colorFunc);
+            return {
+                type: 'mesh3d',
+                x: mesh.x, y: mesh.y, z: mesh.z,
+                i: mesh.i, j: mesh.j, k: mesh.k,
+                intensity: mesh.intensity,
+                colorscale: colorscale,
+                showscale: showscale || false,
+                flatshading: false,
+                lighting: { ambient: 0.55, diffuse: 0.85, specular: 0.25, roughness: 0.4 },
+                lightposition: { x: 100, y: 200, z: 300 },
+                opacity: 0.32
+            };
+        }
+
+        function plotLayout(title) {
+            return {
+                paper_bgcolor: '#ffffff',
+                plot_bgcolor: '#ffffff',
+                font: { family: 'Inter, sans-serif', color: '#475569', size: 11 },
+                margin: { l: 0, r: 0, t: title ? 36 : 4, b: 0 },
+                title: title ? { text: title, font: { color: '#334155', size: 12 }, x: 0.5 } : undefined,
+                scene: {
+                    xaxis: { visible: false }, yaxis: { visible: false }, zaxis: { visible: false },
+                    bgcolor: '#ffffff', aspectmode: 'data',
+                    camera: { eye: { x: 1.7, y: 1.4, z: 1.2 } }
+                }
+            };
+        }
+
+        // Solid-colour scales for the "all m" grid
+        const M_COLORS = [
+            [[0, '#2563eb'], [1, '#93c5fd']],   // m=0 blue
+            [[0, '#059669'], [1, '#6ee7b7']],   // m=1 green
+            [[0, '#db2777'], [1, '#f9a8d4']],   // m=2 pink
+            [[0, '#d97706'], [1, '#fcd34d']],   // m=3 amber
+            [[0, '#7c3aed'], [1, '#c4b5fd']],   // m=4 purple
+        ];
+
+        // ─────────────────────────────────────────────────────
+        //  SECTION 2 – Formula panel switcher
+        // ─────────────────────────────────────────────────────
+        let formulaL = 0;
+        function setFormulaL(lval) {
+            document.getElementById('formulaPanel' + formulaL).style.display = 'none';
+            document.getElementById('flbtn' + formulaL).classList.remove('active');
+            formulaL = lval;
+            document.getElementById('formulaPanel' + lval).style.display = 'block';
+            document.getElementById('flbtn' + lval).classList.add('active');
+        }
+
+        // ─────────────────────────────────────────────────────
+        //  SECTION 3 – Angular plots  (|Ylm|)
+        // ─────────────────────────────────────────────────────
+        let s3_l = 0, s3_showAll = true, s3_m = 0;
+        const RES3 = 64;    // theta divisions (mesh3d needs fewer than surface for good results)
+        const RES3P = 128;  // phi divisions
+
+        function setL3(lval) {
+            s3_l = lval;
+            for (let k = 0; k <= 4; k++) document.getElementById('lbtn3_' + k).classList.remove('active');
+            document.getElementById('lbtn3_' + lval).classList.add('active');
+            const ms = document.getElementById('mSingleSlider');
+            ms.max = lval;
+            if (parseInt(ms.value) > lval) { ms.value = 0; s3_m = 0; }
+            document.getElementById('mSingleVal').textContent = s3_m;
+            updatePlot3();
+        }
+
+        function setShowAll(val) {
+            s3_showAll = val;
+            document.getElementById('showAllBtn').className = 'toggle-btn' + (val ? ' active-g' : '');
+            document.getElementById('showOneBtn').className = 'toggle-btn' + (!val ? ' active-g' : '');
+            document.getElementById('mSingleCtrl').style.display = val ? 'none' : 'flex';
+            document.getElementById('allMGrid').style.display = val ? '' : 'none';
+            document.getElementById('singleMWrap').style.display = val ? 'none' : '';
+            updatePlot3();
+        }
+
+        document.getElementById('mSingleSlider').addEventListener('input', function () {
+            s3_m = parseInt(this.value);
+            document.getElementById('mSingleVal').textContent = s3_m;
+            updatePlot3();
+        });
+
+        function updatePlot3() {
+            if (s3_showAll) {
+                buildAllMGrid();
+            } else {
+                const trace = makeMeshTrace(s3_l, s3_m, RES3, RES3P, v => v.abs, v => v.abs, 'Viridis', false);
+                Plotly.react('plotAbsYlm', [trace],
+                    plotLayout(`|Y<sub>${s3_l}</sub><sup>${s3_m}</sup>(θ,φ)|`), { responsive: true });
+            }
+        }
+
+        function buildAllMGrid() {
+            const grid = document.getElementById('allMGrid');
+            const total = s3_l + 1;
+
+            const cols = total <= 2 ? total : total <= 4 ? Math.min(total, 3) : 3;
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+            grid.innerHTML = '';
+            for (let m = 0; m <= s3_l; m++) {
+                const wrap = document.createElement('div');
+                const label = document.createElement('div');
+                label.className = 'plot-label';
+                label.style.color = ['#2563eb', '#059669', '#db2777', '#d97706', '#7c3aed'][m % 5];
+                label.innerHTML = `▸ |Y<sub>${s3_l}</sub><sup>${m}</sup>|`;
+                const plotDiv = document.createElement('div');
+                plotDiv.id = `allm_plot_${m}`;
+                plotDiv.className = 'plot-div-sm';
+                const pw = document.createElement('div');
+                pw.className = 'plot-wrap';
+                pw.appendChild(plotDiv);
+                wrap.appendChild(label);
+                wrap.appendChild(pw);
+                grid.appendChild(wrap);
+            }
+
+            for (let m = 0; m <= s3_l; m++) {
+                const trace = makeMeshTrace(s3_l, m, RES3, RES3P,
+                    v => v.abs, v => v.abs,
+                    M_COLORS[m % M_COLORS.length], false
+                );
+                Plotly.react(`allm_plot_${m}`, [trace], plotLayout(null), { responsive: true });
+            }
+        }
+
+        // ─────────────────────────────────────────────────────
+        //  SECTION 4 – Components (Re, Im, Abs)
+        // ─────────────────────────────────────────────────────
+        let c_l = 0, c_m = 0;
+        const RES4 = 64, RES4P = 128;
+
+        const compLslider = document.getElementById('compLslider');
+        const compMslider = document.getElementById('compMslider');
+
+        compLslider.addEventListener('input', function () {
+            c_l = parseInt(this.value);
+            document.getElementById('compLval').textContent = c_l;
+            compMslider.min = -c_l; compMslider.max = c_l;
+            c_m = Math.max(-c_l, Math.min(c_l, c_m));
+            compMslider.value = c_m;
+            document.getElementById('compMval').textContent = c_m;
+            updateCompFormula(); updateCompPlots();
+        });
+        compMslider.addEventListener('input', function () {
+            c_m = parseInt(this.value);
+            document.getElementById('compMval').textContent = c_m;
+            updateCompFormula(); updateCompPlots();
+        });
+
+        function updateCompFormula() {
+            const el = document.getElementById('compFormula');
+            el.innerHTML = `$Y_{${c_l}}^{${c_m}}(\\theta,\\varphi)$`;
+            if (window.MathJax) MathJax.typesetPromise([el]);
+        }
+
+        function updateCompPlots() {
+            const absT = makeMeshTrace(c_l, c_m, RES4, RES4P, v => v.abs, v => v.abs, 'Blues', false);
+            const reT = makeMeshTrace(c_l, c_m, RES4, RES4P, v => Math.abs(v.re), v => v.re, 'RdBu', false);
+            const imT = makeMeshTrace(c_l, c_m, RES4, RES4P, v => Math.abs(v.im), v => v.im, 'PRGn', false);
+
+            Plotly.react('plotCompAbs', [absT], plotLayout(`|Y<sub>${c_l}</sub><sup>${c_m}</sup>|`), { responsive: true });
+            Plotly.react('plotCompRe', [reT], plotLayout(`Re(Y<sub>${c_l}</sub><sup>${c_m}</sup>)`), { responsive: true });
+            Plotly.react('plotCompIm', [imT], plotLayout(`Im(Y<sub>${c_l}</sub><sup>${c_m}</sup>)`), { responsive: true });
+        }
+
+        // ─────────────────────────────────────────────────────
+        //  SECTION 5 – Hydrogen atom 3D  (isosurface of |ψ|²)
+        // ─────────────────────────────────────────────────────
+        let h_n = 1, h_l = 0, h_m = 0, h_res = 80, h_dark_bg = false;
+
+        function setHydBg(isDark) {
+            h_dark_bg = isDark;
+            document.getElementById('hydBgLightBtn').className = 'toggle-btn' + (!isDark ? ' active' : '');
+            document.getElementById('hydBgDarkBtn').className = 'toggle-btn' + (isDark ? ' active' : '');
+            updateHydPlot();
+        }
+
+        const hydNslider = document.getElementById('hydNslider');
+        const hydLslider = document.getElementById('hydLslider');
+        const hydMslider = document.getElementById('hydMslider');
+
+        hydNslider.addEventListener('input', function () {
+            h_n = parseInt(this.value);
+            document.getElementById('hydNval').textContent = h_n;
+            hydLslider.max = h_n - 1;
+            h_l = Math.min(h_l, h_n - 1);
+            hydLslider.value = h_l;
+            document.getElementById('hydLval').textContent = h_l;
+            hydMslider.min = -h_l; hydMslider.max = h_l;
+            h_m = Math.max(-h_l, Math.min(h_l, h_m));
+            hydMslider.value = h_m;
+            document.getElementById('hydMval').textContent = h_m;
+            updateHydLabel(); updateHydPlot();
+        });
+        hydLslider.addEventListener('input', function () {
+            h_l = parseInt(this.value);
+            document.getElementById('hydLval').textContent = h_l;
+            hydMslider.min = -h_l; hydMslider.max = h_l;
+            h_m = Math.max(-h_l, Math.min(h_l, h_m));
+            hydMslider.value = h_m;
+            document.getElementById('hydMval').textContent = h_m;
+            updateHydLabel(); updateHydPlot();
+        });
+        hydMslider.addEventListener('input', function () {
+            h_m = parseInt(this.value);
+            document.getElementById('hydMval').textContent = h_m;
+            updateHydLabel(); updateHydPlot();
+        });
+
+
+
+        function updateHydLabel() {
+            const mStr = h_m < 0 ? `\\bar{${Math.abs(h_m)}}` : String(h_m);
+            const el = document.getElementById('hydFormula');
+            el.innerHTML = `$\\psi_{${h_n}\\,${h_l}\\,${mStr}}$`;
+            const Eev = (-13.6 / (h_n * h_n)).toFixed(3);
+            document.getElementById('hydEnergyLabel').innerHTML = `$E_{${h_n}} = ${Eev}\\;\\text{eV}$`;
+            if (window.MathJax) MathJax.typesetPromise([el, document.getElementById('hydEnergyLabel')]);
+        }
+
+        // Compute ψ_nlm on a Cartesian grid and render as scatter3d point cloud
+        function updateHydPlot() {
+            const N = h_res;                       // grid points per axis
+            const rMax = 1.8 * h_n * h_n + 3 * h_n; // spatial extent scales with orbital size
+            const step = 2 * rMax / (N - 1);
+
+            // First pass: compute |ψ|² on grid, find max
+            const pts = [];   // {x,y,z,val}
+            let maxVal = 0;
+
+            for (let iz = 0; iz < N; iz++) {
+                const zv = -rMax + step * iz;
+                for (let iy = 0; iy < N; iy++) {
+                    const yv = -rMax + step * iy;
+                    for (let ix = 0; ix < N; ix++) {
+                        const xv = -rMax + step * ix;
+
+                        const r = Math.sqrt(xv * xv + yv * yv + zv * zv);
+                        const theta = (r < 1e-12) ? 0 : Math.acos(Math.max(-1, Math.min(1, zv / r)));
+                        const phi = Math.atan2(yv, xv);
+
+                        const Rnl = R_nl(h_n, h_l, r);
+                        const ylm = Ylm(h_l, h_m, theta, phi);
+                        const psi2 = Rnl * Rnl * ylm.abs * ylm.abs;
+
+                        if (psi2 > maxVal) maxVal = psi2;
+                        pts.push({ x: xv, y: yv, z: zv, v: psi2 });
+                    }
+                }
+            }
+
+            // Second pass: keep points above threshold
+            const threshold = maxVal * 0.0015;
+            const xF = [], yF = [], zF = [], cF_log = [], cF_linear = [], sF = [];
+            const logMin = Math.log(threshold);
+            const logMax = Math.log(maxVal);
+            const logRange = logMax - logMin;
+            const power = 0.5; // skews color gradient to emphasize high-density cores (more black/green points)
+
+            for (const p of pts) {
+                if (p.v >= threshold) {
+                    xF.push(p.x);
+                    yF.push(p.y);
+                    zF.push(p.z);
+                    cF_linear.push(p.v);
+
+                    // Logarithmic color scaling with power skew
+                    const logVal = Math.pow((Math.log(p.v) - logMin) / logRange, power);
+                    cF_log.push(logVal);
+
+                    // marker size proportional to probability density
+                    sF.push(2.5 + 6 * (p.v / maxVal));
+                }
+            }
+
+            const trace = {
+                type: 'scatter3d',
+                mode: 'markers',
+                x: xF, y: yF, z: zF,
+                customdata: cF_linear,
+                marker: {
+                    size: sF,
+                    color: cF_log,
+                    colorscale: [
+                        [0, '#f97316'],
+                        [0.33, '#facc15'],
+                        [0.66, '#22c55e'],
+                        [1, '#000000']
+                    ],
+                    opacity: 0.07,
+                    line: { width: 0 },
+                    colorbar: {
+                        title: { text: '|ψ|²', font: { color: h_dark_bg ? '#94a3b8' : '#475569', size: 10 } },
+                        tickfont: { color: h_dark_bg ? '#94a3b8' : '#475569', size: 9 },
+                        len: 0.5, thickness: 12, x: 0.95,
+                        tickvals: [0, 0.25, 0.5, 0.75, 1],
+                        ticktext: [
+                            (threshold).toExponential(1),
+                            (threshold * Math.pow(maxVal / threshold, Math.pow(0.25, 1 / power))).toExponential(1),
+                            (threshold * Math.pow(maxVal / threshold, Math.pow(0.5, 1 / power))).toExponential(1),
+                            (threshold * Math.pow(maxVal / threshold, Math.pow(0.75, 1 / power))).toExponential(1),
+                            (maxVal).toExponential(1)
+                        ]
+                    }
+                },
+                hovertemplate: 'x=%{x:.1f}  y=%{y:.1f}  z=%{z:.1f}<br>|ψ|²=%{customdata:.2e}<extra></extra>'
+            };
+
+            const ly = {
+                paper_bgcolor: h_dark_bg ? '#0f172a' : '#ffffff',
+                plot_bgcolor: h_dark_bg ? '#0f172a' : '#ffffff',
+                font: { family: 'Inter, sans-serif', color: h_dark_bg ? '#94a3b8' : '#475569', size: 11 },
+                margin: { l: 0, r: 80, t: 40, b: 0 },
+                title: {
+                    text: `ψ<sub>${h_n}${h_l}${h_m}</sub>  —  probability density |ψ|²`,
+                    font: { color: h_dark_bg ? '#f8fafc' : '#334155', size: 12 }, x: 0.5
+                },
+                scene: {
+                    xaxis: {
+                        title: 'x / a₀',
+                        color: h_dark_bg ? '#cbd5e1' : '#94a3b8',
+                        gridcolor: h_dark_bg ? '#334155' : '#e2e8f0',
+                        range: [-rMax, rMax]
+                    },
+                    yaxis: {
+                        title: 'y / a₀',
+                        color: h_dark_bg ? '#cbd5e1' : '#94a3b8',
+                        gridcolor: h_dark_bg ? '#334155' : '#e2e8f0',
+                        range: [-rMax, rMax]
+                    },
+                    zaxis: {
+                        title: 'z / a₀',
+                        color: h_dark_bg ? '#cbd5e1' : '#94a3b8',
+                        gridcolor: h_dark_bg ? '#334155' : '#e2e8f0',
+                        range: [-rMax, rMax]
+                    },
+                    bgcolor: h_dark_bg ? '#0f172a' : '#ffffff',
+                    aspectmode: 'cube',
+                    camera: { eye: { x: 1.8, y: 1.4, z: 1.4 } }
+                }
+            };
+
+            const config = {
+                responsive: true,
+                scrollZoom: false,
+                modeBarButtonsToRemove: ['zoom3d', 'pan3d', 'zoomIn3d', 'zoomOut3d', 'resetCameraLastSave3d', 'resetCameraDefault3d']
+            };
+            Plotly.react('plotHydrogen', [trace], ly, config);
+
+            const wrapEl = document.getElementById('plotHydrogen').parentElement;
+            if (wrapEl) {
+                wrapEl.style.background = h_dark_bg ? '#0f172a' : '#ffffff';
+                wrapEl.style.borderColor = h_dark_bg ? '#1e293b' : 'var(--border)';
+            }
+        }
+
+        // ─────────────────────────────────────────────────────
+        //  INIT
+        // ─────────────────────────────────────────────────────
+        window.addEventListener('load', () => {
+            setShowAll(true);
+            updatePlot3();
+            updateCompFormula();
+            updateCompPlots();
+            updateHydLabel();
+            updateHydPlot();
+
+            // Zoom prevention for Hydrogen plot
+            const plotDiv = document.getElementById('plotHydrogen');
+
+            // Prevent scroll wheel zoom
+            plotDiv.addEventListener('wheel', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+
+            // Prevent touch pinch zoom
+            plotDiv.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            // Keep camera distance constant to block drag-to-zoom
+            const R_target = Math.sqrt(1.8 * 1.8 + 1.4 * 1.4 + 1.4 * 1.4);
+            let relayoutGuard = false;
+            plotDiv.on('plotly_relayout', () => {
+                if (relayoutGuard) return;
+                const camera = plotDiv.layout && plotDiv.layout.scene && plotDiv.layout.scene.camera;
+                if (camera && camera.eye) {
+                    const eye = camera.eye;
+                    const R = Math.sqrt(eye.x * eye.x + eye.y * eye.y + eye.z * eye.z);
+                    if (Math.abs(R - R_target) > 0.01) {
+                        const scale = R_target / R;
+                        const fixedEye = {
+                            x: eye.x * scale,
+                            y: eye.y * scale,
+                            z: eye.z * scale
+                        };
+                        relayoutGuard = true;
+                        Plotly.relayout(plotDiv, {
+                            'scene.camera.eye': fixedEye
+                        }).then(() => {
+                            relayoutGuard = false;
+                        });
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

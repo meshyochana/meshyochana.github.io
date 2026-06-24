@@ -1,0 +1,151 @@
+{
+    "tilings": [
+        {
+            "id": "ammann-beenker",
+            "name": "Ammann-Beenker Tiling",
+            "symmetry": "Octagonal (8-fold)",
+            "dimension": 4,
+            "projection": {
+                "parallel": {
+                    "angleNumerator": 1,
+                    "angleDenominator": 4,
+                    "formula": "k * π / 4  (k = 0..3)"
+                },
+                "perpendicular": {
+                    "angleNumerator": 3,
+                    "angleDenominator": 4,
+                    "formula": "k * 3π / 4  (k = 0..3)"
+                },
+                "perpExtraDims": null
+            },
+            "defaults": {
+                "windowShape": "8",
+                "windowRadius": 1.20,
+                "latticeRadius": 4,
+                "windowRotation": 0,
+                "windowThickness": 1.0,
+                "cutSlope": 0,
+                "windowShiftX": 0.0,
+                "windowShiftY": 0.0
+            },
+            "acceptanceDomain": {
+                "shape": "Regular Octagon",
+                "description": "Shadow of the 4D unit hypercube projected into perpendicular space. Area = 2(1 + √2). Circumradius = √(1 + 1/√2). Edges aligned perpendicular to the projection of 4D basis vectors into internal space."
+            },
+            "references": [
+                "F. P. M. Beenker, Algebraic theory of non-periodic tilings of the plane by two simple building blocks: a square and a rhombus"
+            ]
+        },
+        {
+            "id": "penrose",
+            "name": "Penrose Tiling",
+            "symmetry": "Decagonal (10-fold)",
+            "dimension": 5,
+            "projection": {
+                "parallel": {
+                    "angleNumerator": 2,
+                    "angleDenominator": 5,
+                    "formula": "k * 2π / 5  (k = 0..4)"
+                },
+                "perpendicular": {
+                    "angleNumerator": 4,
+                    "angleDenominator": 5,
+                    "formula": "k * 4π / 5  (k = 0..4)"
+                },
+                "perpExtraDims": {
+                    "type": "constant",
+                    "value": 0.7071067811865476,
+                    "description": "Row 3 of Pi_perp: 1/√2 for all columns (body-diagonal sum invariant)"
+                }
+            },
+            "defaults": {
+                "windowShape": "10",
+                "windowRadius": 1.50,
+                "latticeRadius": 4,
+                "windowRotation": 0,
+                "windowThickness": 1.0,
+                "cutSlope": 0,
+                "windowShiftX": 0.0,
+                "windowShiftY": 0.0
+            },
+            "acceptanceDomain": {
+                "shape": "Regular Decagon",
+                "description": "2D cross-section of the 5D hypercube shadow. Four decagons whose areas scale relative to the shift along the body diagonal (the 5th invariant dimension). Faces orthogonal to the 5 projection vectors in internal space."
+            },
+            "references": [
+                "R. Penrose, The role of aesthetics in pure and applied mathematical research, Bull. Inst. Math. Appl. 10 266 (1974)"
+            ]
+        },
+        {
+            "id": "niizeki-gaehler",
+            "name": "Niizeki-Gähler Tiling",
+            "symmetry": "Dodecagonal (12-fold)",
+            "dimension": 4,
+            "projection": {
+                "parallel": {
+                    "angleNumerator": 1,
+                    "angleDenominator": 6,
+                    "formula": "k * π / 6  (k = 0..3)"
+                },
+                "perpendicular": {
+                    "angleNumerator": 5,
+                    "angleDenominator": 6,
+                    "formula": "k * 5π / 6  (k = 0..3)"
+                },
+                "perpExtraDims": null
+            },
+            "defaults": {
+                "windowShape": "12",
+                "windowRadius": 1,
+                "latticeRadius": 4,
+                "windowRotation": 0,
+                "windowThickness": 1.0,
+                "cutSlope": 0,
+                "windowShiftX": 0.0,
+                "windowShiftY": 0.0
+            },
+            "acceptanceDomain": {
+                "shape": "Regular Dodecagon",
+                "description": "For the standard square-triangle-rhombus tiling. Rotated by π/12 (15°) relative to the parallel space principal axes. The dodecagonal domain is subdivided into polygonal regions mapping to specific vertex arrangements."
+            },
+            "references": [
+                "N. Niizeki and H. Mitani, Two-dimensional dodecagonal quasilattices, J. Phys. A: Math. Gen. 20, L405 (1987)",
+                "F. Gähler, Crystallography of dodecagonal quasicrystals, OPUS (1988)"
+            ]
+        },
+        {
+            "id": "generic-hex",
+            "name": "Generic Hex-Harmonic",
+            "symmetry": "Generic (d-fold)",
+            "dimension": 6,
+            "projection": {
+                "parallel": {
+                    "angleNumerator": 2,
+                    "angleDenominator": "d",
+                    "formula": "k * 2π / d  (k = 0..d-1)"
+                },
+                "perpendicular": {
+                    "angleNumerator": "harmonic",
+                    "angleDenominator": "d",
+                    "formula": "Higher harmonics: h * 2π * k / d for h = 2, 3, ..."
+                },
+                "perpExtraDims": null
+            },
+            "defaults": {
+                "windowShape": "6",
+                "windowRadius": 1.50,
+                "latticeRadius": 3,
+                "windowRotation": 0,
+                "windowThickness": 1.0,
+                "cutSlope": 0,
+                "windowShiftX": 0.0,
+                "windowShiftY": 0.0
+            },
+            "acceptanceDomain": {
+                "shape": "Regular Hexagon",
+                "description": "Generic acceptance domain for dimension-6 harmonic projection."
+            },
+            "references": []
+        }
+    ]
+}
