@@ -415,7 +415,10 @@
             the radial wavefunctions $R_{nl}(r)$ and the angular part $Y_l^m(\theta,\varphi)$.</p>
     </header>
 
-
+    <nav>
+        <a href="#hydrogen">3D Orbital</a>
+        <a href="#radial-prob">Radial Probability</a>
+    </nav>
 
     <main>
 
@@ -424,7 +427,8 @@
                     Interactive</span></div>
             <div class="section-subtitle">
                 Visualise the hydrogen wavefunction $\psi_{nlm}(r,\theta,\varphi)$ as a 3D point cloud of constant
-                probability density $|\psi|^2$. The orbital shape emerges from the product of the radial part $R_{nl}(r)$ and the angular part $Y_l^m(\theta,\varphi)$.
+                probability density $|\psi|^2$. The orbital shape emerges from the product of the radial part
+                $R_{nl}(r)$ and the angular part $Y_l^m(\theta,\varphi)$.
             </div>
 
             <div class="eq-box orange" style="margin-bottom:20px;">
@@ -432,12 +436,17 @@
                     style="font-size:0.8rem; color:var(--accent5); text-transform:uppercase; letter-spacing:0.06em;">Full
                     hydrogen wavefunction</strong>
                 $$\psi_{nlm}(r,\theta,\varphi)
-                = \underbrace{\sqrt{\!\left(\frac{2}{na_0}\right)^{\!3}\frac{(n\!-\!l\!-\!1)!}{2n\,(n\!+\!l)!}}\;
-                e^{-r/(na_0)}\!\left(\frac{2r}{na_0}\right)^{\!l}
-                L_{n-l-1}^{2l+1}\!\!\left(\frac{2r}{na_0}\right)}_{R_{nl}(r)}
-                \;\cdot\; Y_l^m(\theta,\varphi),
-                \qquad E_n = -\frac{13.6\;\text{eV}}{n^2}$$
-                <p class="eq-note">$a_0$ is the Bohr radius, &ensp;$L_p^q$ are associated Laguerre polynomials.</p>
+                = \underbrace{\frac{2}{n^2}\sqrt{\left(\frac{Z}{a_0}\right)^{\!3}\frac{(n\!-\!l\!-\!1)!}{(n\!+\!l)!}}\;
+                \rho^{l}\,e^{-\rho/2}
+                L_{n-\ell-1}^{(2\ell+1)}\!(\rho)}_{R_{n\ell}(r)}
+                \;\cdot\; Y_\ell^m(\theta,\varphi),
+                \qquad \rho = \frac{2Z}{n}\,\frac{r}{a_0}$$
+                $$E_n = -\frac{\mu Z^2 e^4}{2\hbar^2}\,\frac{1}{n^2}
+                = -\frac{e^2}{2a_0}\,\frac{Z^2}{n^2}
+                = -\frac{Z^2}{n^2}\,\text{Ry}$$
+                <p class="eq-note">$a_0 = \hbar^2/(\mu e^2) \simeq 0.53\,\text{Å}$ is the Bohr radius,
+                    &ensp;$L_{n_r}^{(\nu)}(\rho)$ are the associated Laguerre polynomials,
+                    &ensp;$1\,\text{Ry} \simeq 13.6\,\text{eV}$.</p>
             </div>
 
             <div class="sol-table-wrap" style="margin-bottom:24px;">
@@ -453,49 +462,58 @@
                         <tr>
                             <td style="color:var(--accent);font-weight:700;">1</td>
                             <td>0</td>
-                            <td>$2\,e^{-r}$</td>
+                            <td>$R_{10}(r)=2\!\left(\dfrac{Z}{a_0}\right)^{\!3/2}e^{-Zr/a_0}$</td>
                         </tr>
                         <tr>
                             <td rowspan="2"
                                 style="color:var(--accent);font-weight:700;vertical-align:top;padding-top:14px;">2</td>
                             <td>0</td>
-                            <td>$\dfrac{1}{2\sqrt{2}}(2-r)\,e^{-r/2}$</td>
+                            <td>$R_{20}(r)=2\!\left(\dfrac{Z}{2a_0}\right)^{\!3/2}\!\left(1-\dfrac{Zr}{2a_0}\right)e^{-Zr/2a_0}$
+                            </td>
                         </tr>
                         <tr>
                             <td>1</td>
-                            <td>$\dfrac{1}{2\sqrt{6}}\,r\,e^{-r/2}$</td>
+                            <td>$R_{21}(r)=\dfrac{1}{\sqrt{3}}\!\left(\dfrac{Z}{2a_0}\right)^{\!3/2}\dfrac{Zr}{a_0}\,e^{-Zr/2a_0}$
+                            </td>
                         </tr>
                         <tr>
                             <td rowspan="3"
                                 style="color:var(--accent);font-weight:700;vertical-align:top;padding-top:14px;">3</td>
                             <td>0</td>
-                            <td>$\dfrac{2}{81\sqrt{3}}(27-18r+2r^2)e^{-r/3}$</td>
+                            <td>$R_{30}(r)=2\!\left(\dfrac{Z}{3a_0}\right)^{\!3/2}\!\left(1-\dfrac{2Zr}{3a_0}+\dfrac{2(Zr)^2}{27a_0^2}\right)e^{-Zr/3a_0}$
+                            </td>
                         </tr>
                         <tr>
                             <td>1</td>
-                            <td>$\dfrac{8}{27\sqrt{6}}(6-r)\,r\,e^{-r/3}$</td>
+                            <td>$R_{31}(r)=\dfrac{4\sqrt{2}}{9}\!\left(\dfrac{Z}{3a_0}\right)^{\!3/2}\dfrac{Zr}{a_0}\!\left(1-\dfrac{Zr}{6a_0}\right)e^{-Zr/3a_0}$
+                            </td>
                         </tr>
                         <tr>
                             <td>2</td>
-                            <td>$\dfrac{4}{81\sqrt{30}}\,r^2\,e^{-r/3}$</td>
+                            <td>$R_{32}(r)=\dfrac{2\sqrt{2}}{27\sqrt{5}}\!\left(\dfrac{Z}{3a_0}\right)^{\!3/2}\!\left(\dfrac{Zr}{a_0}\right)^{\!2}e^{-Zr/3a_0}$
+                            </td>
                         </tr>
                         <tr>
                             <td rowspan="4"
                                 style="color:var(--accent);font-weight:700;vertical-align:top;padding-top:14px;">4</td>
                             <td>0</td>
-                            <td>$\dfrac{1}{768}(192-144r+24r^2-r^3)e^{-r/4}$</td>
+                            <td>$R_{40}(r)=2\!\left(\dfrac{Z}{4a_0}\right)^{\!3/2}\!\left(1-\dfrac{3Zr}{4a_0}+\dfrac{(Zr)^2}{8a_0^2}-\dfrac{(Zr)^3}{192a_0^3}\right)e^{-Zr/4a_0}$
+                            </td>
                         </tr>
                         <tr>
                             <td>1</td>
-                            <td>$\dfrac{1}{256\sqrt{15}}(80-20r+r^2)\,r\,e^{-r/4}$</td>
+                            <td>$R_{41}(r)=\dfrac{\sqrt{5}}{16\sqrt{3}}\!\left(\dfrac{Z}{4a_0}\right)^{\!3/2}\dfrac{Zr}{a_0}\!\left(1-\dfrac{Zr}{4a_0}+\dfrac{(Zr)^2}{80a_0^2}\right)e^{-Zr/4a_0}$
+                            </td>
                         </tr>
                         <tr>
                             <td>2</td>
-                            <td>$\dfrac{1}{768\sqrt{5}}(12-r)\,r^2\,e^{-r/4}$</td>
+                            <td>$R_{42}(r)=\dfrac{1}{12\sqrt{5}}\!\left(\dfrac{Z}{4a_0}\right)^{\!3/2}\!\left(\dfrac{Zr}{a_0}\right)^{\!2}\!\left(1-\dfrac{Zr}{12a_0}\right)e^{-Zr/4a_0}$
+                            </td>
                         </tr>
                         <tr>
                             <td>3</td>
-                            <td>$\dfrac{1}{768\sqrt{35}}\,r^3\,e^{-r/4}$</td>
+                            <td>$R_{43}(r)=\dfrac{1}{96\sqrt{35}}\!\left(\dfrac{Z}{4a_0}\right)^{\!3/2}\!\left(\dfrac{Zr}{a_0}\right)^{\!3}e^{-Zr/4a_0}$
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -511,7 +529,8 @@
                     <input type="range" id="hydLslider" min="0" max="0" step="1" value="0">
                 </div>
                 <div class="ctrl-group">
-                    <span class="ctrl-label no-uppercase">m &nbsp;<span class="ctrl-val purple" id="hydMval">0</span></span>
+                    <span class="ctrl-label no-uppercase">m &nbsp;<span class="ctrl-val purple"
+                            id="hydMval">0</span></span>
                     <input type="range" class="purple-slider" id="hydMslider" min="0" max="0" step="1" value="0">
                 </div>
                 <div class="ctrl-group">
@@ -527,7 +546,8 @@
                 <span class="label">Orbital:</span>
                 <span id="hydFormula">$\psi_{100}$</span>
                 <span style="color:var(--text-muted); font-size:0.88rem;">&ensp;—&ensp;</span>
-                <span id="hydEnergyLabel" style="color:var(--accent5); font-size:0.88rem;">$E_1 = -13.6\;\text{eV}$</span>
+                <span id="hydEnergyLabel" style="color:var(--accent5); font-size:0.88rem;">$E_1 =
+                    -13.6\;\text{eV}$</span>
             </div>
 
             <div class="plot-wrap">
@@ -536,14 +556,73 @@
             <p style="color:var(--text-muted); font-size:0.85rem; margin-top:14px;">
                 Isosurface of $|\psi_{nlm}|^2$ at a threshold chosen to enclose the bulk of the probability density.
                 Color encodes the wavefunction amplitude.
-                The orbital shape comes from the full product $R_{nl}(r)\,Y_l^m(\theta,\varphi)$, showing radial nodes and angular structure together.
+                The orbital shape comes from the full product $R_{nl}(r)\,Y_l^m(\theta,\varphi)$, showing radial nodes
+                and angular structure together.
+            </p>
+        </div>
+
+        <!-- ═══ RADIAL PROBABILITY DENSITY SECTION ═══ -->
+        <div class="section" id="radial-prob">
+            <div class="section-title">Radial Probability Density
+                <span class="badge badge-theory">1D Plot</span>
+            </div>
+            <div class="section-subtitle">
+                The function $u_{n\ell}(r)=r\,R_{n\ell}(r)$ satisfies a 1-D Schrödinger equation with an effective
+                potential. Its square $|u_{n\ell}(r)|^2 = r^2|R_{n\ell}(r)|^2$ gives the probability of finding the
+                electron between $r$ and $r+dr$, irrespective of direction.
+            </div>
+
+            <div class="eq-box" style="margin-bottom:20px;">
+                <strong
+                    style="font-size:0.8rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.06em;">Definition
+                    &amp; normalisation</strong>
+                $$u_{n\ell}(r) \;=\; r\,R_{n\ell}(r)$$
+                $$\int_0^{\infty}|u_{n\ell}(r)|^2\,dr
+                = \int_0^{\infty}r^2|R_{n\ell}(r)|^2\,dr = 1$$
+                <p class="eq-note">The peak positions give the most probable radii; the number of nodes
+                    equals $n-\ell-1$ (the radial quantum number $n_r$).</p>
+            </div>
+
+            <div class="controls-row">
+                <div class="ctrl-group">
+                    <span class="ctrl-label no-uppercase">n &nbsp;<span class="ctrl-val" id="rpNval">1</span></span>
+                    <input type="range" id="rpNslider" min="1" max="6" step="1" value="1">
+                </div>
+                <div class="ctrl-group">
+                    <span class="ctrl-label no-uppercase">&#8467; &nbsp;<span class="ctrl-val"
+                            id="rpLval">0</span></span>
+                    <input type="range" id="rpLslider" min="0" max="0" step="1" value="0">
+                </div>
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Overlay all &#8467;</span>
+                    <div class="toggle-group">
+                        <button class="toggle-btn active" id="rpOverlayOff"
+                            onclick="setRpOverlay(false)">Single</button>
+                        <button class="toggle-btn" id="rpOverlayOn" onclick="setRpOverlay(true)">All &#8467;</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="rpFormulaStrip" class="formula-strip">
+                <span class="label">Plotting:</span>
+                <span id="rpFormula">$|u_{10}(r)|^2$</span>
+                <span style="color:var(--text-muted); font-size:0.88rem;">&ensp;—&ensp;</span>
+                <span id="rpNodeLabel" style="color:var(--accent2); font-size:0.88rem;">0 radial node(s)</span>
+            </div>
+
+            <div class="plot-wrap">
+                <div id="plotRadialProb" style="height:420px;"></div>
+            </div>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:14px;">
+                Shaded area under each curve integrates to 1. Vertical dashed lines mark the radial nodes
+                (zeros of $u_{n\ell}$, excluding $r=0$). The $r$-axis is in units of $a_0$.
             </p>
         </div>
 
     </main>
 
     <footer>
-        Updated by Meshy Ochana (2026), based on Ron Lifshitz's Mathematica Notebook (2016) | 
+        Updated by Meshy Ochana (2026), based on Ron Lifshitz's Mathematica Notebook (2016) |
         Built with Plotly.js &amp; MathJax
     </footer>
 
@@ -619,15 +698,17 @@
             return Lk;
         }
         function factorial(n) { let f = 1; for (let i = 2; i <= n; i++) f *= i; return f; }
-        // R_nl(r) matching the standard hydrogen formula:
-        // sqrt((2/(n*a0))^3 * (n-l-1)! / (2n*(n+l)!)) * exp(-ρ/2) * ρ^l * L_{n-l-1}^{2l+1}(ρ)
-        // where ρ = 2r/(n*a0), a0=1.
-        function R_nl(n, l, r) {
-            const p = n - l - 1;  // degree of the Laguerre polynomial
+        // R_nl(r) from image formula:
+        // R_nl(r) = (2/n²) * sqrt((Z/a0)³ * (n-l-1)!/(n+l)!) * ρ^l * exp(-ρ/2) * L_{n-l-1}^{(2l+1)}(ρ)
+        // where ρ = 2Z r/(n a0),  a0 = 1,  Z = 1 (hydrogen).
+        function R_nl(n, l, r, Z = 1) {
+            const p = n - l - 1;  // degree of the associated Laguerre polynomial
             if (p < 0) return 0;
-            const rho = 2 * r / n;
-            const pref = Math.sqrt(Math.pow(2 / n, 3) * factorial(p) / (2 * n * factorial(n + l)));
-            return pref * Math.exp(-rho / 2) * Math.pow(rho, l) * assocLaguerre(p, 2 * l + 1, rho);
+            const rho = 2 * Z * r / n;          // ρ = 2Z r / (n a₀),  a₀ = 1
+            const pref = (2 / (n * n)) * Math.sqrt(
+                Math.pow(Z, 3) * factorial(p) / factorial(n + l)
+            );
+            return pref * Math.pow(rho, l) * Math.exp(-rho / 2) * assocLaguerre(p, 2 * l + 1, rho);
         }
 
         // ─────────────────────────────────────────────────────
@@ -729,7 +810,7 @@
                     yF.push(p.y);
                     zF.push(p.z);
                     cF_linear.push(p.v);
-                    
+
                     // Logarithmic color scaling with power skew
                     const logVal = Math.pow((Math.log(p.v) - logMin) / logRange, power);
                     cF_log.push(logVal);
@@ -821,11 +902,147 @@
         }
 
         // ─────────────────────────────────────────────────────
+        //  RADIAL PROBABILITY DENSITY  |u_nl(r)|²  SECTION
+        // ─────────────────────────────────────────────────────
+        let rp_n = 1, rp_l = 0, rp_overlay = false;
+
+        function setRpOverlay(on) {
+            rp_overlay = on;
+            document.getElementById('rpOverlayOff').className = 'toggle-btn' + (!on ? ' active' : '');
+            document.getElementById('rpOverlayOn').className = 'toggle-btn' + (on ? ' active' : '');
+            updateRpPlot();
+        }
+
+        document.getElementById('rpNslider').addEventListener('input', function () {
+            rp_n = parseInt(this.value);
+            document.getElementById('rpNval').textContent = rp_n;
+            const rpLslider = document.getElementById('rpLslider');
+            rpLslider.max = rp_n - 1;
+            rp_l = Math.min(rp_l, rp_n - 1);
+            rpLslider.value = rp_l;
+            document.getElementById('rpLval').textContent = rp_l;
+            updateRpLabel(); updateRpPlot();
+        });
+        document.getElementById('rpLslider').addEventListener('input', function () {
+            rp_l = parseInt(this.value);
+            document.getElementById('rpLval').textContent = rp_l;
+            updateRpLabel(); updateRpPlot();
+        });
+
+        function updateRpLabel() {
+            const el = document.getElementById('rpFormula');
+            el.innerHTML = rp_overlay
+                ? `$|u_{${rp_n}\\,\\ell}(r)|^2,\\; \\ell=0\\ldots${rp_n - 1}$`
+                : `$|u_{${rp_n}\\,${rp_l}}(r)|^2$`;
+            const nodes = rp_n - rp_l - 1;
+            document.getElementById('rpNodeLabel').textContent =
+                rp_overlay ? '' : `${nodes} radial node${nodes !== 1 ? 's' : ''}`;
+            if (window.MathJax) MathJax.typesetPromise([el]);
+        }
+
+        // Palette for overlay mode (one colour per l value)
+        const RP_COLORS = ['#2563eb', '#7c3aed', '#059669', '#db2777', '#d97706', '#0891b2'];
+        const RP_NAMES = ['s', 'p', 'd', 'f', 'g', 'h'];
+
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r},${g},${b},${alpha})`;
+        }
+
+        function buildRpTrace(n, l) {
+            const rMax = (2.5 * n * n + 6 * n) * 1.1;   // generous upper bound in a₀
+            const NR = 800;
+            const dr = rMax / NR;
+            const rArr = [], uArr = [];
+            // Find nodes (sign changes) for dashes
+            const nodeR = [];
+            let prevSign = 0;
+            for (let i = 0; i <= NR; i++) {
+                const r = i * dr;
+                const u = r * R_nl(n, l, r);   // u = r·R_nl
+                rArr.push(r);
+                uArr.push(u * u);               // |u|²
+                const s = Math.sign(R_nl(n, l, r + 1e-6));  // sign of R at slightly offset r
+                if (i > 0 && prevSign !== 0 && s !== 0 && s !== prevSign && r > 1e-3) {
+                    nodeR.push(r);
+                }
+                if (s !== 0) prevSign = s;
+            }
+            return { rArr, uArr, nodeR };
+        }
+
+        function updateRpPlot() {
+            const traces = [];
+            const shapes = [];
+            const annotations = [];
+
+            // Determine which (n,l) pairs to plot
+            const pairs = rp_overlay
+                ? Array.from({ length: rp_n }, (_, i) => [rp_n, i])
+                : [[rp_n, rp_l]];
+
+            const rMax = (2.5 * rp_n * rp_n + 6 * rp_n) * 1.1;
+
+            pairs.forEach(([n, l], idx) => {
+                const col = RP_COLORS[l % RP_COLORS.length];
+                const { rArr, uArr, nodeR } = buildRpTrace(n, l);
+
+                // Main line
+                traces.push({
+                    x: rArr, y: uArr,
+                    type: 'scatter', mode: 'lines',
+                    name: rp_overlay ? `ℓ=${l} (${RP_NAMES[l] || l})` : `|u_{${n}${l}}|²`,
+                    line: { color: col, width: 2.5 },
+                    fill: 'tozeroy',
+                    fillcolor: hexToRgba(col, 0.10),
+                    hovertemplate: `r=%{x:.2f} a₀<br>|u|²=%{y:.4f}<extra>${rp_overlay ? `ℓ=${l}` : `(${n},${l})`}</extra>`
+                });
+
+                // Node dashed vertical lines
+                nodeR.forEach(nr => {
+                    shapes.push({
+                        type: 'line', x0: nr, x1: nr, y0: 0, y1: 1,
+                        yref: 'paper',
+                        line: { color: col, width: 1.2, dash: 'dot' }
+                    });
+                });
+            });
+
+            const layout = {
+                paper_bgcolor: '#ffffff', plot_bgcolor: '#f8fafc',
+                font: { family: 'Inter, sans-serif', color: '#475569', size: 12 },
+                margin: { l: 60, r: 30, t: 36, b: 54 },
+                xaxis: {
+                    title: { text: 'r / a₀', font: { size: 13 } },
+                    range: [0, rMax],
+                    gridcolor: '#e2e8f0', zeroline: true, zerolinecolor: '#cbd5e1'
+                },
+                yaxis: {
+                    title: { text: '|u<sub>nℓ</sub>(r)|²', font: { size: 13 } },
+                    rangemode: 'tozero',
+                    gridcolor: '#e2e8f0', zeroline: false
+                },
+                legend: {
+                    orientation: 'v', x: 0.97, xanchor: 'right', y: 0.97, yanchor: 'top',
+                    bgcolor: 'rgba(255,255,255,0.85)', bordercolor: '#e2e8f0', borderwidth: 1
+                },
+                shapes,
+                hovermode: 'x unified'
+            };
+
+            Plotly.react('plotRadialProb', traces, layout, { responsive: true, scrollZoom: false });
+        }
+
+        // ─────────────────────────────────────────────────────
         //  INIT
         // ─────────────────────────────────────────────────────
         window.addEventListener('load', () => {
             updateHydLabel();
             updateHydPlot();
+            updateRpLabel();
+            updateRpPlot();
 
             // Zoom prevention for Hydrogen plot
             const plotDiv = document.getElementById('plotHydrogen');
