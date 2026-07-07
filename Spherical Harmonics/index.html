@@ -527,6 +527,22 @@
             background: var(--surface);
         }
 
+        #formulas {
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+        #formulas .section-subtitle {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+        }
+        #formulas .sol-table-wrap {
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        #formulas table td {
+            padding: 4px 4px !important;
+        }
+
         @media(max-width: 640px) {
             .section {
                 padding: 20px 16px;
@@ -650,164 +666,66 @@
                 $Y_l^{-m}=(-1)^m(Y_l^m)^*$.
             </div>
 
-            <!-- l selector for formulas section -->
-            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
-                <span
-                    style="font-size:0.82rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.07em;">Choose
-                    l:</span>
-                <div class="l-btn-grid" id="formulaLBtns">
-                    <button class="l-btn active" id="flbtn0" onclick="setFormulaL(0)">0</button>
-                    <button class="l-btn" id="flbtn1" onclick="setFormulaL(1)">1</button>
-                    <button class="l-btn" id="flbtn2" onclick="setFormulaL(2)">2</button>
-                    <button class="l-btn" id="flbtn3" onclick="setFormulaL(3)">3</button>
-                    <button class="l-btn" id="flbtn4" onclick="setFormulaL(4)">4</button>
-                </div>
-            </div>
-
-            <!-- Formula panels, one per l -->
-            <div id="formulaPanel0" class="formula-panel">
-                <div class="sol-table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="no-uppercase">m</th>
-                                <th>$Y_0^m(\theta,\varphi)$</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">0</td>
-                                <td>$\dfrac{1}{2\sqrt{\pi}}$</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="formulaPanel1" class="formula-panel" style="display:none;">
-                <div class="sol-table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="no-uppercase">m</th>
-                                <th>$Y_1^m(\theta,\varphi)$</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">0</td>
-                                <td>$\dfrac{1}{2}\sqrt{\dfrac{3}{\pi}}\,\cos\theta$</td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">1</td>
-                                <td>$-\dfrac{1}{2}\sqrt{\dfrac{3}{2\pi}}\,\sin\theta\;e^{i\varphi}$</td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">−1</td>
-                                <td>$\dfrac{1}{2}\sqrt{\dfrac{3}{2\pi}}\,\sin\theta\;e^{-i\varphi}$</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="formulaPanel2" class="formula-panel" style="display:none;">
-                <div class="sol-table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="no-uppercase">m</th>
-                                <th>$Y_2^m(\theta,\varphi)$</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">0</td>
-                                <td>$\dfrac{1}{4}\sqrt{\dfrac{5}{\pi}}\,(3\cos^2\!\theta-1)$</td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±1</td>
-                                <td>$\mp\dfrac{1}{2}\sqrt{\dfrac{15}{2\pi}}\,\sin\theta\cos\theta\;e^{\pm i\varphi}$
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±2</td>
-                                <td>$\dfrac{1}{4}\sqrt{\dfrac{15}{2\pi}}\,\sin^2\!\theta\;e^{\pm 2i\varphi}$</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="formulaPanel3" class="formula-panel" style="display:none;">
-                <div class="sol-table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="no-uppercase">m</th>
-                                <th>$Y_3^m(\theta,\varphi)$</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">0</td>
-                                <td>$\dfrac{1}{4}\sqrt{\dfrac{7}{\pi}}\,(5\cos^3\!\theta-3\cos\theta)$</td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±1</td>
-                                <td>$\mp\dfrac{1}{8}\sqrt{\dfrac{21}{\pi}}\,\sin\theta(5\cos^2\!\theta-1)\;e^{\pm
-                                    i\varphi}$</td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±2</td>
-                                <td>$\dfrac{1}{4}\sqrt{\dfrac{105}{2\pi}}\,\sin^2\!\theta\cos\theta\;e^{\pm 2i\varphi}$
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±3</td>
-                                <td>$\mp\dfrac{1}{8}\sqrt{\dfrac{35}{\pi}}\,\sin^3\!\theta\;e^{\pm 3i\varphi}$</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="formulaPanel4" class="formula-panel" style="display:none;">
-                <div class="sol-table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="no-uppercase">m</th>
-                                <th>$Y_4^m(\theta,\varphi)$</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">0</td>
-                                <td>$\dfrac{3}{16\sqrt{\pi}}\,(35\cos^4\!\theta-30\cos^2\!\theta+3)$</td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±1</td>
-                                <td>$\mp\dfrac{3}{8}\sqrt{\dfrac{5}{\pi}}\,\sin\theta(7\cos^3\!\theta-3\cos\theta)\;e^{\pm
-                                    i\varphi}$</td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±2</td>
-                                <td>$\dfrac{3}{8}\sqrt{\dfrac{5}{2\pi}}\,\sin^2\!\theta(7\cos^2\!\theta-1)\;e^{\pm
-                                    2i\varphi}$</td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±3</td>
-                                <td>$\mp\dfrac{3}{8}\sqrt{\dfrac{35}{\pi}}\,\sin^3\!\theta\cos\theta\;e^{\pm 3i\varphi}$
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="color:var(--accent2);font-weight:600;">±4</td>
-                                <td>$\dfrac{3}{16}\sqrt{\dfrac{35}{2\pi}}\,\sin^4\!\theta\;e^{\pm 4i\varphi}$</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div class="sol-table-wrap">
+                <table style="table-layout: fixed; width: 100%; font-size: 0.72rem;">
+                    <thead>
+                        <tr>
+                            <th style="width: 8%; text-align: center; border-right: 1px solid var(--border);">m</th>
+                            <th style="width: 15%; text-align: center; border-right: 1px solid var(--border);">l = 0</th>
+                            <th style="width: 17%; text-align: center; border-right: 1px solid var(--border);">l = 1</th>
+                            <th style="width: 20%; text-align: center; border-right: 1px solid var(--border);">l = 2</th>
+                            <th style="width: 20%; text-align: center; border-right: 1px solid var(--border);">l = 3</th>
+                            <th style="width: 20%; text-align: center;">l = 4</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- m = 0 -->
+                        <tr>
+                            <td style="font-weight: 700; text-align: center; border-right: 1px solid var(--border); color: var(--accent);">0</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\dfrac{1}{2\sqrt{\pi}}$</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\dfrac{1}{2}\sqrt{\dfrac{3}{\pi}}\,\cos\theta$</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\dfrac{1}{4}\sqrt{\dfrac{5}{\pi}}\,(3\cos^2\!\theta-1)$</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\dfrac{1}{4}\sqrt{\dfrac{7}{\pi}}\,(5\cos^3\!\theta-3\cos\theta)$</td>
+                            <td style="text-align: center; padding: 20px 8px;">$\dfrac{3}{16\sqrt{\pi}}\,(35\cos^4\!\theta-30\cos^2\!\theta+3)$</td>
+                        </tr>
+                        <!-- m = ±1 -->
+                        <tr style="background: var(--surface2);">
+                            <td style="font-weight: 700; text-align: center; border-right: 1px solid var(--border); color: var(--accent);">&pm;1</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\mp\dfrac{1}{2}\sqrt{\dfrac{3}{2\pi}}\,\sin\theta\;e^{\pm i\varphi}$</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\mp\dfrac{1}{2}\sqrt{\dfrac{15}{2\pi}}\,\sin\theta\cos\theta\;e^{\pm i\varphi}$</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\mp\dfrac{1}{8}\sqrt{\dfrac{21}{\pi}}\,\sin\theta(5\cos^2\!\theta-1)\;e^{\pm i\varphi}$</td>
+                            <td style="text-align: center; padding: 20px 8px;">$\mp\dfrac{3}{8}\sqrt{\dfrac{5}{\pi}}\,\sin\theta(7\cos^3\!\theta-3\cos\theta)\;e^{\pm i\varphi}$</td>
+                        </tr>
+                        <!-- m = ±2 -->
+                        <tr>
+                            <td style="font-weight: 700; text-align: center; border-right: 1px solid var(--border); color: var(--accent);">&pm;2</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\dfrac{1}{4}\sqrt{\dfrac{15}{2\pi}}\,\sin^2\!\theta\;e^{\pm 2i\varphi}$</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\dfrac{1}{4}\sqrt{\dfrac{105}{2\pi}}\,\sin^2\!\theta\cos\theta\;e^{\pm 2i\varphi}$</td>
+                            <td style="text-align: center; padding: 20px 8px;">$\dfrac{3}{8}\sqrt{\dfrac{5}{2\pi}}\,\sin^2\!\theta(7\cos^2\!\theta-1)\;e^{\pm 2i\varphi}$</td>
+                        </tr>
+                        <!-- m = ±3 -->
+                        <tr style="background: var(--surface2);">
+                            <td style="font-weight: 700; text-align: center; border-right: 1px solid var(--border); color: var(--accent);">&pm;3</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); padding: 20px 8px;">$\mp\dfrac{1}{8}\sqrt{\dfrac{35}{\pi}}\,\sin^3\!\theta\;e^{\pm 3i\varphi}$</td>
+                            <td style="text-align: center; padding: 20px 8px;">$\mp\dfrac{3}{8}\sqrt{\dfrac{35}{\pi}}\,\sin^3\!\theta\cos\theta\;e^{\pm 3i\varphi}$</td>
+                        </tr>
+                        <!-- m = ±4 -->
+                        <tr>
+                            <td style="font-weight: 700; text-align: center; border-right: 1px solid var(--border); color: var(--accent);">&pm;4</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); padding: 20px 8px;">—</td>
+                            <td style="text-align: center; padding: 20px 8px;">$\dfrac{3}{16}\sqrt{\dfrac{35}{2\pi}}\,\sin^4\!\theta\;e^{\pm 4i\varphi}$</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -1114,14 +1032,6 @@
         // ─────────────────────────────────────────────────────
         //  SECTION 2 – Formula panel switcher
         // ─────────────────────────────────────────────────────
-        let formulaL = 0;
-        function setFormulaL(lval) {
-            document.getElementById('formulaPanel' + formulaL).style.display = 'none';
-            document.getElementById('flbtn' + formulaL).classList.remove('active');
-            formulaL = lval;
-            document.getElementById('formulaPanel' + lval).style.display = 'block';
-            document.getElementById('flbtn' + lval).classList.add('active');
-        }
 
         // ─────────────────────────────────────────────────────
         //  SECTION 3 – Angular plots  (|Ylm|)
