@@ -333,7 +333,7 @@
 
 <header>
     <h1>Legendre Polynomials</h1>
-    <p>Interactive reference: the ODE, solutions P<sub>l</sub><sup>m</sup>(x) and Q<sub>l</sub><sup>m</sup>(x) and function expansion.</p>
+    <p>Interactive reference: the ODE, solution P<sub>l</sub><sup>m</sup>(x), and function expansion.</p>
 </header>
 
 <nav>
@@ -362,29 +362,32 @@
         <p class="ode-note" style="margin-top: 15px; font-weight: 600; color: var(--text);">
             General Solution: $\;y(x) = c_1 P_l^m(x) + c_2 Q_l^m(x)$
         </p>
+        <p class="ode-note" style="margin-top: 8px; color: var(--text-muted);">
+            The second solution $Q_l(x)$ <strong>diverges at $x = \pm 1$</strong> and is excluded from physical applications.
+        </p>
     </div>
 
     <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">
-        The equation has two linearly independent solutions for each pair $(l,m)$. The parameter $l$ must be a non-negative integer for the solutions to remain finite on $[-1,1]$.
+        The parameter $l$ must be a non-negative integer for the solutions to remain finite on $[-1,1]$.
         The parameter $m$ is the <em>order</em> of the associated polynomial.
     </p>
 
+    <div style="margin-bottom: 8px;">
+        <span style="color:var(--accent); font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em;">&#9654; First kind: P<sub>l</sub><sup>m</sup>(x) — General form</span>
+    </div>
     <div class="rodrigues-box">
         <div class="rodrigues-card">
-            <h4>&#9654; First kind: P<sub>l</sub><sup>m</sup>(x) — General form</h4>
-            $$P_l^m(x) = \frac{(-1)^m}{2^l\,l!}(1-x^2)^{m/2}\frac{d^{l+m}}{dx^{l+m}}(x^2-1)^l$$
+            <h4>P<sub>l</sub>(x) &nbsp;<span style="font-weight:400; color:var(--text-muted); font-size:0.78rem; text-transform:none; letter-spacing:0;">[m = 0, Legendre polynomials]</span></h4>
+            $$P_l(x) = \frac{1}{2^l l!}\frac{d^l}{dx^l}(x^2-1)^l$$
             <p style="color:var(--text-muted); font-size:0.85rem; margin-top:10px;">
-                Rodrigues formula for $m=0$: $\;P_l(x) = \dfrac{1}{2^l l!}\dfrac{d^l}{dx^l}(x^2-1)^l$. &nbsp;
-                Recurrence: $(l-m+1)P_{l+1}^m = (2l+1)x\,P_l^m - (l+m)P_{l-1}^m$
+                Recurrence:&nbsp; $(l+1)P_{l+1}(x) = (2l+1)x\,P_l(x) - l\,P_{l-1}(x)$
             </p>
         </div>
-        <div class="rodrigues-card q-card">
-            <h4>&#9654; Second kind: Q<sub>l</sub><sup>m</sup>(x) — general form</h4>
-            $$Q_l^m(x) = (-1)^m(1-x^2)^{m/2}\frac{d^m}{dx^m}Q_l(x)$$
-            where $\;Q_l(x) = \frac{1}{2}P_l(x)\ln\!\frac{1+x}{1-x} - W_{l-1}(x)$
+        <div class="rodrigues-card">
+            <h4>P<sub>l</sub><sup>m</sup>(x) &nbsp;<span style="font-weight:400; color:var(--text-muted); font-size:0.78rem; text-transform:none; letter-spacing:0;">[Associated Legendre]</span></h4>
+            $$P_l^m(x) = (1-x^2)^{m/2}\frac{d^m}{dx^m}P_l(x)$$
             <p style="color:var(--text-muted); font-size:0.85rem; margin-top:10px;">
-                $Q_l$ is singular at $x = \pm 1$ and is excluded from physical applications requiring finite boundary conditions.
-                See the <a href="https://dlmf.nist.gov/14.7" target="_blank" style="color: var(--accent); font-weight: 500; text-decoration: underline;">DLMF Section 14.7</a> for further details.
+                Recurrence:&nbsp; $(l-m+1)P_{l+1}^m = (2l+1)x\,P_l^m - (l+m)P_{l-1}^m$
             </p>
         </div>
     </div>
@@ -394,7 +397,7 @@
         <ul style="margin-top:10px; padding-left:20px; color:var(--text-muted); font-size:0.9rem; display:flex; flex-direction:column; gap:6px;">
             <li><strong style="color:var(--text)">Orthogonality:</strong> $\displaystyle\int_{-1}^{1} P_l^m(x)\,P_{l'}^m(x)\,dx = \frac{2}{2l+1}\frac{(l+m)!}{(l-m)!}\,\delta_{ll'}$</li>
             <li><strong style="color:var(--text)">Symmetry:</strong> $P_l^{-m}(x) = (-1)^m\dfrac{(l-m)!}{(l+m)!}P_l^m(x)$</li>
-            <li><strong style="color:var(--text)">Connection to spherical harmonics:</strong> $Y_l^m(\theta,\phi) = \sqrt{\frac{2l+1}{4\pi}\frac{(l-m)!}{(l+m)!}}\,P_l^m(\cos\theta)\,e^{im\phi}$</li>
+            <li><strong style="color:var(--text)">Connection to spherical harmonics (for $m \ge 0$):</strong> $Y_l^m(\theta,\phi) = \sqrt{\frac{2l+1}{4\pi}\frac{(l-m)!}{(l+m)!}}\,(-1)^m P_l^m(\cos\theta)\,e^{im\phi}$</li>
         </ul>
     </div>
 </div>
@@ -406,13 +409,7 @@
 <div class="section" id="solutions">
     <div class="section-title">2. First 8 Solutions <span class="badge">Reference</span></div>
     <div class="section-subtitle">
-        Explicit closed-form expressions for $l = 0, 1, \ldots, 7$ with $m = 0$.
-        Switch between the first-kind $P_l^m$ and second-kind $Q_l^m$ solutions.
-    </div>
-
-    <div class="tab-row">
-        <button class="tab-btn active" id="tabBtnP" onclick="switchTab('P')">P<sub>l</sub>(x) — First Kind</button>
-        <button class="tab-btn" id="tabBtnQ" onclick="switchTab('Q')">Q<sub>l</sub>(x) — Second Kind</button>
+        Explicit closed-form expressions for $l = 0, 1, \ldots, 7$.
     </div>
 
     <!-- P solutions -->
@@ -437,107 +434,48 @@
                     <tr>
                         <td><span class="lval">1</span></td>
                         <td>$x$</td>
-                        <td>$-(1-x^2)^{1/2}$</td>
+                        <td>$(1-x^2)^{1/2}$</td>
                         <td>—</td>
                     </tr>
                     <tr>
                         <td><span class="lval">2</span></td>
                         <td>$\frac{1}{2}(3x^2-1)$</td>
-                        <td>$-3x(1-x^2)^{1/2}$</td>
+                        <td>$3x(1-x^2)^{1/2}$</td>
                         <td>$3(1-x^2)$</td>
                     </tr>
                     <tr>
                         <td><span class="lval">3</span></td>
                         <td>$\frac{1}{2}(5x^3-3x)$</td>
-                        <td>$-\frac{3}{2}(5x^2-1)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{3}{2}(5x^2-1)(1-x^2)^{1/2}$</td>
                         <td>$15x(1-x^2)$</td>
                     </tr>
                     <tr>
                         <td><span class="lval">4</span></td>
                         <td>$\frac{1}{8}(35x^4-30x^2+3)$</td>
-                        <td>$-\frac{5}{2}(7x^3-3x)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{5}{2}(7x^3-3x)(1-x^2)^{1/2}$</td>
                         <td>$\frac{15}{2}(7x^2-1)(1-x^2)$</td>
                     </tr>
                     <tr>
                         <td><span class="lval">5</span></td>
                         <td>$\frac{1}{8}(63x^5-70x^3+15x)$</td>
-                        <td>$-\frac{15}{8}(21x^4-14x^2+1)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{15}{8}(21x^4-14x^2+1)(1-x^2)^{1/2}$</td>
                         <td>$\frac{105}{2}(3x^3-x)(1-x^2)$</td>
                     </tr>
                     <tr>
                         <td><span class="lval">6</span></td>
                         <td>$\frac{1}{16}(231x^6-315x^4+105x^2-5)$</td>
-                        <td>$-\frac{21}{8}(33x^5-30x^3+5x)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{21}{8}(33x^5-30x^3+5x)(1-x^2)^{1/2}$</td>
                         <td>$\frac{105}{8}(33x^4-18x^2+1)(1-x^2)$</td>
                     </tr>
                     <tr>
                         <td><span class="lval">7</span></td>
                         <td>$\frac{1}{16}(429x^7-693x^5+315x^3-35x)$</td>
-                        <td>$-\frac{7}{16}(429x^6-495x^4+135x^2-5)(1-x^2)^{1/2}$</td>
+                        <td>$\frac{7}{16}(429x^6-495x^4+135x^2-5)(1-x^2)^{1/2}$</td>
                         <td>$\frac{315}{8}(11x^5-10x^3+x)(1-x^2)$</td>
                     </tr>
                 </tbody>
             </table>
         </div>
-        <p style="color:var(--text-muted); font-size:0.85rem; margin-top:12px;">
-            <span class="info-pill">Rodrigues</span>
-            &nbsp;$P_l(x) = \dfrac{1}{2^l l!}\dfrac{d^l}{dx^l}(x^2-1)^l$, &nbsp;&nbsp;
-            $P_l^m(x) = (-1)^m(1-x^2)^{m/2}\dfrac{d^m}{dx^m}P_l(x)$
-        </p>
-    </div>
-
-    <!-- Q solutions -->
-    <div class="tab-content" id="tabQ">
-        <div class="sol-table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>l</th>
-                        <th>Q<sub>l</sub>(x) &nbsp;<span style="color:var(--text-dim)">[m = 0]</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><span class="lval">0</span></td>
-                        <td>$\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)$</td>
-                    </tr>
-                    <tr>
-                        <td><span class="lval">1</span></td>
-                        <td>$x\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) - 1$</td>
-                    </tr>
-                    <tr>
-                        <td><span class="lval">2</span></td>
-                        <td>$\frac{1}{2}(3x^2 - 1)\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) - \frac{3x}{2}$</td>
-                    </tr>
-                    <tr>
-                        <td><span class="lval">3</span></td>
-                        <td>$-\frac{5x^2}{2} - \frac{1}{2}(3 - 5x^2)x\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) + \frac{2}{3}$</td>
-                    </tr>
-                    <tr>
-                        <td><span class="lval">4</span></td>
-                        <td>$-\frac{35x^3}{8} + \frac{1}{8}(35x^4 - 30x^2 + 3)\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) + \frac{55x}{24}$</td>
-                    </tr>
-                    <tr>
-                        <td><span class="lval">5</span></td>
-                        <td>$-\frac{63x^4}{8} + \frac{49x^2}{8} + \frac{1}{8}(63x^4 - 70x^2 + 15)x\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) - \frac{8}{15}$</td>
-                    </tr>
-                    <tr>
-                        <td><span class="lval">6</span></td>
-                        <td>$-\frac{231x^5}{16} + \frac{119x^3}{8} + \frac{1}{16}(231x^6 - 315x^4 + 105x^2 - 5)\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) - \frac{231x}{80}$</td>
-                    </tr>
-                    <tr>
-                        <td><span class="lval">7</span></td>
-                        <td>$-\frac{429x^6}{16} + \frac{275x^4}{8} - \frac{849x^2}{80} - \frac{1}{16}(-429x^6 + 693x^4 - 315x^2 + 35)x\left(\frac{1}{2}\log(x+1) - \frac{1}{2}\log(1-x)\right) + \frac{16}{35}$</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <p style="color:var(--text-muted); font-size:0.85rem; margin-top:12px;">
-            <span class="info-pill" style="background:rgba(219,39,119,0.06); border-color:rgba(219,39,119,0.15); color:var(--q-color);">Note</span>
-            &nbsp;$Q_l^m(x) = (-1)^m(1-x^2)^{m/2}\dfrac{d^m}{dx^m}Q_l(x)$. &nbsp;
-            $Q_l(x) = \dfrac{1}{2}P_l(x)(\log(x+1) - \log(1-x)) - W_{l-1}(x)$ where $W_{l-1}$ is a degree-$(l-1)$ polynomial.
-            The solutions diverge logarithmically at $x = \pm 1$.
-        </p>
     </div>
 </div>
 
@@ -548,7 +486,7 @@
 <div class="section" id="plots">
     <div class="section-title">3. Interactive Plots <span class="badge">Interactive</span></div>
     <div class="section-subtitle">
-        Plot the first 8 associated Legendre functions $P_l^m(x)$ and $Q_l^m(x)$ for $x \in [-1,1]$.
+        Plot the first 8 associated Legendre functions $P_l^m(x)$ for $x \in [-1,1]$.
         Use the slider to vary the order $m$ from $-3$ to $3$.
     </div>
 
@@ -567,34 +505,19 @@
                 <span class="ctrl-val" id="lMaxVal">l = 0…7</span>
             </div>
         </div>
+        <div class="ctrl-group">
+            <label style="font-size: 0.82rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;">
+                <input type="checkbox" id="autoScaleP" style="cursor: pointer;"> Auto-rescale Y
+            </label>
+        </div>
     </div>
 
-    <div class="dual-plots">
-        <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="color:var(--accent); font-size:0.85rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">
-                    ▸ First Kind P<sub>l</sub><sup>m</sup>(x)
-                </span>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
-                    <input type="checkbox" id="autoScaleP" style="cursor: pointer;"> Auto-rescale Y
-                </label>
-            </div>
-            <div class="plot-wrap">
-                <div id="plotP" class="plot-div-tall"></div>
-            </div>
+    <div>
+        <div style="color:var(--accent); font-size:0.85rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-bottom: 8px;">
+            ▸ First Kind P<sub>l</sub><sup>m</sup>(x)
         </div>
-        <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="color:var(--q-color); font-size:0.85rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">
-                    ▸ Second Kind Q<sub>l</sub><sup>m</sup>(x)
-                </span>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
-                    <input type="checkbox" id="autoScaleQ" style="cursor: pointer;"> Auto-rescale Y
-                </label>
-            </div>
-            <div class="plot-wrap">
-                <div id="plotQ" class="plot-div-tall"></div>
-            </div>
+        <div class="plot-wrap">
+            <div id="plotP" class="plot-div-tall"></div>
         </div>
     </div>
 </div>
@@ -897,41 +820,28 @@ function updatePlots() {
     document.getElementById('lMaxVal').textContent = `l = ${Math.abs(m)}…${lMax}`;
 
     const pTraces = buildPTraces(m, lMax);
-    const qTraces = buildQTraces(m, lMax);
 
     const autoScaleP = document.getElementById('autoScaleP').checked;
-    const autoScaleQ = document.getElementById('autoScaleQ').checked;
 
     // Smart default ranges based on mAbs to fit the curves beautifully
     const mAbs = Math.abs(m);
-    let pRange, qRange;
+    let pRange;
     if (mAbs === 0) {
         pRange = [-1.2, 1.2];
-        qRange = [-4, 4];
     } else if (mAbs === 1) {
         pRange = [-10, 10];
-        qRange = [-15, 15];
     } else if (mAbs === 2) {
         pRange = [-60, 60];
-        qRange = [-80, 80];
     } else { // mAbs === 3
         pRange = [-400, 400];
-        qRange = [-600, 600];
     }
 
     const yaxisP = autoScaleP ? {} : { range: pRange };
-    const yaxisQ = autoScaleQ ? {} : { range: qRange };
 
     Plotly.react('plotP', pTraces, makeLayout({
         title: { text: `P<sub>l</sub><sup>${m}</sup>(x)`, font: { size: 14 } },
         xaxis: { title: 'x', range: [-1, 1] },
         yaxis: Object.assign({ title: 'P' }, yaxisP)
-    }));
-
-    Plotly.react('plotQ', qTraces, makeLayout({
-        title: { text: `Q<sub>l</sub><sup>${m}</sup>(x)`, font: { size: 14 } },
-        xaxis: { title: 'x', range: [-1, 1] },
-        yaxis: Object.assign({ title: 'Q' }, yaxisQ)
     }));
 }
 
@@ -944,7 +854,6 @@ document.getElementById('lMaxSlider').addEventListener('input', function() {
     updatePlots();
 });
 document.getElementById('autoScaleP').addEventListener('change', updatePlots);
-document.getElementById('autoScaleQ').addEventListener('change', updatePlots);
 
 // ─────────────────────────────────────────────────────
 //  SECTION 4: Expansion
@@ -1068,11 +977,6 @@ function updateExpansion() {
 //  Tab switch
 // ─────────────────────────────────────────────────────
 function switchTab(which) {
-    document.getElementById('tabP').classList.toggle('active', which === 'P');
-    document.getElementById('tabQ').classList.toggle('active', which === 'Q');
-    document.getElementById('tabBtnP').classList.toggle('active', which === 'P');
-    document.getElementById('tabBtnQ').classList.toggle('active', which === 'Q');
-    document.getElementById('tabBtnQ').classList.toggle('q-active', which === 'Q');
     if (window.MathJax) MathJax.typesetPromise();
 }
 
