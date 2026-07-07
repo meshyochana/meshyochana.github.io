@@ -548,7 +548,7 @@
     </header>
 
     <nav>
-        <a href="#laplace">Laplace's Equation</a>
+        <a href="#schrodinger">Schrödinger Equation</a>
         <a href="#formulas">Explicit Formulas</a>
         <a href="#angular-plot">Angular Plots</a>
         <a href="#components">Real &amp; Imaginary</a>
@@ -557,84 +557,85 @@
     <main>
 
         <!-- ══════════════════════════════════════════════════════
-     SECTION 1 – LAPLACE'S EQUATION
+     SECTION 1 – SCHRÖDINGER EQUATION & SPHERICAL HARMONICS
 ══════════════════════════════════════════════════════ -->
-        <div class="section" id="laplace">
-            <div class="section-title">1. Laplace's Equation in Spherical Coordinates <span
+        <div class="section" id="schrodinger">
+            <div class="section-title">1. Spherical Harmonics from the Schrödinger Equation <span
                     class="badge badge-theory">Theory</span></div>
             <div class="section-subtitle">
-                Separation of variables in spherical coordinates leads directly to the spherical harmonics as
-                eigenfunctions of the angular part.
+                Starting from the time-independent Schrödinger equation with a central potential $V(\mathbf{r})=V(r)$,
+                separation of variables in spherical coordinates leads to the spherical harmonics as eigenfunctions of
+                the angular part.
             </div>
 
             <div class="eq-box">
-                $$\nabla^2 f = \frac{1}{r^2}\frac{\partial}{\partial r}\!\left(r^2\frac{\partial f}{\partial r}\right)
-                + \frac{1}{r^2\sin\theta}\frac{\partial}{\partial\theta}\!\left(\sin\theta\frac{\partial
-                f}{\partial\theta}\right)
-                + \frac{1}{r^2\sin^2\theta}\frac{\partial^2 f}{\partial\varphi^2} = 0$$
+                <strong
+                    style="font-size:0.8rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.06em;">Time-independent
+                    Schrödinger equation</strong>
+                $$-\frac{\hbar^2}{2m}\nabla^2\psi(\mathbf{r}) + V(r)\,\psi(\mathbf{r}) = E\,\psi(\mathbf{r})$$
             </div>
 
             <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:18px;">
-                Consider solutions of the form $f(r,\theta,\varphi) = R(r)\,Y(\theta,\varphi)$. Substituting and
-                separating gives one radial and one angular equation:
+                Writing the Laplacian in spherical coordinates:
             </p>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px;">
-                <div class="eq-box" style="margin-bottom:0;">
-                    <strong
-                        style="font-size:0.8rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.06em;">Radial
-                        equation</strong>
-                    $$\frac{1}{R}\frac{d}{dr}\!\left(r^2\frac{dR}{dr}\right) = \lambda$$
-                    <p class="eq-note">$\lambda = l(l+1)$, $l=0,1,2,\ldots$, for regularity at the origin.</p>
-                </div>
-                <div class="eq-box purple" style="margin-bottom:0;">
-                    <strong
-                        style="font-size:0.8rem; color:var(--accent2); text-transform:uppercase; letter-spacing:0.06em;">Angular
-                        equation</strong>
-                    $$\frac{1}{Y\sin\theta}\frac{\partial}{\partial\theta}\!\left(\sin\theta\frac{\partial
-                    Y}{\partial\theta}\right)
-                    + \frac{1}{Y\sin^2\!\theta}\frac{\partial^2 Y}{\partial\varphi^2} = -\lambda$$
-                </div>
+            <div class="eq-box">
+                $$-\frac{\hbar^2}{2m}\!\left[\frac{1}{r^2}\frac{\partial}{\partial r}\!\left(r^2\frac{\partial}{\partial r}\right)
+                + \frac{1}{r^2\sin\theta}\frac{\partial}{\partial\theta}\!\left(\sin\theta\frac{\partial}{\partial\theta}\right)
+                + \frac{1}{r^2\sin^2\!\theta}\frac{\partial^2}{\partial\varphi^2}\right]\psi(\mathbf{r})
+                = \bigl[E - V(r)\bigr]\,\psi(\mathbf{r})$$
             </div>
 
-            <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:14px;">
-                Setting $Y(\theta,\varphi)=\Theta(\theta)\Phi(\varphi)$ and separating again:
+            <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:18px;">
+                Substituting the ansatz
+                $\psi(r,\theta,\varphi) = R(r)\,Y(\theta,\varphi) = \dfrac{u(r)}{r}\,\Theta(\theta)\,\Phi(\varphi)$
+                and separating variables yields three eigenvalue equations:
+            </p>
+
+            <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:6px; font-weight:600;">
+                Two angular equations:
             </p>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
                 <div class="eq-box green" style="margin-bottom:0;">
                     <strong
-                        style="font-size:0.8rem; color:var(--accent3); text-transform:uppercase; letter-spacing:0.06em;">Azimuthal
-                        equation</strong>
-                    $$\frac{1}{\Phi}\frac{d^2\Phi}{d\varphi^2} = -m^2$$
-                    <p class="eq-note">Solution: $\Phi(\varphi)=e^{im\varphi}$, $\;m\in\mathbb{Z}$.</p>
+                        style="font-size:0.8rem; color:var(--accent3); text-transform:uppercase; letter-spacing:0.06em;">1.
+                        Azimuthal equation (φ)</strong>
+                    $$\frac{d^2\Phi}{d\varphi^2} = -m^2\,\Phi$$
+                    <p class="eq-note">Solution: $\Phi_m(\varphi)=e^{im\varphi}$, with $m$ an integer.</p>
                 </div>
                 <div class="eq-box orange" style="margin-bottom:0;">
                     <strong
-                        style="font-size:0.8rem; color:var(--accent5); text-transform:uppercase; letter-spacing:0.06em;">Polar
-                        (Legendre) equation</strong>
-                    $$\lambda\sin^2\!\theta +
-                    \frac{\sin\theta}{\Theta}\frac{d}{d\theta}\!\left(\sin\theta\frac{d\Theta}{d\theta}\right) = m^2$$
-                    <p class="eq-note">After $x=\cos\theta$: the associated Legendre ODE with solution
-                        $P_l^m(\cos\theta)$.</p>
+                        style="font-size:0.8rem; color:var(--accent5); text-transform:uppercase; letter-spacing:0.06em;">2.
+                        Polar (Legendre) equation (θ)</strong>
+                    $$\left[\frac{1}{\sin\theta}\frac{d}{d\theta}\!\left(\sin\theta\frac{d}{d\theta}\right)
+                    - \frac{m^2}{\sin^2\!\theta}\right]\Theta = -l(l+1)\,\Theta$$
+                    <p class="eq-note">This is the generalized Legendre equation in $\cos\theta$. Solutions are the
+                        associated Legendre functions $P_l^m(\cos\theta)$, with $l\ge 0$ integer and $|m|\le l$.
+                        For $m=0$ they reduce to ordinary Legendre polynomials $P_l(\cos\theta)$.</p>
                 </div>
             </div>
 
-            <div class="info-box">
-                <strong>General solution — Spherical Harmonics:</strong>
-                $$Y_l^m(\theta,\varphi) = \mathcal{N}_{lm}\,P_l^{|m|}(\cos\theta)\,e^{im\varphi}, \qquad
-                \mathcal{N}_{lm} = \sqrt{\frac{2l+1}{4\pi}\frac{(l-|m|)!}{(l+|m|)!}}$$
-                The general solution to Laplace's equation regular at the origin is
-                $$f(r,\theta,\varphi) = \sum_{l=0}^{\infty}\sum_{m=-l}^{l}\!\left(A_{lm}\,r^l +
-                B_{lm}\,r^{-(l+1)}\right)Y_l^m(\theta,\varphi).$$
-                <p style="color:var(--text-muted); font-size:0.88rem; margin-top:14px;">
-                    <strong style="color:var(--text);">Orthonormality:</strong>
-                    $\displaystyle\int_0^{2\pi}\!\!\int_0^{\pi} \bigl(Y_l^m\bigr)^*
-                    Y_{l'}^{m'}\sin\theta\,d\theta\,d\varphi = \delta_{ll'}\delta_{mm'}$
-                    &ensp;·&ensp;
-                    <strong style="color:var(--text);">Conjugate:</strong>
-                    $Y_l^{-m}=(-1)^m(Y_l^m)^*$
-                </p>
+            <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:6px; font-weight:600;">
+                Combining the angular solutions gives the spherical harmonics (for $m\ge 0$):
+            </p>
+
+            <div class="eq-box purple" style="margin-bottom:20px;">
+                $$Y_{lm}(\theta,\varphi) = \sqrt{\frac{2l+1}{4\pi}\frac{(l-m)!}{(l+m)!}}\;(-1)^m\,P_l^m(\cos\theta)\,e^{im\varphi}$$
+                <p class="eq-note">For $m < 0$:
+                    $Y_{lm}^*(\theta,\varphi) = (-1)^m\,Y_{l,-m}(\theta,\varphi)$.</p>
+            </div>
+
+            <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:6px; font-weight:600;">
+                Radial equation:
+            </p>
+
+            <div class="eq-box" style="margin-bottom:20px;">
+                <strong
+                    style="font-size:0.8rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.06em;">3.
+                    Radial equation (r)</strong>
+                $$\left[-\frac{\hbar^2}{2m}\frac{d^2}{dr^2}
+                + V(r) + \frac{l(l+1)\hbar^2}{2mr^2}\right]u = E\,u$$
             </div>
         </div>
 
@@ -877,6 +878,10 @@
                 <div class="ctrl-group">
                     <span class="ctrl-label no-uppercase">m &nbsp;<span class="ctrl-val purple" id="compMval">0</span></span>
                     <input type="range" class="purple-slider" id="compMslider" min="0" max="0" step="1" value="0">
+                </div>
+                <div class="ctrl-group" style="flex-direction:row; align-items:center; gap:8px; margin-left:auto;">
+                    <input type="checkbox" id="rotateTogetherChk" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent2);">
+                    <label for="rotateTogetherChk" style="font-size:0.85rem;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;">Rotate together</label>
                 </div>
             </div>
 
@@ -1236,6 +1241,37 @@
             Plotly.react('plotCompIm', [imT], plotLayout(`Im(Y<sub>${c_l}</sub><sup>${c_m}</sup>)`), { responsive: true });
         }
 
+        // ─────────────────────────────────────────────────────
+        //  SECTION 4 – Rotate-together logic
+        // ─────────────────────────────────────────────────────
+        const COMP_DIVS = ['plotCompAbs', 'plotCompRe', 'plotCompIm'];
+        let _syncingCamera = false;
+
+        function syncCamera(sourceId, camera) {
+            if (_syncingCamera) return;
+            _syncingCamera = true;
+            COMP_DIVS.forEach(id => {
+                if (id !== sourceId) {
+                    Plotly.relayout(id, { 'scene.camera': camera });
+                }
+            });
+            // Reset AFTER cascading plotly_relayout events have fired
+            setTimeout(() => { _syncingCamera = false; }, 0);
+        }
+
+        function attachRotateListeners() {
+            COMP_DIVS.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.on('plotly_relayout', function (eventData) {
+                    if (!document.getElementById('rotateTogetherChk').checked) return;
+                    const cam = (eventData['scene.camera'] ||
+                        (eventData.scene && eventData.scene.camera));
+                    if (cam) syncCamera(id, cam);
+                });
+            });
+        }
+
 
 
         // ─────────────────────────────────────────────────────
@@ -1246,6 +1282,7 @@
             updatePlot3();
             updateCompFormula();
             updateCompPlots();
+            setTimeout(attachRotateListeners, 400);
         });
     </script>
 </body>
