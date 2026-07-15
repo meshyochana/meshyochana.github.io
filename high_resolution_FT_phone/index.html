@@ -70,7 +70,7 @@
   .plots-wrapper { display: flex; flex-direction: row; flex-wrap: wrap; gap: 2rem; justify-content: center; }
   .plot-container { flex: 1; min-width: 800px; max-width: 800px; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); padding: 1.5rem; }
   canvas { width: 100%; height: auto; border: 1px solid var(--medium-gray); cursor: default; touch-action: none; }
-  #fft-canvas { background-color: #000; }
+  #fft-canvas { background-color: #000; border-color: #fff; }
 
   /* ── Mobile: fit entire app in the viewport height ── */
   @media (max-width: 900px) {
@@ -515,10 +515,7 @@
     // --- Mouse events ---
     scatterCanvas.addEventListener('mousedown', e => {
         const m = getMouse(e);
-        if (!handleStart(m) && !isImageMode) {
-            draggedPoint = points.find(p => Math.hypot(p.x-m.dx, p.y-m.dy)*scale < 10);
-            if(draggedPoint) isDraggingPoint = true;
-        }
+        handleStart(m);
     });
 
     fftCanvas.addEventListener('mousedown', e => {
@@ -534,7 +531,7 @@
             drawKZoomOverlay();
         }
         const m = getMouse(e);
-        if (!isResizingWindow && !isDraggingWindow && !isDraggingPoint) {
+        if (!isResizingWindow && !isDraggingWindow) {
             scatterCanvas.style.cursor = 'default';
             const hs = getHandleSize();
             if((Math.abs(m.x-fftWindow.x)<hs || Math.abs(m.x-(fftWindow.x+fftWindow.width))<hs) && (Math.abs(m.y-fftWindow.y)<hs || Math.abs(m.y-(fftWindow.y+fftWindow.height))<hs))
@@ -564,10 +561,7 @@
         e.preventDefault();
         if (e.touches.length === 1) {
             const m = getTouchPos(e.touches[0]);
-            if (!handleStart(m) && !isImageMode) {
-                draggedPoint = points.find(p => Math.hypot(p.x-m.dx, p.y-m.dy)*scale < 20);
-                if(draggedPoint) isDraggingPoint = true;
-            }
+            handleStart(m);
         } else if (e.touches.length === 2) {
             // Two fingers: start pinch-to-resize
             handleEnd();
