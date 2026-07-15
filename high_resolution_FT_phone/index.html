@@ -72,18 +72,95 @@
   canvas { width: 100%; height: auto; border: 1px solid var(--medium-gray); cursor: default; touch-action: none; }
   #fft-canvas { background-color: #000; }
 
+  /* ── Mobile: fit entire app in the viewport height ── */
   @media (max-width: 900px) {
-    .container { padding: 0.75rem; }
-    h1 { font-size: 1.4rem; }
-    h2 { font-size: 1.1rem; margin-bottom: 0.75rem; }
-    .controls { padding: 0.75rem; gap: 0.75rem; margin-bottom: 1rem; }
-    .plot-container { min-width: 0; max-width: 100%; padding: 0.75rem; }
-    .plots-wrapper { gap: 1rem; flex-direction: column; }
-    button { padding: 12px 20px; font-size: 1.1rem; }
-    input[type="checkbox"], input[type="radio"] { width: 1.5em; height: 1.5em; }
-    label { font-size: 1rem; }
+    html, body {
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .container {
+      flex: 1;
+      min-height: 0;          /* allow shrinking */
+      display: flex;
+      flex-direction: column;
+      padding: 6px 8px;
+      overflow: hidden;
+    }
+
+    header { display: none; }  /* hide big title to save space */
+
+    main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .controls {
+      flex-shrink: 0;
+      padding: 6px 10px;
+      gap: 8px;
+      margin-bottom: 0;
+      border-radius: 8px;
+    }
+
+    .plots-wrapper {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .plot-container {
+      flex: 1;
+      min-width: 0;
+      max-width: 100%;
+      padding: 4px 6px;
+      border-radius: 8px;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Title row: compact */
+    h2 {
+      font-size: 0.8rem;
+      margin-bottom: 3px;
+      padding-bottom: 2px;
+      flex-shrink: 0;
+    }
+
+    /* Canvas wrapper fills remaining space in its plot-container */
+    .plot-container > canvas,
+    .plot-container > div {
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Make canvases fill their container height */
+    canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    button { padding: 8px 14px; font-size: 0.9rem; }
+    label { font-size: 0.85rem; }
+    input[type="checkbox"], input[type="radio"] { width: 1.3em; height: 1.3em; }
   }
 </style>
+
 </head>
 <body>
 
