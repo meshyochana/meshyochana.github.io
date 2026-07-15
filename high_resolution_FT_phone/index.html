@@ -198,15 +198,18 @@
             </div>
             <div class="plot-container">
                 <h2 id="kspace-title">K-Space (Fourier Transform)</h2>
-                <div style="position: relative; display: block; line-height: 0;">
-                    <canvas id="fft-canvas" width="800" height="800"></canvas>
-                    <canvas id="fft-overlay" width="800" height="800" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
-                </div>
-                <div id="phase-legend" style="display: none; margin-top: 1rem; background: #111; color: #fff; padding: 12px; border-radius: 8px; justify-content: center; align-items: center; gap: 15px;">
-                    <div style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); border: 2px solid #555;"></div>
-                    <div style="text-align: left; font-size: 0.9rem; color: #ccc; line-height: 1.4;">
-                        <strong>Hue</strong> = Phase angle <i>arg(ρ)</i> &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Brightness</strong> = Amplitude <i>|ρ|</i><br>
-                        <span style="font-size:0.8em;">(0°=Red, 90°=Grn/Yel, ±180°=Cyan, -90°=Blu/Mag)</span>
+                <div style="display: flex; flex-direction: row; align-items: stretch; gap: 0;">
+                    <div style="position: relative; flex: 1; min-width: 0; line-height: 0;">
+                        <canvas id="fft-canvas" width="800" height="800"></canvas>
+                        <canvas id="fft-overlay" width="800" height="800" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                    </div>
+                    <div id="phase-legend" style="flex-shrink: 0; width: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #111; padding: 6px 4px; border-left: 1px solid #333; visibility: hidden;">
+                        <div style="width: 32px; height: 32px; border-radius: 50%; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); border: 1px solid #555; flex-shrink: 0;"></div>
+                        <div style="writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg); font-size: 0.6rem; color: #ccc; line-height: 1.3; text-align: center;">
+                            <strong style="color:#fff;">Hue</strong> = Phase <i>arg(ρ)</i><br>
+                            <strong style="color:#fff;">Bright</strong> = Amp <i>|ρ|</i><br>
+                            <span style="font-size:0.55rem; color:#aaa;">0°=R · 90°=G · ±180°=C · -90°=B</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -463,7 +466,7 @@
         calculateTransforms(); 
         drawSpatial(); 
         calculateAndDisplayFT(); 
-        phaseLegend.style.display = modePhaseRadio.checked ? 'flex' : 'none';
+        phaseLegend.style.visibility = modePhaseRadio.checked ? 'visible' : 'hidden';
     }
 
     // --- Interaction Logic ---
