@@ -606,6 +606,42 @@
         if (e.touches.length === 0) handleEnd();
     }, { passive: false });
 
+    // --- Touch zoom on fftCanvas ---
+    function getFftTouch(touch) {
+        const r = fftCanvas.getBoundingClientRect();
+        return {
+            x: (touch.clientX - r.left) * (800 / r.width),
+            y: (touch.clientY - r.top) * (800 / r.height)
+        };
+    }
+
+    fftCanvas.addEventListener('touchstart', e => {
+        if (!isKZoomMode) return;
+        e.preventDefault();
+        if (e.touches.length === 1) {
+            const m = getFftTouch(e.touches[0]);
+            kZoomDrag = { active: true, startX: m.x, startY: m.y, curX: m.x, curY: m.y };
+        }
+    }, { passive: false });
+
+    fftCanvas.addEventListener('touchmove', e => {
+        if (!isKZoomMode || !kZoomDrag.active) return;
+        e.preventDefault();
+        if (e.touches.length === 1) {
+            const m = getFftTouch(e.touches[0]);
+            kZoomDrag.curX = m.x; kZoomDrag.curY = m.y;
+            drawKZoomOverlay();
+        }
+    }, { passive: false });
+
+    fftCanvas.addEventListener('touchend', e => {
+        if (!isKZoomMode || !kZoomDrag.active) return;
+        e.preventDefault();
+        kZoomDrag.active = false;
+        document.getElementById('fft-overlay').getContext('2d').clearRect(0, 0, 800, 800);
+        applyKZoom();
+    }, { passive: false });
+
     // --- Listeners ---
     // Mode toggles
     modeAbsRadio.addEventListener('change', updateAll);
