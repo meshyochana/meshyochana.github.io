@@ -1,920 +1,484 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Camera FT Analyzer</title>
-    <style>
-        :root {
-            --primary: #007aff;
-            --bg-color: #121212;
-            --surface: #1e1e1e;
-            --text: #ffffff;
-            --text-secondary: #aaaaaa;
-            --border: #333333;
-        }
+<title>Interactive Coordinate & Image FT Editor</title>
+<style>
+  :root {
+    --primary-color: #007bff;
+    --primary-hover: #0056b3;
+    --light-gray: #f0f2f5;
+    --medium-gray: #dee2e6;
+    --dark-gray: #495057;
+    --text-color: #212529;
+    --card-bg: #ffffff;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text);
-            overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--light-gray);
+    color: var(--text-color);
+    line-height: 1.6;
+  }
 
-        header {
-            padding: 15px;
-            background-color: var(--surface);
-            text-align: center;
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-        }
-        
-        h1 { font-size: 1.2rem; font-weight: 600; }
+  .container { max-width: 1700px; margin: 0 auto; padding: 2rem; }
+  header { text-align: center; margin-bottom: 2rem; }
+  h1 { font-size: 2.5rem; color: var(--dark-gray); }
+  h2 { text-align: center; margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--dark-gray); border-bottom: 1px solid var(--medium-gray); padding-bottom: 0.5rem; }
 
-        .tabs {
-            display: flex;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-        }
+  .controls {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
 
-        .tab {
-            flex: 1;
-            text-align: center;
-            padding: 12px;
-            font-weight: 500;
-            color: var(--text-secondary);
-            border-bottom: 3px solid transparent;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+  .control-group { display: flex; align-items: center; gap: 0.75em; }
+  .control-group-col { display: flex; flex-direction: column; gap: 0.5em; }
+  .control-group-row-center { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 0.5em; }
 
-        .tab.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
-        }
+  button, input[type="file"]::file-selector-button {
+    padding: 10px 18px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
 
-        .content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* Prevent full body scroll, handle scrolling in child */
-            position: relative;
-        }
+  button:hover, input[type="file"]::file-selector-button:hover { background-color: var(--primary-hover); }
 
-        .view-section {
-            display: none;
-            flex-direction: column;
-            flex: 1;
-            min-height: 0;
-            overflow: hidden;
-        }
+  input[type="checkbox"], input[type="radio"] { width: 1.25em; height: 1.25em; accent-color: var(--primary-color); cursor: pointer; }
+  input[type="number"] { width: 80px; padding: 4px; }
+  input[type="range"] { width: 120px; }
+  label { cursor: pointer; white-space: nowrap; font-weight: 500; }
+  
+  #ft-window-shape { display: flex; gap: 1em; }
+  #ft-window-shape label { display: flex; align-items: center; gap: 0.25em; }
 
-        .view-section.active {
-            display: flex;
-        }
-
-        .canvas-container {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            background: #000;
-            position: relative;
-            flex-shrink: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
-
-        canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Prevents K-Space clipping while maximizing size */
-            display: block;
-        }
-
-        video { display: none; } /* Hidden, only used for capture */
-
-        .controls-panel {
-            padding: 20px;
-            background: var(--surface);
-            flex: 0 0 auto;
-        }
-        
-        #controls-toggle {
-            background: var(--surface);
-            padding: 10px;
-            text-align: center;
-            border-top: 2px solid var(--border);
-            cursor: pointer;
-            font-weight: bold;
-            color: var(--primary);
-            user-select: none;
-            flex-shrink: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .control-group {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .control-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-        }
-
-        label { font-size: 0.9rem; color: var(--text-secondary); }
-        
-        .val-display { font-size: 0.9rem; font-family: monospace; color: var(--primary); }
-
-        input[type="range"] {
-            width: 100%;
-            accent-color: var(--primary);
-        }
-
-        input[type="number"] {
-            background: var(--bg-color);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 8px;
-            border-radius: 6px;
-            width: 80px;
-            text-align: right;
-            font-size: 1rem;
-        }
-
-        button, .file-upload-label {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: center;
-            flex: 1;
-            display: inline-block;
-        }
-        
-        button.secondary {
-            background: transparent;
-            border: 1px solid var(--primary);
-            color: var(--primary);
-        }
-
-        button:active, .file-upload-label:active { opacity: 0.8; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        input[type="file"] { display: none; }
-        
-        .switch-wrap {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        /* Checkbox styling */
-        input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--primary);
-        }
-
-        #camera-permission-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(220, 53, 69, 0.95);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-            text-align: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-        
-        .toast.show {
-            opacity: 1;
-        }
-    </style>
+  .plots-wrapper { display: flex; flex-direction: row; flex-wrap: wrap; gap: 2rem; justify-content: center; }
+  .plot-container { flex: 1; min-width: 800px; max-width: 800px; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); padding: 1.5rem; }
+  canvas { width: 100%; height: auto; border: 1px solid var(--medium-gray); cursor: default; }
+  #fft-canvas { background-color: #000; }
+</style>
 </head>
 <body>
 
-    <header>
-        <h1>Camera FT Analyzer</h1>
-    </header>
-
-    <div class="tabs">
-        <div class="tab active" id="tab-calibration" onclick="switchTab('calibration')">Calibration</div>
-        <div class="tab" id="tab-scan" onclick="switchTab('scan')">Scan Mode</div>
-    </div>
-
-    <div class="content">
-        
-        <!-- CALIBRATION VIEW -->
-        <div id="view-calibration" class="view-section active">
-            <div class="canvas-container" style="flex: 1; min-height: 0;">
-                <canvas id="calib-canvas" width="400" height="400"></canvas>
-                <div id="camera-permission-overlay">
-                    <p style="margin-bottom: 15px; color: #fff;">Camera access required for live frame capture.</p>
-                    <button onclick="startCamera()">Grant Access</button>
+  <div class="container">
+    <header><h1>Interactive Coordinate & Image FT Editor</h1></header>
+    
+    <main>
+        <div class="controls">
+            <div class="control-group-col" style="border: 1px solid var(--medium-gray); padding: 10px; border-radius: 8px; background: #f8f9fa;">
+                <label style="color: var(--primary-color);"><strong>K-Space Plot Mode</strong></label>
+                <div class="control-group">
+                    <label><input type="radio" id="mode-abs" name="plot-mode" value="abs" checked> Abs Mode (Magnitude)</label>
+                </div>
+                <div class="control-group">
+                    <label><input type="radio" id="mode-phase" name="plot-mode" value="phase"> Phase Mode (Complex)</label>
                 </div>
             </div>
-            <div class="controls-panel" style="flex: 0; padding-bottom: 0; border-top: none;">
-                <div class="control-row">
-                    <button onclick="captureFrame()" id="btn-capture" disabled>Capture Frame</button>
-                    <label class="file-upload-label secondary">
-                        Upload Image
-                        <input type="file" id="image-upload" accept="image/*">
-                    </label>
-                </div>
-                <div style="margin-top: 15px;">
-                    <p style="font-size: 0.85rem; color: var(--text-secondary);" id="calib-status">Blobs detected: 0</p>
-                </div>
+
+            <div class="control-group-col">
+                 <div style="display: flex; flex-direction: column; gap: 6px;">
+                     <div class="control-group">
+                         <input type="checkbox" id="kzoom-mode-checkbox">
+                         <label for="kzoom-mode-checkbox">Zoom K-Space</label>
+                     </div>
+                     <button id="reset-kzoom-btn" disabled style="padding: 6px 12px; font-size: 0.9rem;">Reset Zoom</button>
+                     <div id="kzoom-info" style="font-size: 0.78rem; color: #888; min-height: 1.2em;"></div>
+                 </div>
             </div>
         </div>
 
-        <!-- SCAN VIEW -->
-        <div id="view-scan" class="view-section">
-            <div style="position: relative; width: 100%; flex: 1; min-height: 0; background: #000; overflow: hidden;">
-                <!-- Main FT Plot here -->
-                <canvas id="scan-ft-canvas" width="400" height="400"></canvas>
-                
-                <!-- PiP Camera feed + overlay here -->
-                <canvas id="scan-camera-canvas" width="400" height="400" style="position: absolute; top: 15px; left: 15px; width: 33%; height: 33%; object-fit: cover; border: 2px solid var(--primary); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.8); z-index: 10; background: #000; cursor: pointer;"></canvas>
-                
-                <!-- Pause overlay on PiP -->
-                <div id="pip-pause-overlay" style="display:none; position: absolute; top: 15px; left: 15px; width: 33%; height: 33%; background: rgba(0,0,0,0.5); z-index: 11; border-radius: 8px; pointer-events: none; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 2rem;">❚❚</div>
+        <div class="plots-wrapper">
+            <div class="plot-container">
+                <h2 id="spatial-title">Real Space</h2>
+                <canvas id="scatter-plot" width="800" height="800"></canvas>
             </div>
-
-            <div class="controls-panel" style="flex: 0; padding-bottom: 0; border-top: none;">
-                <div class="control-group">
-                    <div class="switch-wrap">
-                        <input type="checkbox" id="scan-active-checkbox" checked>
-                        <label for="scan-active-checkbox" style="color: var(--primary); font-weight: bold;">Active Scanning</label>
+            <div class="plot-container">
+                <h2 id="kspace-title">K-Space (Fourier Transform)</h2>
+                <div style="position: relative; display: block; line-height: 0;">
+                    <canvas id="fft-canvas" width="800" height="800"></canvas>
+                    <canvas id="fft-overlay" width="800" height="800" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                </div>
+                <div id="phase-legend" style="display: none; margin-top: 1rem; background: #111; color: #fff; padding: 12px; border-radius: 8px; justify-content: center; align-items: center; gap: 15px;">
+                    <div style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); border: 2px solid #555;"></div>
+                    <div style="text-align: left; font-size: 0.9rem; color: #ccc; line-height: 1.4;">
+                        <strong>Hue</strong> = Phase angle <i>arg(ρ)</i> &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Brightness</strong> = Amplitude <i>|ρ|</i><br>
+                        <span style="font-size:0.8em;">(0°=Red, 90°=Grn/Yel, ±180°=Cyan, -90°=Blu/Mag)</span>
                     </div>
                 </div>
-                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;" id="scan-status">Blobs: 0 | FPS: 0</p>
             </div>
         </div>
+    </main>
+  </div>
 
-        <div id="controls-toggle" onclick="toggleControls()">
-            <span id="controls-toggle-icon">▼</span> <span id="controls-toggle-text">Hide Controls</span>
-        </div>
+  <script>
+    const scatterCanvas = document.getElementById('scatter-plot');
+    const sCtx = scatterCanvas.getContext('2d');
+    const fftCanvas = document.getElementById('fft-canvas');
+    const fCtx = fftCanvas.getContext('2d');
+    const margin = 50;
 
-        <!-- SHARED CONTROLS PANEL -->
-        <div class="controls-panel" id="shared-controls" style="overflow-y: auto; max-height: 45vh;">
-            
-            <p style="color: var(--primary); font-size: 0.9rem; margin-bottom: 10px; font-weight: bold;">Blob Detection</p>
-            <div class="control-group">
-                <div class="control-row">
-                    <label>Threshold</label>
-                    <span class="val-display" id="val-thresh">128</span>
-                </div>
-                <input type="range" id="thresh-slider" min="0" max="255" value="128">
-            </div>
+    const modeAbsRadio = document.getElementById('mode-abs');
+    const modePhaseRadio = document.getElementById('mode-phase');
+    const phaseLegend = document.getElementById('phase-legend');
 
-            <div class="control-group">
-                <div class="control-row">
-                    <label>Min Size</label>
-                    <span class="val-display" id="val-min-size">5</span>
-                </div>
-                <input type="range" id="min-size-slider" min="1" max="100" value="5">
-            </div>
+    // Fixed settings
+    const K_MAX = 2;
+    const RESOLUTION = 180;
 
-            <div class="control-group">
-                <div class="control-row">
-                    <label>Max Size</label>
-                    <span class="val-display" id="val-max-size">500</span>
-                </div>
-                <input type="range" id="max-size-slider" min="10" max="2000" value="500">
-            </div>
-            
-            <div class="control-group" style="margin-bottom: 20px;">
-                <div class="switch-wrap">
-                    <input type="checkbox" id="invert-checkbox">
-                    <label for="invert-checkbox">Detect Dark Blobs</label>
-                </div>
-            </div>
-
-            <p style="color: var(--primary); font-size: 0.9rem; margin-bottom: 10px; font-weight: bold;">Fourier Transform</p>
-            <div class="control-row">
-                <div class="control-group" style="flex:1;">
-                    <label>K-max</label>
-                    <input type="number" id="kmax-input" value="1.5" step="0.1">
-                </div>
-                <div class="control-group" style="flex:1;">
-                    <label>Resolution</label>
-                    <input type="number" id="res-input" value="100" step="10">
-                </div>
-            </div>
-
-            <div class="control-row" style="margin-top: 10px;">
-                <div class="switch-wrap">
-                    <input type="checkbox" id="hide-center-checkbox">
-                    <label for="hide-center-checkbox">Hide Center</label>
-                </div>
-                <div class="switch-wrap">
-                    <input type="checkbox" id="noise-reduction-checkbox">
-                    <label for="noise-reduction-checkbox">Reduce Noise</label>
-                </div>
-            </div>
-
-            <div class="control-group" id="noise-thresh-group" style="display:none; margin-top: 10px;">
-                <div class="control-row">
-                    <label>Noise Threshold</label>
-                    <span class="val-display" id="val-noise-thresh">0.1</span>
-                </div>
-                <input type="range" id="noise-threshold-slider" min="0" max="1" value="0.1" step="0.01">
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- Hidden video element for camera -->
-    <video id="video-feed" autoplay playsinline></video>
+    let points = [];
+    let loadedImage = null;
+    let isImageMode = false;
+    let isDraggingWindow = false;
+    let isResizingWindow = false;
+    let resizeHandle = '';
+    let isDraggingPoint = false;
+    let draggedPoint = null;
     
-    <!-- Hidden canvas for processing raw frames -->
-    <canvas id="process-canvas" width="400" height="400" style="display:none;"></canvas>
+    let fftWindow = { x: 375, y: 375, width: 150, height: 150 }; 
+    let interactionOffset = {x: 0, y: 0};
+    
+    let windowCenter = {x: 0, y: 0};
+    let scale = 1, minX = 0, maxX = 0, minY = 0, maxY = 0;
 
-    <!-- Toast Notification -->
-    <div id="toast-msg" class="toast">Please place the camera on a clearer spot.</div>
+    // K-space zoom state
+    let kCenterX = 0, kCenterY = 0;
+    let kOriginalMax = null;
+    let isKZoomMode = false;
+    let kZoomDrag = { active: false, startX: 0, startY: 0, curX: 0, curY: 0 };
 
-    <script>
-        // DOM Elements
-        const video = document.getElementById('video-feed');
-        const calibCanvas = document.getElementById('calib-canvas');
-        const calibCtx = calibCanvas.getContext('2d', { willReadFrequently: true });
-        
-        const scanCameraCanvas = document.getElementById('scan-camera-canvas');
-        const scanCameraCtx = scanCameraCanvas.getContext('2d', { willReadFrequently: true });
-        
-        const scanFtCanvas = document.getElementById('scan-ft-canvas');
-        const scanFtCtx = scanFtCanvas.getContext('2d');
-        
-        const processCanvas = document.getElementById('process-canvas');
-        const processCtx = processCanvas.getContext('2d', { willReadFrequently: true });
+    function getViridisColor(t) {
+        t = Math.max(0, Math.min(1, t));
+        const colors = [[68,1,84],[72,35,116],[64,67,135],[52,94,141],[41,120,142],[32,144,140],[34,167,132],[68,190,112],[121,209,81],[189,223,38],[253,231,37]];
+        const i = Math.floor(t * (colors.length - 1));
+        const j = Math.min(i + 1, colors.length - 1);
+        const f = t * (colors.length - 1) - i;
+        return [
+            Math.round(colors[i][0] + f * (colors[j][0] - colors[i][0])),
+            Math.round(colors[i][1] + f * (colors[j][1] - colors[i][1])),
+            Math.round(colors[i][2] + f * (colors[j][2] - colors[i][2]))
+        ];
+    }
 
-        // UI Controls
-        const threshSlider = document.getElementById('thresh-slider');
-        const minSizeSlider = document.getElementById('min-size-slider');
-        const maxSizeSlider = document.getElementById('max-size-slider');
-        const invertCheckbox = document.getElementById('invert-checkbox');
-        const imageUpload = document.getElementById('image-upload');
-        const kmaxInput = document.getElementById('kmax-input');
-        const resInput = document.getElementById('res-input');
-        const scanActiveCheckbox = document.getElementById('scan-active-checkbox');
-        const hideCenterCheckbox = document.getElementById('hide-center-checkbox');
-        const noiseReductionCheckbox = document.getElementById('noise-reduction-checkbox');
-        const noiseThresholdSlider = document.getElementById('noise-threshold-slider');
-        const valNoiseThresh = document.getElementById('val-noise-thresh');
-        
-        // Displays
-        const valThresh = document.getElementById('val-thresh');
-        const valMinSize = document.getElementById('val-min-size');
-        const valMaxSize = document.getElementById('val-max-size');
-        const calibStatus = document.getElementById('calib-status');
-        const scanStatus = document.getElementById('scan-status');
-
-        // State
-        let stream = null;
-        let testImage = null; // Can be a captured frame or uploaded image
-        let detectedBlobs = [];
-        let currentMode = 'calibration'; // 'calibration' or 'scan'
-        let scanLoopId = null;
-        let lastFrameTime = 0;
-        let frameCount = 0;
-        let fps = 0;
-        let toastTimeout = null;
-
-        function showToast(msg) {
-            const t = document.getElementById('toast-msg');
-            t.innerText = msg;
-            t.classList.add('show');
-            if(toastTimeout) clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => {
-                t.classList.remove('show');
-            }, 3000);
+    function hsvToRgb(h, s, v) {
+        let r, g, b;
+        let i = Math.floor(h * 6);
+        let f = h * 6 - i;
+        let p = v * (1 - s);
+        let q = v * (1 - f * s);
+        let t = v * (1 - (1 - f) * s);
+        switch (i % 6) {
+            case 0: r = v, g = t, b = p; break;
+            case 1: r = q, g = v, b = p; break;
+            case 2: r = p, g = v, b = t; break;
+            case 3: r = p, g = q, b = v; break;
+            case 4: r = t, g = p, b = v; break;
+            case 5: r = v, g = p, b = q; break;
         }
+        return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
 
-        // Configuration
-        const CANVAS_SIZE = 400; // Work resolution
-
-        // --- Core Blob Detection Engine ---
-        // Returns an array of centroids: [{x, y, area}, ...]
-        function detectBlobs(imageData, threshold, invert, minArea, maxArea) {
-            const data = imageData.data;
-            const width = imageData.width;
-            const height = imageData.height;
-            
-            // Create a binary mask: 1 for blob, 0 for background
-            const mask = new Uint8Array(width * height);
-            
-            for (let i = 0; i < data.length; i += 4) {
-                // Grayscale luminance
-                const r = data[i];
-                const g = data[i+1];
-                const b = data[i+2];
-                const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-                
-                let isBlob = false;
-                if (invert) {
-                    isBlob = lum < threshold; // Dark blobs
-                } else {
-                    isBlob = lum > threshold; // Light blobs
-                }
-                
-                mask[i / 4] = isBlob ? 1 : 0;
-            }
-
-            const blobs = [];
-            const visited = new Uint8Array(width * height);
-
-            // Fast Connected Components using BFS
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = y * width + x;
-                    
-                    if (mask[idx] === 1 && visited[idx] === 0) {
-                        // Start BFS
-                        let sumX = 0;
-                        let sumY = 0;
-                        let area = 0;
-                        
-                        const queue = [idx];
-                        visited[idx] = 1;
-                        
-                        let head = 0;
-                        while(head < queue.length) {
-                            const curIdx = queue[head++];
-                            const cx = curIdx % width;
-                            const cy = Math.floor(curIdx / width);
-                            
-                            sumX += cx;
-                            sumY += cy;
-                            area++;
-                            
-                            // Check 4 neighbors
-                            // Left
-                            if (cx > 0) {
-                                const nIdx = curIdx - 1;
-                                if (mask[nIdx] === 1 && visited[nIdx] === 0) {
-                                    visited[nIdx] = 1; queue.push(nIdx);
-                                }
-                            }
-                            // Right
-                            if (cx < width - 1) {
-                                const nIdx = curIdx + 1;
-                                if (mask[nIdx] === 1 && visited[nIdx] === 0) {
-                                    visited[nIdx] = 1; queue.push(nIdx);
-                                }
-                            }
-                            // Up
-                            if (cy > 0) {
-                                const nIdx = curIdx - width;
-                                if (mask[nIdx] === 1 && visited[nIdx] === 0) {
-                                    visited[nIdx] = 1; queue.push(nIdx);
-                                }
-                            }
-                            // Down
-                            if (cy < height - 1) {
-                                const nIdx = curIdx + width;
-                                if (mask[nIdx] === 1 && visited[nIdx] === 0) {
-                                    visited[nIdx] = 1; queue.push(nIdx);
-                                }
-                            }
-                        }
-                        
-                        if (area >= minArea && area <= maxArea) {
-                            blobs.push({
-                                x: sumX / area,
-                                y: sumY / area,
-                                area: area
-                            });
-                        }
-                    }
-                }
-            }
-            
-            return blobs;
-        }
-
-        // --- Fourier Transform Engine ---
-        function getViridisColor(t) {
-            t = Math.max(0, Math.min(1, t));
-            const colors = [[68,1,84],[72,35,116],[64,67,135],[52,94,141],[41,120,142],[32,144,140],[34,167,132],[68,190,112],[121,209,81],[189,223,38],[253,231,37]];
-            const i = Math.floor(t * (colors.length - 1));
-            const j = Math.min(i + 1, colors.length - 1);
-            const f = t * (colors.length - 1) - i;
-            return [
-                Math.round(colors[i][0] + f * (colors[j][0] - colors[i][0])),
-                Math.round(colors[i][1] + f * (colors[j][1] - colors[i][1])),
-                Math.round(colors[i][2] + f * (colors[j][2] - colors[i][2]))
-            ];
-        }
-
-        function calculateAndDisplayFT(points, ctx, width, height) {
-            const res = parseInt(resInput.value) || 100;
-            const k_max = parseFloat(kmaxInput.value) || 1.5;
-            
-            if(points.length === 0) {
-                ctx.clearRect(0, 0, width, height);
-                return;
-            }
-
-            // Calculate bounding box center just like original points file
-            let minX = Math.min(...points.map(p => p.x)); 
-            let maxX = Math.max(...points.map(p => p.x));
-            let minY = Math.min(...points.map(p => p.y)); 
-            let maxY = Math.max(...points.map(p => p.y));
-            let cx = (maxX+minX)/2, cy = (maxY+minY)/2;
-
-            const ftPts = points.map(p => ({
-                x: p.x - cx,
-                y: p.y - cy,
-                w: 1
-            }));
-
-            const mags = new Float32Array(res * res);
-            
-            for(let py=0; py<res; py++){
-                for(let px=0; px<res; px++){
-                    const kx = (px-res/2)*(2*k_max/res); 
-                    const ky = (py-res/2)*(2*k_max/res);
-                    let re = 0, im = 0;
-                    
-                    for(let i=0; i<ftPts.length; i++){
-                        const p = ftPts[i];
-                        const dot = p.x*kx + p.y*ky;
-                        re += p.w * Math.cos(-dot); 
-                        im += p.w * Math.sin(-dot);
-                    }
-                    
-                    const idx = py*res + px;
-                    mags[idx] = Math.log(1 + Math.sqrt(re*re + im*im));
-                }
-            }
-
-            if(noiseReductionCheckbox.checked){
-                const avg = mags.reduce((a,b)=>a+b)/mags.length;
-                const thr = Math.max(...mags) * parseFloat(noiseThresholdSlider.value);
-                for(let i=0; i<mags.length; i++) mags[i] = mags[i] < thr ? 0 : Math.max(0, mags[i]-avg);
-            }
-
-            let maxM = 0; const cM = Math.round(res*0.02);
-            for(let i=0; i<mags.length; i++){
-                const x = i%res, y = Math.floor(i/res);
-                if(!(hideCenterCheckbox.checked && Math.hypot(x-res/2, y-res/2) < cM) && mags[i] > maxM) {
-                    maxM = mags[i];
-                }
-            }
-
-            const out = ctx.createImageData(res, res);
-            for(let i=0; i<mags.length; i++){
-                const x = i%res, y = Math.floor(i/res);
-                const isC = hideCenterCheckbox.checked && Math.hypot(x-res/2, y-res/2) < cM;
-                
-                if (isC) {
-                    out.data.set([0,0,0, 255], i*4);
-                } else {
-                    const col = getViridisColor(mags[i]/(maxM||1));
-                    out.data.set([...col, 255], i*4);
-                }
-            }
-            
-            const tC = document.createElement('canvas'); tC.width = tC.height = res;
-            tC.getContext('2d').putImageData(out, 0, 0);
-            
-            ctx.clearRect(0, 0, width, height); 
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(tC, 0, 0, width, height);
-        }
-
-
-        // --- App Logic ---
-
-        function drawBlobsOverlay(ctx, blobs) {
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-            for (let b of blobs) {
-                // Draw a cross
-                ctx.fillRect(b.x - 1, b.y - 4, 3, 9);
-                ctx.fillRect(b.x - 4, b.y - 1, 9, 3);
-            }
-        }
-
-        function runCalibration() {
-            if (!testImage) return;
-
-            // 1. Draw test image to process canvas
-            processCtx.drawImage(testImage, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            
-            // 2. Extract ImageData
-            const imgData = processCtx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            
-            // 3. Detect Blobs
-            const thr = parseInt(threshSlider.value);
-            const inv = invertCheckbox.checked;
-            const minA = parseInt(minSizeSlider.value);
-            const maxA = parseInt(maxSizeSlider.value);
-            
-            detectedBlobs = detectBlobs(imgData, thr, inv, minA, maxA);
-            
-            // 4. Draw to UI
-            calibCtx.drawImage(processCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            drawBlobsOverlay(calibCtx, detectedBlobs);
-            
-            calibStatus.innerText = `Blobs detected: ${detectedBlobs.length}`;
-        }
-
-        function runScanLoop() {
-            if (currentMode !== 'scan') return;
-            
-            if (scanActiveCheckbox.checked && video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Determine crop to make video square
-                const size = Math.min(video.videoWidth, video.videoHeight);
-                const sx = (video.videoWidth - size) / 2;
-                const sy = (video.videoHeight - size) / 2;
-
-                // Draw square crop from video to process canvas
-                processCtx.drawImage(video, sx, sy, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-                
-                // Extract ImageData
-                const imgData = processCtx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-                
-                // Detect Blobs using calibrated params
-                const thr = parseInt(threshSlider.value);
-                const inv = invertCheckbox.checked;
-                const minA = parseInt(minSizeSlider.value);
-                const maxA = parseInt(maxSizeSlider.value);
-                
-                const tStart = performance.now();
-                detectedBlobs = detectBlobs(imgData, thr, inv, minA, maxA);
-                const tEnd = performance.now();
-                
-                if (detectedBlobs.length === 0 || (tEnd - tStart) > 100) {
-                    showToast("Please place the camera on a clearer spot.");
-                }
-                
-                // Draw Camera View
-                scanCameraCtx.drawImage(processCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-                drawBlobsOverlay(scanCameraCtx, detectedBlobs);
-                
-                // Calculate FT
-                calculateAndDisplayFT(detectedBlobs, scanFtCtx, CANVAS_SIZE, CANVAS_SIZE);
-                
-                // Calculate FPS
-                frameCount++;
-                const now = performance.now();
-                if (now - lastFrameTime >= 1000) {
-                    fps = frameCount;
-                    frameCount = 0;
-                    lastFrameTime = now;
-                }
-                
-                scanStatus.innerText = `Blobs: ${detectedBlobs.length} | FPS: ${fps}`;
-            }
-            
-            scanLoopId = requestAnimationFrame(runScanLoop);
-        }
-
-        // Force FT & Blob update if paused
-        function forceUpdateScan() {
-            if (currentMode === 'scan' && !scanActiveCheckbox.checked) {
-                // If we have a frozen frame in processCanvas, re-run detection
-                const imgData = processCtx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-                
-                const thr = parseInt(threshSlider.value);
-                const inv = invertCheckbox.checked;
-                const minA = parseInt(minSizeSlider.value);
-                const maxA = parseInt(maxSizeSlider.value);
-                
-                detectedBlobs = detectBlobs(imgData, thr, inv, minA, maxA);
-                
-                scanCameraCtx.drawImage(processCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-                drawBlobsOverlay(scanCameraCtx, detectedBlobs);
-                
-                calculateAndDisplayFT(detectedBlobs, scanFtCtx, CANVAS_SIZE, CANVAS_SIZE);
-                scanStatus.innerText = `Blobs: ${detectedBlobs.length} | FPS: PAUSED`;
-            } else if (currentMode === 'calibration') {
-                runCalibration();
-            }
-        }
-
-        // --- Event Listeners & UI ---
-
-        function switchTab(mode) {
-            currentMode = mode;
-            document.getElementById('tab-calibration').classList.remove('active');
-            document.getElementById('tab-scan').classList.remove('active');
-            document.getElementById('view-calibration').classList.remove('active');
-            document.getElementById('view-scan').classList.remove('active');
-            
-            document.getElementById(`tab-${mode}`).classList.add('active');
-            document.getElementById(`view-${mode}`).classList.add('active');
-            
-            if (mode === 'scan') {
-                if (stream && video.readyState === video.HAVE_ENOUGH_DATA) {
-                    lastFrameTime = performance.now();
-                    frameCount = 0;
-                    runScanLoop();
-                } else if (!stream) {
-                    startCamera().then(() => {
-                        lastFrameTime = performance.now();
-                        frameCount = 0;
-                        runScanLoop();
-                    });
-                }
-            } else {
-                if (scanLoopId) {
-                    cancelAnimationFrame(scanLoopId);
-                    scanLoopId = null;
-                }
-                if (testImage) {
-                    runCalibration();
-                }
-            }
-        }
-
-        async function startCamera() {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                video.srcObject = stream;
-                document.getElementById('camera-permission-overlay').style.display = 'none';
-                document.getElementById('btn-capture').disabled = false;
-                
-                // Play and wait for metadata
-                await new Promise((resolve) => {
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        resolve();
-                    };
-                });
-            } catch (err) {
-                console.error("Camera error:", err);
-                alert("Failed to access camera. Please allow permissions.");
-            }
-        }
-
-        function captureFrame() {
-            if (!stream) return;
-            
-            // Create a canvas to hold the full res image
-            const tempC = document.createElement('canvas');
-            const size = Math.min(video.videoWidth, video.videoHeight);
-            tempC.width = CANVAS_SIZE;
-            tempC.height = CANVAS_SIZE;
-            
-            const sx = (video.videoWidth - size) / 2;
-            const sy = (video.videoHeight - size) / 2;
-            
-            tempC.getContext('2d').drawImage(video, sx, sy, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            
-            const img = new Image();
-            img.onload = () => {
-                testImage = img;
-                runCalibration();
-            };
-            img.src = tempC.toDataURL('image/jpeg');
-        }
-
-        imageUpload.addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = ev => {
-                const img = new Image();
-                img.onload = () => {
-                    // Create square crop for testing
-                    const tempC = document.createElement('canvas');
-                    tempC.width = CANVAS_SIZE;
-                    tempC.height = CANVAS_SIZE;
-                    
-                    const size = Math.min(img.width, img.height);
-                    const sx = (img.width - size) / 2;
-                    const sy = (img.height - size) / 2;
-                    
-                    tempC.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-                    
-                    const finalImg = new Image();
-                    finalImg.onload = () => {
-                        testImage = finalImg;
-                        runCalibration();
-                    };
-                    finalImg.src = tempC.toDataURL('image/jpeg');
-                };
-                img.src = ev.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
-
-        // Sliders
-        const updateVal = (slider, displayObj) => {
-            displayObj.innerText = slider.value;
-            forceUpdateScan();
+    function getFftMouse(e) {
+        const r = fftCanvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - r.left) * (800 / r.width),
+            y: (e.clientY - r.top) * (800 / r.height)
         };
+    }
 
-        threshSlider.addEventListener('input', () => updateVal(threshSlider, valThresh));
-        minSizeSlider.addEventListener('input', () => updateVal(minSizeSlider, valMinSize));
-        maxSizeSlider.addEventListener('input', () => updateVal(maxSizeSlider, valMaxSize));
-        
-        invertCheckbox.addEventListener('change', forceUpdateScan);
+    function canvasToKSpace(cx, cy) {
+        const k_max = K_MAX;
+        return {
+            kx: kCenterX + (cx / 800 - 0.5) * 2 * k_max,
+            ky: kCenterY + (cy / 800 - 0.5) * 2 * k_max
+        };
+    }
 
-        noiseReductionCheckbox.addEventListener('change', () => {
-            document.getElementById('noise-thresh-group').style.display = noiseReductionCheckbox.checked ? 'block' : 'none';
-            forceUpdateScan();
+    function drawKZoomOverlay() {
+        const oCtx = document.getElementById('fft-overlay').getContext('2d');
+        oCtx.clearRect(0, 0, 800, 800);
+        if (!kZoomDrag.active) return;
+        const x = Math.min(kZoomDrag.startX, kZoomDrag.curX);
+        const y = Math.min(kZoomDrag.startY, kZoomDrag.curY);
+        const w = Math.abs(kZoomDrag.curX - kZoomDrag.startX);
+        const h = Math.abs(kZoomDrag.curY - kZoomDrag.startY);
+        oCtx.strokeStyle = 'rgba(255, 220, 0, 0.95)';
+        oCtx.lineWidth = 2;
+        oCtx.setLineDash([5, 3]);
+        oCtx.strokeRect(x, y, w, h);
+        oCtx.fillStyle = 'rgba(255, 220, 0, 0.08)';
+        oCtx.fillRect(x, y, w, h);
+    }
+
+    let currentKMax = K_MAX;
+
+    function applyKZoom() {
+        const dx = Math.abs(kZoomDrag.curX - kZoomDrag.startX);
+        const dy = Math.abs(kZoomDrag.curY - kZoomDrag.startY);
+        if (dx < 10 || dy < 10) return;
+
+        const k_max = currentKMax;
+        if (kOriginalMax === null) kOriginalMax = k_max;
+
+        const cx = (kZoomDrag.startX + kZoomDrag.curX) / 2;
+        const cy = (kZoomDrag.startY + kZoomDrag.curY) / 2;
+        const { kx, ky } = canvasToKSpace(cx, cy);
+        const newKMax = Math.max(dx, dy) / 800 * k_max;
+
+        kCenterX = kx;
+        kCenterY = ky;
+        currentKMax = newKMax;
+
+        document.getElementById('reset-kzoom-btn').disabled = false;
+        document.getElementById('kzoom-info').textContent =
+            `Center: (${kCenterX.toFixed(3)}, ${kCenterY.toFixed(3)})`;
+        calculateAndDisplayFT();
+    }
+
+    function drawFFTWindow() {
+        if (!isImageMode && points.length === 0) return;
+        sCtx.save();
+        sCtx.fillStyle = 'rgba(0, 100, 255, 0.15)';
+        sCtx.strokeStyle = 'rgba(0, 100, 255, 0.6)';
+        sCtx.lineWidth = 2;
+        const handleSize = 10;
+
+        sCtx.fillRect(fftWindow.x, fftWindow.y, fftWindow.width, fftWindow.height);
+        sCtx.strokeRect(fftWindow.x, fftWindow.y, fftWindow.width, fftWindow.height);
+        sCtx.fillStyle = '#007bff';
+        [[0,0],[1,0],[0,1],[1,1]].forEach(([ox,oy]) => {
+            sCtx.fillRect(fftWindow.x + ox*fftWindow.width - handleSize/2, fftWindow.y + oy*fftWindow.height - handleSize/2, handleSize, handleSize);
         });
+        sCtx.restore();
+    }
 
-        noiseThresholdSlider.addEventListener('input', () => {
-            valNoiseThresh.innerText = noiseThresholdSlider.value;
-        });
+    function calculateTransforms() {
+        if (isImageMode) {
+            minX = 0; maxX = 800; minY = 0; maxY = 800; scale = 1;
+        } else if (points.length > 0) {
+            minX = Math.min(...points.map(p => p.x)); maxX = Math.max(...points.map(p => p.x));
+            minY = Math.min(...points.map(p => p.y)); maxY = Math.max(...points.map(p => p.y));
+            const dW = maxX - minX || 1; const dH = maxY - minY || 1;
+            scale = Math.min(700/dW, 700/dH);
+        }
+        if (windowCenter.x === 0) { windowCenter.x = (maxX+minX)/2; windowCenter.y = (maxY+minY)/2; }
+    }
 
-        // Listen to FT control changes to update immediately when paused
-        [kmaxInput, resInput, hideCenterCheckbox, noiseThresholdSlider].forEach(el => {
-            el.addEventListener('input', forceUpdateScan);
-            el.addEventListener('change', forceUpdateScan);
-        });
-        
-        function toggleActiveScanning() {
-            scanActiveCheckbox.checked = !scanActiveCheckbox.checked;
-            handleScanToggle();
+    function calculateAndDisplayFT() {
+        const res = RESOLUTION;
+        const k_max = currentKMax;
+        const isPhaseMode = modePhaseRadio.checked;
+        let ftPts = [];
+
+        if (isImageMode) {
+            const tempC = document.createElement('canvas');
+            tempC.width = res; tempC.height = res;
+            const tCtx = tempC.getContext('2d');
+            tCtx.drawImage(scatterCanvas, fftWindow.x, fftWindow.y, fftWindow.width, fftWindow.height, 0, 0, res, res);
+            const pD = tCtx.getImageData(0, 0, res, res).data;
+            for(let y=0; y<res; y++){
+                for(let x=0; x<res; x++){
+                    const idx = (y*res + x)*4;
+                    const w = (pD[idx] + pD[idx+1] + pD[idx+2])/3;
+                    if(w > 5) ftPts.push({x: x-res/2, y: res/2-y, w: w/255});
+                }
+            }
+        } else {
+            let pts = points;
+            let cx = (maxX+minX)/2, cy = (maxY+minY)/2;
+            const wX1 = (fftWindow.x-margin)/scale+minX; const wX2 = wX1 + fftWindow.width/scale;
+            const wY2 = ((800-margin)-fftWindow.y)/scale+minY; const wY1 = wY2 - fftWindow.height/scale;
+            pts = points.filter(p => p.x >= wX1 && p.x <= wX2 && p.y >= wY1 && p.y <= wY2);
+            cx = (wX1+wX2)/2; cy = (wY1+wY2)/2;
+            ftPts = pts.map(p => ({x: p.x-cx, y: p.y-cy, w: 1}));
         }
 
-        function handleScanToggle() {
-            const pipPause = document.getElementById('pip-pause-overlay');
-            if (!scanActiveCheckbox.checked) {
-                scanStatus.innerText = `Blobs: ${detectedBlobs.length} | FPS: PAUSED`;
-                pipPause.style.display = 'flex';
-                forceUpdateScan();
-            } else {
-                pipPause.style.display = 'none';
+        if(ftPts.length === 0) { fCtx.clearRect(0,0,800,800); return; }
+
+        const mags = new Float32Array(res * res);
+        let phases = null;
+        if (isPhaseMode) phases = new Float32Array(res * res);
+
+        for(let py=0; py<res; py++){
+            for(let px=0; px<res; px++){
+                const kx = kCenterX + (px-res/2)*(2*k_max/res); const ky = kCenterY + (py-res/2)*(2*k_max/res);
+                let re = 0, im = 0;
+                for(const p of ftPts){
+                    const dot = p.x*kx + p.y*ky;
+                    re += p.w * Math.cos(-dot); im += p.w * Math.sin(-dot);
+                }
+                const idx = py*res + px;
+                mags[idx] = Math.log(1 + Math.sqrt(re*re + im*im));
+                if (isPhaseMode) phases[idx] = Math.atan2(im, re);
             }
         }
 
-        scanActiveCheckbox.addEventListener('change', handleScanToggle);
+        // Always apply noise reduction
+        const avg = mags.reduce((a,b)=>a+b)/mags.length;
+        const thr = Math.max(...mags) * 0.1;
+        for(let i=0; i<mags.length; i++) mags[i] = mags[i] < thr ? 0 : Math.max(0, mags[i]-avg);
 
-        // Tap on PiP to toggle
-        document.getElementById('scan-camera-canvas').addEventListener('click', toggleActiveScanning);
-        
-        function toggleControls() {
-            const panel = document.getElementById('shared-controls');
-            const icon = document.getElementById('controls-toggle-icon');
-            const text = document.getElementById('controls-toggle-text');
-            if (panel.style.display === 'none') {
-                panel.style.display = 'block';
-                icon.innerText = '▼';
-                text.innerText = 'Hide Controls';
-            } else {
-                panel.style.display = 'none';
-                icon.innerText = '▲';
-                text.innerText = 'Show Controls';
-            }
+        let maxM = 0;
+        for(let i=0; i<mags.length; i++){
+            if(mags[i] > maxM) maxM = mags[i];
         }
 
-        // Initialize empty state
-        calibCtx.fillStyle = '#1e1e1e';
-        calibCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-        calibCtx.fillStyle = '#aaaaaa';
-        calibCtx.font = '14px Arial';
-        calibCtx.textAlign = 'center';
-        calibCtx.fillText("No test image loaded", CANVAS_SIZE/2, CANVAS_SIZE/2);
+        const out = fCtx.createImageData(res, res);
+        for(let i=0; i<mags.length; i++){
+            if (isPhaseMode) {
+                let v = mags[i] / (maxM || 1); 
+                let h = phases[i] / (2 * Math.PI);
+                if (h < 0) h += 1.0; 
+                const [r, g, b] = hsvToRgb(h, 1.0, v);
+                out.data.set([r, g, b, 255], i*4);
+            } else {
+                const col = getViridisColor(mags[i]/(maxM||1));
+                out.data.set([...col, 255], i*4);
+            }
+        }
+        
+        const tC = document.createElement('canvas'); tC.width = tC.height = res;
+        tC.getContext('2d').putImageData(out, 0, 0);
+        fCtx.clearRect(0,0,800,800); fCtx.imageSmoothingEnabled = false;
+        fCtx.drawImage(tC, 0, 0, 800, 800);
+    }
 
-    </script>
+    function drawSpatial() {
+        sCtx.clearRect(0,0,800,800);
+        if(isImageMode && loadedImage) sCtx.drawImage(loadedImage, 0, 0, 800, 800);
+        else {
+            sCtx.fillStyle = '#007bff';
+            points.forEach(p => {
+                const cx = margin + (p.x-minX)*scale; const cy = 800-margin-(p.y-minY)*scale;
+                sCtx.beginPath(); sCtx.arc(cx, cy, 2, 0, 7); sCtx.fill();
+            });
+        }
+        drawFFTWindow();
+    }
+
+    function updateAll() { 
+        calculateTransforms(); 
+        drawSpatial(); 
+        calculateAndDisplayFT(); 
+        phaseLegend.style.display = modePhaseRadio.checked ? 'flex' : 'none';
+    }
+
+    // --- Interaction Logic ---
+    function getMouse(e) {
+        const r = scatterCanvas.getBoundingClientRect();
+        const x = (e.clientX - r.left) * (800 / r.width);
+        const y = (e.clientY - r.top) * (800 / r.height);
+        return { x, y, dx: (x-margin)/scale+minX, dy: ((800-margin)-y)/scale+minY };
+    }
+
+    scatterCanvas.addEventListener('mousedown', e => {
+        const m = getMouse(e);
+        const hs = 12;
+
+        // Check for resize handles on FT window corners
+        if(Math.abs(m.x - fftWindow.x) < hs && Math.abs(m.y - fftWindow.y) < hs) { isResizingWindow = true; resizeHandle = 'nw'; return; }
+        if(Math.abs(m.x - (fftWindow.x+fftWindow.width)) < hs && Math.abs(m.y - fftWindow.y) < hs) { isResizingWindow = true; resizeHandle = 'ne'; return; }
+        if(Math.abs(m.x - fftWindow.x) < hs && Math.abs(m.y - (fftWindow.y+fftWindow.height)) < hs) { isResizingWindow = true; resizeHandle = 'sw'; return; }
+        if(Math.abs(m.x - (fftWindow.x+fftWindow.width)) < hs && Math.abs(m.y - (fftWindow.y+fftWindow.height)) < hs) { isResizingWindow = true; resizeHandle = 'se'; return; }
+
+        // Check for drag inside FT window
+        const isInside = (m.x > fftWindow.x && m.x < fftWindow.x+fftWindow.width && m.y > fftWindow.y && m.y < fftWindow.y+fftWindow.height);
+        if(isInside) { isDraggingWindow = true; interactionOffset = {x: m.x-fftWindow.x, y: m.y-fftWindow.y}; return; }
+
+        if (!isImageMode) {
+            draggedPoint = points.find(p => Math.hypot(p.x-m.dx, p.y-m.dy)*scale < 10);
+            if(draggedPoint) isDraggingPoint = true;
+        }
+    });
+
+    fftCanvas.addEventListener('mousedown', e => {
+        if (!isKZoomMode) return;
+        const m = getFftMouse(e);
+        kZoomDrag = { active: true, startX: m.x, startY: m.y, curX: m.x, curY: m.y };
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (kZoomDrag.active) {
+            const m = getFftMouse(e);
+            kZoomDrag.curX = m.x; kZoomDrag.curY = m.y;
+            drawKZoomOverlay();
+        }
+        const m = getMouse(e);
+        if (isResizingWindow) {
+            const oldR = fftWindow.x + fftWindow.width; const oldB = fftWindow.y + fftWindow.height;
+            if(resizeHandle.includes('n')) { fftWindow.height = oldB - m.y; fftWindow.y = m.y; }
+            if(resizeHandle.includes('s')) { fftWindow.height = m.y - fftWindow.y; }
+            if(resizeHandle.includes('w')) { fftWindow.width = oldR - m.x; fftWindow.x = m.x; }
+            if(resizeHandle.includes('e')) { fftWindow.width = m.x - fftWindow.x; }
+            fftWindow.width = Math.max(10, fftWindow.width); fftWindow.height = Math.max(10, fftWindow.height);
+        } else if (isDraggingWindow) {
+            fftWindow.x = m.x - interactionOffset.x; fftWindow.y = m.y - interactionOffset.y;
+            windowCenter.x = (fftWindow.x + fftWindow.width/2 - margin)/scale + minX;
+            windowCenter.y = ((800 - margin) - (fftWindow.y + fftWindow.height/2))/scale + minY;
+        } else if (isDraggingPoint) {
+            draggedPoint.x = m.dx; draggedPoint.y = m.dy;
+        } else {
+            scatterCanvas.style.cursor = 'default';
+            const hs = 12;
+            if((Math.abs(m.x-fftWindow.x)<hs || Math.abs(m.x-(fftWindow.x+fftWindow.width))<hs) && (Math.abs(m.y-fftWindow.y)<hs || Math.abs(m.y-(fftWindow.y+fftWindow.height))<hs))
+                scatterCanvas.style.cursor = 'nwse-resize';
+        }
+        if(isResizingWindow || isDraggingWindow || isDraggingPoint) updateAll();
+    });
+
+    window.addEventListener('mouseup', () => {
+        isResizingWindow = isDraggingWindow = isDraggingPoint = false;
+        if (kZoomDrag.active) {
+            kZoomDrag.active = false;
+            document.getElementById('fft-overlay').getContext('2d').clearRect(0, 0, 800, 800);
+            applyKZoom();
+        }
+    });
+
+    // --- Listeners ---
+    // Mode toggles
+    modeAbsRadio.addEventListener('change', updateAll);
+    modePhaseRadio.addEventListener('change', updateAll);
+
+    document.getElementById('kzoom-mode-checkbox').addEventListener('change', function () {
+        isKZoomMode = this.checked;
+        fftCanvas.style.cursor = isKZoomMode ? 'crosshair' : 'default';
+        document.getElementById('kspace-title').textContent =
+            isKZoomMode ? 'K-Space — drag to zoom' : 'K-Space (Fourier Transform)';
+    });
+
+    document.getElementById('reset-kzoom-btn').addEventListener('click', () => {
+        kCenterX = 0; kCenterY = 0;
+        currentKMax = kOriginalMax !== null ? kOriginalMax : K_MAX;
+        kOriginalMax = null;
+        document.getElementById('reset-kzoom-btn').disabled = true;
+        document.getElementById('kzoom-info').textContent = '';
+        calculateAndDisplayFT();
+    });
+
+    // Load default dataset
+    fetch('dislocations_area_batio3_points.txt')
+        .then(r => r.text())
+        .then(text => {
+            points = text.split('\n').filter(l => l.trim()).map(l => {
+                const [x,y] = l.split(/[\s,]+/).map(Number); return {x,y};
+            }).filter(p => !isNaN(p.x));
+            isImageMode = false;
+            updateAll();
+        });
+  </script>
 </body>
 </html>
