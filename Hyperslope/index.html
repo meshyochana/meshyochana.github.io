@@ -124,12 +124,18 @@ header p{color:var(--txt2);font-size:.85rem;margin-top:.3rem}
     <canvas id="mainCanvas"></canvas>
   </div>
   
-  <div class="controls" id="controlsBar" style="display:none">
+  <div class="controls" id="controlsBar" style="display:none; align-items:center; gap:0.6rem; flex-wrap:wrap;">
     <button class="btn btn-primary" onclick="runAutoDetect()">🔍 Detect Vertices</button>
     <label style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;cursor:pointer">
       <input type="checkbox" id="showOverlay" checked onchange="redraw()"> Show overlay
     </label>
-    <button class="btn btn-danger" onclick="clearAll()">✕ Clear</button>
+    <div style="display:flex; align-items:center; gap:0.3rem; border-left: 1px solid var(--bdr); padding-left: 0.6rem; margin-left: 0.2rem;">
+      <button class="btn btn-secondary" onclick="zoom(1.2)" style="padding:0.25rem 0.5rem; font-size:0.8rem; height: auto;">➕ Zoom In</button>
+      <button class="btn btn-secondary" onclick="zoom(1/1.2)" style="padding:0.25rem 0.5rem; font-size:0.8rem; height: auto;">➖ Zoom Out</button>
+      <button class="btn btn-secondary" onclick="resetZoom()" style="padding:0.25rem 0.5rem; font-size:0.8rem; height: auto;">↺ Reset</button>
+      <span id="zoomLevelVal" style="font-size:0.75rem; font-family:monospace; color:var(--txt2); margin-left:0.2rem; min-width: 35px; text-align: right;">100%</span>
+    </div>
+    <button class="btn btn-danger" onclick="clearAll()" style="margin-left: auto;">✕ Clear</button>
   </div>
 
   <!-- Dynamic settings panel -->
@@ -154,6 +160,13 @@ header p{color:var(--txt2);font-size:.85rem;margin-top:.3rem}
             <span id="vertexSizeVal" style="font-family: monospace;">3.5 px</span>
           </label>
           <input type="range" id="vertexSizeSlider" min="1" max="15" step="0.5" value="3.5" oninput="onVertexSizeChange(this.value)">
+        </div>
+        <div class="setting-item" style="margin-top: 0.4rem;">
+          <label style="display:flex; justify-content:space-between;">
+            <span>Tile Label Size</span>
+            <span id="labelSizeVal" style="font-family: monospace;">8.0 px</span>
+          </label>
+          <input type="range" id="labelSizeSlider" min="4" max="18" step="0.5" value="8" oninput="onLabelSizeChange(this.value)">
         </div>
       </div>
       
@@ -413,6 +426,7 @@ let loadedImage = null, fullImageData = null;
 let imgW = 0, imgH = 0, displayScale = 1;
 let detectedVertices = [], detectedEdges = [], detectedFaces = [], adjacency = [];
 let vertexDisplaySize = 3.5;
+let labelDisplaySize = 8.0;
 
 // Selection Window State
 let selectionEnabled = false;
@@ -420,6 +434,13 @@ let selectionWindow = {x: 100, y: 100, w: 200, h: 200};
 let draggingWindow = false;
 let resizingWindow = false;
 let dragOffset = {x: 0, y: 0};
+
+// Zoom & Pan state variables
+let zoomLevel = 1.0;
+let panX = 0;
+let panY = 0;
+let isPanning = false;
+let startPan = { x: 0, y: 0 };
 
 // Heatmap State
 let heatmapData = {
@@ -587,6 +608,15 @@ function loadCoordinates(pts) {
   document.getElementById('edgeMethod').value = 'delaunay';
   
   initSelectionWindow();
+  
+  // Reset zoom & pan
+  zoomLevel = 1.0;
+  panX = 0;
+  panY = 0;
+  if (document.getElementById('zoomLevelVal')) {
+    document.getElementById('zoomLevelVal').textContent = '100%';
+  }
+  
   setStatus('Loaded ' + pts.length + ' coordinates from file. Settings initialized.', 'info');
   updateGraphSettings(true);
 }
@@ -627,6 +657,14 @@ function loadImageFile(file) {
         selectionEnabled = false;
         document.getElementById('selectionEnabled').checked = false;
         
+        // Reset zoom & pan
+        zoomLevel = 1.0;
+        panX = 0;
+        panY = 0;
+        if (document.getElementById('zoomLevelVal')) {
+          document.getElementById('zoomLevelVal').textContent = '100%';
+        }
+        
         setStatus('Image loaded ('+imgW+'×'+imgH+'). Click Detect Vertices or enter counts manually.','info');
         runAutoDetect();
       };
@@ -638,6 +676,11 @@ function loadImageFile(file) {
 
 function redraw() {
   cctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  cctx.save();
+  cctx.translate(panX, panY);
+  cctx.scale(zoomLevel, zoomLevel);
+  
   if (loadedImage) {
     cctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
   } else {
@@ -653,6 +696,41 @@ function redraw() {
     }
   }
   if (document.getElementById('showOverlay').checked) drawOverlay();
+  
+  cctx.restore();
+}
+
+function clampPan() {
+  const maxPanX = canvas.width * (zoomLevel - 1);
+  const maxPanY = canvas.height * (zoomLevel - 1);
+  panX = Math.max(-maxPanX, Math.min(0, panX));
+  panY = Math.max(-maxPanY, Math.min(0, panY));
+}
+
+function zoom(factor) {
+  const newZoom = Math.min(10, Math.max(1, zoomLevel * factor));
+  if (newZoom !== zoomLevel) {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    panX = cx - (cx - panX) * (newZoom / zoomLevel);
+    panY = cy - (cy - panY) * (newZoom / zoomLevel);
+    zoomLevel = newZoom;
+    clampPan();
+    if (document.getElementById('zoomLevelVal')) {
+      document.getElementById('zoomLevelVal').textContent = Math.round(zoomLevel * 100) + '%';
+    }
+    redraw();
+  }
+}
+
+function resetZoom() {
+  zoomLevel = 1.0;
+  panX = 0;
+  panY = 0;
+  if (document.getElementById('zoomLevelVal')) {
+    document.getElementById('zoomLevelVal').textContent = '100%';
+  }
+  redraw();
 }
 
 /* ===================================================================
@@ -1395,6 +1473,12 @@ function onVertexSizeChange(val) {
   redraw();
 }
 
+function onLabelSizeChange(val) {
+  labelDisplaySize = parseFloat(val);
+  document.getElementById('labelSizeVal').textContent = labelDisplaySize.toFixed(1) + ' px';
+  redraw();
+}
+
 function initSelectionWindow() {
   selectionWindow = {
     x: Math.round(canvas.width * 0.25),
@@ -1441,32 +1525,56 @@ function onSelectionToggle(checked) {
    CANVAS INTERACTIVE MOUSE CONTROLS (selection window drag/resize)
    =================================================================== */
 canvas.addEventListener('mousedown', e => {
-  if (!selectionEnabled) return;
   const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
+  const rawMx = e.clientX - rect.left;
+  const rawMy = e.clientY - rect.top;
   
-  const rx = selectionWindow.x + selectionWindow.w;
-  const ry = selectionWindow.y + selectionWindow.h;
-  if (Math.hypot(mx - rx, my - ry) < 12) {
-    resizingWindow = true;
-    e.preventDefault();
-    return;
+  const mx = (rawMx - panX) / zoomLevel;
+  const my = (rawMy - panY) / zoomLevel;
+  
+  if (selectionEnabled) {
+    const rx = selectionWindow.x + selectionWindow.w;
+    const ry = selectionWindow.y + selectionWindow.h;
+    if (Math.hypot(mx - rx, my - ry) < 12 / zoomLevel) {
+      resizingWindow = true;
+      e.preventDefault();
+      return;
+    }
+    
+    if (mx >= selectionWindow.x && mx <= selectionWindow.x + selectionWindow.w &&
+        my >= selectionWindow.y && my <= selectionWindow.y + selectionWindow.h) {
+      draggingWindow = true;
+      dragOffset.x = mx - selectionWindow.x;
+      dragOffset.y = my - selectionWindow.y;
+      e.preventDefault();
+      return;
+    }
   }
   
-  if (mx >= selectionWindow.x && mx <= selectionWindow.x + selectionWindow.w &&
-      my >= selectionWindow.y && my <= selectionWindow.y + selectionWindow.h) {
-    draggingWindow = true;
-    dragOffset.x = mx - selectionWindow.x;
-    dragOffset.y = my - selectionWindow.y;
-    e.preventDefault();
-  }
+  // Initiate panning
+  isPanning = true;
+  startPan.x = rawMx - panX;
+  startPan.y = rawMy - panY;
+  canvas.style.cursor = 'grabbing';
+  e.preventDefault();
 });
 
 canvas.addEventListener('mousemove', e => {
   const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
+  const rawMx = e.clientX - rect.left;
+  const rawMy = e.clientY - rect.top;
+  
+  if (isPanning) {
+    panX = rawMx - startPan.x;
+    panY = rawMy - startPan.y;
+    clampPan();
+    redraw();
+    e.preventDefault();
+    return;
+  }
+  
+  const mx = (rawMx - panX) / zoomLevel;
+  const my = (rawMy - panY) / zoomLevel;
   
   if (resizingWindow) {
     selectionWindow.w = Math.max(30, mx - selectionWindow.x);
@@ -1490,22 +1598,46 @@ canvas.addEventListener('mousemove', e => {
   if (selectionEnabled) {
     const rx = selectionWindow.x + selectionWindow.w;
     const ry = selectionWindow.y + selectionWindow.h;
-    if (Math.hypot(mx - rx, my - ry) < 12) {
+    if (Math.hypot(mx - rx, my - ry) < 12 / zoomLevel) {
       canvas.style.cursor = 'se-resize';
     } else if (mx >= selectionWindow.x && mx <= selectionWindow.x + selectionWindow.w &&
                my >= selectionWindow.y && my <= selectionWindow.y + selectionWindow.h) {
       canvas.style.cursor = 'move';
     } else {
-      canvas.style.cursor = 'default';
+      canvas.style.cursor = zoomLevel > 1.0 ? 'grab' : 'default';
     }
   } else {
-    canvas.style.cursor = 'default';
+    canvas.style.cursor = zoomLevel > 1.0 ? 'grab' : 'default';
   }
 });
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  
+  const zoomFactor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  const newZoom = Math.min(10, Math.max(1, zoomLevel * zoomFactor));
+  if (newZoom !== zoomLevel) {
+    panX = mouseX - (mouseX - panX) * (newZoom / zoomLevel);
+    panY = mouseY - (mouseY - panY) * (newZoom / zoomLevel);
+    zoomLevel = newZoom;
+    clampPan();
+    if (document.getElementById('zoomLevelVal')) {
+      document.getElementById('zoomLevelVal').textContent = Math.round(zoomLevel * 100) + '%';
+    }
+    redraw();
+  }
+}, { passive: false });
 
 window.addEventListener('mouseup', () => {
   draggingWindow = false;
   resizingWindow = false;
+  if (isPanning) {
+    isPanning = false;
+    canvas.style.cursor = zoomLevel > 1.0 ? 'grab' : 'default';
+  }
 });
 
 /* ===================================================================
@@ -1540,7 +1672,7 @@ function drawOverlay() {
     
     const cx = vs.reduce((a,v)=>a+v.x,0)/vs.length*s;
     const cy = vs.reduce((a,v)=>a+v.y,0)/vs.length*s;
-    cctx.font = 'bold 9px Inter'; cctx.fillStyle = '#fff';
+    cctx.font = `bold ${labelDisplaySize}px Inter`; cctx.fillStyle = '#fff';
     cctx.textAlign = 'center'; cctx.textBaseline = 'middle';
     cctx.fillText(f.type, cx, cy);
   }
@@ -1678,6 +1810,13 @@ function clearAll() {
   document.getElementById('statusMsg').className='status-msg';
   document.getElementById('heatmapCard').style.display='none';
   heatmapData = { cols: 0, rows: 0, gridX: [], gridY: [], winW: 0, winH: 0, stepX: 0, stepY: 0, detHMatrix: [], wMatrix: [] };
+  // Reset zoom & pan
+  zoomLevel = 1.0;
+  panX = 0;
+  panY = 0;
+  if (document.getElementById('zoomLevelVal')) {
+    document.getElementById('zoomLevelVal').textContent = '100%';
+  }
   resetCounts();
   fileInput.value='';
 }
