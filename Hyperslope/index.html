@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hyperslope Calculator – STR Tiling Analyzer</title>
+<meta name="description" content="Calculate the average hyperslope matrix H and coefficients X,Y,Z,W of finite square-triangle-rhombus tiling patches.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg0:#0a0e14;--bg1:#131922;--bg2:#1a2233;--bg3:#243044;
+  --bdr:#2a3a52;--txt:#d4dce8;--txt2:#8899b0;--txt3:#5a6a80;
+  --blue:#58a6ff;--red:#f78166;--green:#3fb950;--purple:#bc8cff;
+  --yellow:#d29922;--cyan:#39d2c0;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg0);color:var(--txt);
+  min-height:100vh;overflow-x:hidden}
+h1{font-size:1.8rem;font-weight:700;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.1rem;font-weight:600;color:var(--blue);margin-bottom:.6rem;
+  letter-spacing:.03em;text-transform:uppercase}
+h3{font-size:.85rem;font-weight:600;color:var(--txt2);margin-bottom:.5rem}
+.container{max-width:1050px;margin:0 auto;padding:1.5rem 1rem 3rem}
+header{text-align:center;padding:1.5rem 0 1rem}
+header p{color:var(--txt2);font-size:.85rem;margin-top:.3rem}
+.card{background:var(--bg1);border:1px solid var(--bdr);border-radius:12px;
+  padding:1.2rem;margin-bottom:1rem;
+  box-shadow:0 4px 24px rgba(0,0,0,.3);transition:border-color .3s}
+.card:hover{border-color:var(--blue)}
+.dropzone{border:2px dashed var(--bdr);border-radius:10px;padding:2rem;
+  text-align:center;cursor:pointer;transition:all .3s;position:relative}
+.dropzone:hover,.dropzone.dragover{border-color:var(--blue);
+  background:rgba(88,166,255,.06)}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dropzone p{color:var(--txt2);font-size:.9rem}
+.dropzone .icon{font-size:2rem;margin-bottom:.5rem}
+.canvas-wrap{position:relative;margin-top:.8rem;text-align:center;
+  border-radius:8px;overflow:hidden;background:#000;display:none}
+.canvas-wrap canvas{display:block;max-width:100%;margin:0 auto}
+.controls{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem;align-items:center}
+.btn{padding:.5rem 1.1rem;border:none;border-radius:8px;font-family:inherit;
+  font-size:.82rem;font-weight:600;cursor:pointer;transition:all .25s;
+  display:inline-flex;align-items:center;gap:.4rem}
+.btn-primary{background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff}
+.btn-primary:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.btn-secondary{background:var(--bg3);color:var(--txt);border:1px solid var(--bdr)}
+.btn-secondary:hover{border-color:var(--blue)}
+.btn-danger{background:rgba(248,81,73,.15);color:#f85149;border:1px solid rgba(248,81,73,.3)}
+.btn-danger:hover{background:rgba(248,81,73,.25)}
+
+/* Settings Panel */
+.controls-panel{background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:1rem;margin-top:1rem;}
+.controls-panel h3{border-bottom:1px solid var(--bdr);padding-bottom:0.3rem;margin-bottom:0.6rem;}
+.settings-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:1rem;}
+.settings-col{display:flex;flex-direction:column;gap:0.6rem;}
+.setting-item{display:flex;flex-direction:column;gap:0.25rem;}
+.setting-item label{font-size:0.78rem;color:var(--txt2);font-weight:500;}
+.setting-item input[type=range]{width:100%;accent-color:var(--blue);cursor:pointer;}
+.setting-item select{padding:0.35rem;background:var(--bg0);color:var(--txt);border:1px solid var(--bdr);border-radius:4px;outline:none;}
+.setting-item select:focus{border-color:var(--blue);}
+
+/* Side-by-Side dashboard layout */
+.dashboard-row{display:flex;gap:1.2rem;margin-top:1rem;align-items:stretch;}
+.dashboard-row .card{margin-bottom:0; display:flex; flex-direction:column;}
+.counts-card{flex:1.2; min-width:320px;}
+.results-card{flex:1.1; min-width:380px;}
+@media(max-width:850px){
+  .dashboard-row{flex-direction:column;}
+}
+
+/* Vertical Stacking of Tile Categories with Horizontal Items */
+.counts-grid{display:flex; flex-direction:column; gap:.8rem}
+.count-group{background:var(--bg2);border-radius:10px;padding:.8rem}
+.count-items-row{display:flex; flex-wrap:wrap; gap:.8rem;}
+.count-item{display:flex;align-items:center;gap:.5rem;}
+.count-item canvas{flex-shrink:0;border-radius:4px;background:var(--bg0)}
+.count-item label{font-family:'JetBrains Mono',monospace;font-size:.82rem;
+  color:var(--txt2);min-width:1.8rem}
+.count-item input[type=number]{width:60px;padding:.3rem .4rem;
+  border:1px solid var(--bdr);border-radius:6px;background:var(--bg0);
+  color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:.85rem;
+  text-align:center;transition:border-color .2s}
+.count-item input:focus{outline:none;border-color:var(--blue)}
+
+.result-item{display:flex;justify-content:space-between;align-items:center;
+  padding:.35rem .6rem;border-radius:6px;background:var(--bg2); border: 1px solid var(--bdr);}
+.result-item .lbl{font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--txt2)}
+.result-item .val{font-family:'JetBrains Mono',monospace;font-size:.85rem;font-weight:500;color:var(--cyan)}
+.matrix-box{display:inline-flex;align-items:stretch;margin:.6rem 0;
+  font-family:'JetBrains Mono',monospace}
+.matrix-bracket{display:flex;flex-direction:column;justify-content:center;
+  font-size:2.5rem;color:var(--blue);line-height:1;user-select:none}
+.matrix-inner{display:grid;grid-template-columns:1fr 1fr;gap:.3rem 1.2rem;
+  padding:.4rem .8rem;align-items:center}
+.matrix-inner span{font-size:.95rem;text-align:center;color:var(--cyan);min-width:5.5rem}
+.check-ok{color:var(--green)}.check-warn{color:var(--yellow)}
+.sep{border:none;border-top:1px solid var(--bdr);margin:.8rem 0}
+.info{font-size:.72rem;color:var(--txt3);margin-top:.3rem;line-height:1.4}
+.status-msg{padding:.5rem .8rem;border-radius:8px;font-size:.82rem;margin-top:.6rem;display:none}
+.status-msg.info-msg{display:block;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:var(--blue)}
+.status-msg.warn-msg{display:block;background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);color:var(--yellow)}
+.status-msg.err-msg{display:block;background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);color:#f85149}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Hyperslope Calculator</h1>
+  <p>STR Tiling Patch Analyzer · Impéror-Clerc <em>et al.</em> Phys. Rev. B 110, 144106 (2024)</p>
+</header>
+
+<section class="card" id="uploadCard">
+  <h2>① Upload Patch Image or Coordinates</h2>
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept="image/*,.txt,.csv,.dat">
+    <div class="icon">📐</div>
+    <p>Drop a tiling patch image or coordinate text file here, or click to browse</p>
+    <p style="font-size:.72rem;color:var(--txt3);margin-top:.3rem">Supports PNG/JPG and coordinate datasets (.txt, .csv)</p>
+  </div>
+  
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="mainCanvas"></canvas>
+  </div>
+  
+  <div class="controls" id="controlsBar" style="display:none">
+    <button class="btn btn-primary" onclick="runAutoDetect()">🔍 Detect Vertices</button>
+    <label style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;cursor:pointer">
+      <input type="checkbox" id="showOverlay" checked onchange="redraw()"> Show overlay
+    </label>
+    <button class="btn btn-danger" onclick="clearAll()">✕ Clear</button>
+  </div>
+
+  <!-- Dynamic settings panel -->
+  <div class="controls-panel" id="controlsPanel" style="display:none;">
+    <div class="settings-grid">
+      <!-- Vertex configuration -->
+      <div class="settings-col">
+        <h3>Vertex Detection</h3>
+        <div class="setting-item">
+          <label for="vertexMethod">Detection Method</label>
+          <select id="vertexMethod" onchange="runAutoDetect()">
+            <option value="auto">Auto (Red Dots / Corners)</option>
+            <option value="red">Red Dots Only</option>
+            <option value="corners">Harris Corners Only</option>
+            <option value="dark">Dark Blobs (Pointset)</option>
+            <option value="light">Light Blobs (Pointset)</option>
+          </select>
+        </div>
+        <div class="setting-item" style="margin-top: 0.4rem;">
+          <label style="display:flex; justify-content:space-between;">
+            <span>Vertex Size</span>
+            <span id="vertexSizeVal" style="font-family: monospace;">3.5 px</span>
+          </label>
+          <input type="range" id="vertexSizeSlider" min="1" max="15" step="0.5" value="3.5" oninput="onVertexSizeChange(this.value)">
+        </div>
+      </div>
+      
+      <!-- Graph & Edge filtering -->
+      <div class="settings-col">
+        <h3>Edge Construction</h3>
+        <div class="setting-item">
+          <label for="edgeMethod">Edge Method</label>
+          <select id="edgeMethod" onchange="updateGraphSettings(false)">
+            <option value="image">Image Line Verification</option>
+            <option value="delaunay">Delaunay Triangulation</option>
+          </select>
+        </div>
+        
+        <div id="edgeFilterControls" style="display: none; flex-direction: column; gap: 0.6rem;">
+          <div class="setting-item">
+            <label style="display:flex; justify-content:space-between;">
+              <span>Target Edge Length</span>
+              <span id="edgeLenVal" style="font-family: monospace;">50 px</span>
+            </label>
+            <input type="range" id="edgeLenSlider" min="5" max="250" step="1" value="50" oninput="onEdgeLenChange(this.value)">
+          </div>
+          <div class="setting-item">
+            <label style="display:flex; justify-content:space-between;">
+              <span>Length Tolerance</span>
+              <span id="edgeTolVal" style="font-family: monospace;">15%</span>
+            </label>
+            <input type="range" id="edgeTolSlider" min="5" max="45" step="1" value="15" oninput="onEdgeTolChange(this.value)">
+          </div>
+        </div>
+      </div>
+      
+      <!-- Grid shift alignment -->
+      <div class="settings-col">
+        <h3>Grid Alignment</h3>
+        <div class="setting-item" style="flex-direction:row; align-items:center; gap:0.4rem; margin-top:0.2rem;">
+          <input type="checkbox" id="autoAlign" checked onchange="onAutoAlignChange()">
+          <label for="autoAlign" style="cursor:pointer;">Auto-Detect Global Shift</label>
+        </div>
+        <div class="setting-item">
+          <label style="display:flex; justify-content:space-between;">
+            <span>Global Rotation Shift</span>
+            <span id="globalShiftVal" style="font-family: monospace;">0.0°</span>
+          </label>
+          <input type="range" id="globalShiftSlider" min="-30" max="30" step="0.1" value="0" oninput="onGlobalShiftChange(this.value)">
+        </div>
+      </div>
+
+      <!-- Selection Window configuration -->
+      <div class="settings-col">
+        <h3>Selection Window</h3>
+        <div class="setting-item" style="flex-direction:row; align-items:center; gap:0.4rem; margin-top:0.2rem;">
+          <input type="checkbox" id="selectionEnabled" onchange="onSelectionToggle(this.checked)">
+          <label for="selectionEnabled" style="cursor:pointer; font-weight:600; color:var(--blue);">Enable Selection Box</label>
+        </div>
+        <p class="info" style="font-size:0.7rem; color:var(--txt3);">Drag the box to move it, or drag the bottom-right handle to resize it. Calculations update in real-time.</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="status-msg" id="statusMsg"></div>
+</section>
+
+<!-- Side-by-Side Dashboard Row -->
+<div class="dashboard-row">
+  <!-- ② Tile Counts Card -->
+  <section class="card counts-card">
+    <h2>② Tile Counts</h2>
+    <p class="info">Auto-filled after detection, or enter manually. Each rhombus ℛ<sub>i</sub> is rotated 30° from ℛ<sub>i−1</sub>; ℛ₁ has one edge along the x-axis.</p>
+    <div class="counts-grid" style="margin-top:.7rem" id="countsGrid">
+      <div class="count-group">
+        <h3>Triangles (𝑇)</h3>
+        <div class="count-items-row">
+          <div class="count-item"><canvas id="ic-T1" width="36" height="36"></canvas><label>𝑇₁</label><input type="number" id="NT1" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-T2" width="36" height="36"></canvas><label>𝑇₂</label><input type="number" id="NT2" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-T3" width="36" height="36"></canvas><label>𝑇₃</label><input type="number" id="NT3" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-T4" width="36" height="36"></canvas><label>𝑇₄</label><input type="number" id="NT4" value="0" min="0"></div>
+        </div>
+      </div>
+      <div class="count-group">
+        <h3>Squares (𝑆)</h3>
+        <div class="count-items-row">
+          <div class="count-item"><canvas id="ic-S1" width="36" height="36"></canvas><label>𝑆₁</label><input type="number" id="NS1" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-S2" width="36" height="36"></canvas><label>𝑆₂</label><input type="number" id="NS2" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-S3" width="36" height="36"></canvas><label>𝑆₃</label><input type="number" id="NS3" value="0" min="0"></div>
+        </div>
+      </div>
+      <div class="count-group">
+        <h3>Rhombuses (ℛ)</h3>
+        <div class="count-items-row">
+          <div class="count-item"><canvas id="ic-R1" width="36" height="36"></canvas><label>ℛ₁</label><input type="number" id="NR1" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-R2" width="36" height="36"></canvas><label>ℛ₂</label><input type="number" id="NR2" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-R3" width="36" height="36"></canvas><label>ℛ₃</label><input type="number" id="NR3" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-R4" width="36" height="36"></canvas><label>ℛ₄</label><input type="number" id="NR4" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-R5" width="36" height="36"></canvas><label>ℛ₅</label><input type="number" id="NR5" value="0" min="0"></div>
+          <div class="count-item"><canvas id="ic-R6" width="36" height="36"></canvas><label>ℛ₆</label><input type="number" id="NR6" value="0" min="0"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:.8rem;display:flex;gap:.5rem">
+      <button class="btn btn-secondary" onclick="resetCounts()">Reset Counts</button>
+    </div>
+  </section>
+
+  <!-- ③ Results Card -->
+  <section class="card results-card" id="resultsSection">
+    <h2>③ Results</h2>
+    
+    <h3 style="margin-top: 0.2rem;">Totals &amp; Area</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 0.6rem;">
+      <div class="result-item"><span class="lbl">N_T (Triangles)</span><span class="val" id="val-NT">0</span></div>
+      <div class="result-item"><span class="lbl">N_S (Squares)</span><span class="val" id="val-NS">0</span></div>
+      <div class="result-item"><span class="lbl">N_R (Rhombuses)</span><span class="val" id="val-NR">0</span></div>
+      <div class="result-item"><span class="lbl">Area A (a=1)</span><span class="val" id="val-A">0.0</span></div>
+    </div>
+    
+    <hr class="sep">
+    
+    <h3>Area Fractions</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; margin-bottom: 0.4rem;">
+      <!-- Triangles -->
+      <div style="background: var(--bg2); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--bdr);">
+        <h4 style="font-size:0.75rem; color:var(--blue); border-bottom:1px solid var(--bdr); padding-bottom:2px; margin-bottom:4px;">Triangles (τ)</h4>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; margin-bottom:2px;"><span>τ₁:</span><span id="val-tau1">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; margin-bottom:2px;"><span>τ₂:</span><span id="val-tau2">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; margin-bottom:2px;"><span>τ₃:</span><span id="val-tau3">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; margin-bottom:4px;"><span>τ₄:</span><span id="val-tau4">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; font-weight:bold; border-top:1px dashed var(--bdr); padding-top:2px; color:var(--cyan);"><span>Total τ:</span><span id="val-tauT">0.000000</span></div>
+      </div>
+      <!-- Squares -->
+      <div style="background: var(--bg2); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--bdr);">
+        <h4 style="font-size:0.75rem; color:var(--purple); border-bottom:1px solid var(--bdr); padding-bottom:2px; margin-bottom:4px;">Squares (σ)</h4>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; margin-bottom:2px;"><span>σ₁:</span><span id="val-sigma1">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; margin-bottom:2px;"><span>σ₂:</span><span id="val-sigma2">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; margin-bottom:4px;"><span>σ₃:</span><span id="val-sigma3">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-family:monospace; font-weight:bold; border-top:1px dashed var(--bdr); padding-top:2px; color:var(--cyan);"><span>Total σ:</span><span id="val-sigmaT">0.000000</span></div>
+      </div>
+      <!-- Rhombuses -->
+      <div style="background: var(--bg2); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--bdr);">
+        <h4 style="font-size:0.75rem; color:var(--green); border-bottom:1px solid var(--bdr); padding-bottom:2px; margin-bottom:4px;">Rhombuses (ρ)</h4>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-family:monospace; margin-bottom:1px;"><span>ρ₁:</span><span id="val-rho1">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-family:monospace; margin-bottom:1px;"><span>ρ₂:</span><span id="val-rho2">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-family:monospace; margin-bottom:1px;"><span>ρ₃:</span><span id="val-rho3">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-family:monospace; margin-bottom:1px;"><span>ρ₄:</span><span id="val-rho4">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-family:monospace; margin-bottom:1px;"><span>ρ₅:</span><span id="val-rho5">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-family:monospace; margin-bottom:3px;"><span>ρ₆:</span><span id="val-rho6">0.000000</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-family:monospace; font-weight:bold; border-top:1px dashed var(--bdr); padding-top:2px; color:var(--cyan);"><span>Total ρ:</span><span id="val-rhoT">0.000000</span></div>
+      </div>
+    </div>
+    <div class="result-item" style="margin-bottom: 0.6rem;"><span class="lbl">Sum Fractions (τ+σ+ρ)</span><span class="val" id="val-sumCheck">0.00000000</span></div>
+    
+    <hr class="sep">
+    
+    <h3>Coefficients</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 0.6rem;">
+      <div class="result-item"><span class="lbl">Z (Triangles)</span><span class="val" id="val-Z">0.000000</span></div>
+      <div class="result-item"><span class="lbl">W (Rhombuses)</span><span class="val" id="val-W">0.000000</span></div>
+      <div class="result-item"><span class="lbl">X₁ (σ₁ - 2(ρ₂ + ρ₅))</span><span class="val" id="val-X1">0.000000</span></div>
+      <div class="result-item"><span class="lbl">X₂ (σ₂ - 2(ρ₁ + ρ₄))</span><span class="val" id="val-X2">0.000000</span></div>
+      <div class="result-item"><span class="lbl">X₃ (σ₃ - 2(ρ₃ + ρ₆))</span><span class="val" id="val-X3">0.000000</span></div>
+      <div style="grid-column: span 2; display:grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; border-top: 1px dashed var(--bdr); padding-top: 0.4rem; margin-top: 0.2rem;">
+        <div class="result-item"><span class="lbl">X</span><span class="val" id="val-X">0.000000</span></div>
+        <div class="result-item"><span class="lbl">Y</span><span class="val" id="val-Y">0.000000</span></div>
+      </div>
+    </div>
+    
+    <hr class="sep">
+    
+    <h3>Hyperslope Matrix 𝐻</h3>
+    <div style="text-align:center; margin-top: 0.4rem; margin-bottom: 0.4rem;">
+      <div style="display:inline-flex;align-items:center;gap:.6rem">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:var(--txt2)">𝐻 =</span>
+        <div class="matrix-box">
+          <span class="matrix-bracket">(</span>
+          <div class="matrix-inner">
+            <span id="H00">—</span><span id="H01">—</span>
+            <span id="H10">—</span><span id="H11">—</span>
+          </div>
+          <span class="matrix-bracket">)</span>
+        </div>
+      </div>
+    </div>
+    <div class="result-item"><span class="lbl">det(H)</span><span class="val" id="val-detH">—</span></div>
+  </section>
+</div>
+</div>
+
+<script>
+/* ===================================================================
+   CONSTANTS & STATE
+   =================================================================== */
+const DEG = Math.PI / 180;
+const SQRT3 = Math.sqrt(3);
+const TILE_TYPES = ['T1','T2','T3','T4','S1','S2','S3','R1','R2','R3','R4','R5','R6'];
+
+let loadedImage = null, fullImageData = null;
+let imgW = 0, imgH = 0, displayScale = 1;
+let detectedVertices = [], detectedEdges = [], detectedFaces = [], adjacency = [];
+let vertexDisplaySize = 3.5;
+
+// Selection Window State
+let selectionEnabled = false;
+let selectionWindow = {x: 100, y: 100, w: 200, h: 200};
+let draggingWindow = false;
+let resizingWindow = false;
+let dragOffset = {x: 0, y: 0};
+
+/* ===================================================================
+   TILE GEOMETRY  (edge-length = 1, centred at origin)
+   Rhombuses are 30°/150° with edges on consecutive dodecagonal
+   directions.  R_i has edges along (i-1)*30° and i*30°.
+   =================================================================== */
+function tileVerts(type) {
+  const r3 = SQRT3 / 3;            // triangle centroid-to-vertex
+  const sr = 1 / Math.sqrt(2);     // square centre-to-vertex
+
+  if (type[0] === 'T') {
+    const base = {T1:270, T2:0, T3:90, T4:180}[type];
+    return [0,1,2].map(i => {
+      const a = (base + i * 120) * DEG;
+      return [r3 * Math.cos(a), r3 * Math.sin(a)];
+    });
+  }
+  if (type[0] === 'S') {
+    const base = {S1:45, S2:75, S3:105}[type];
+    return [0,1,2,3].map(i => {
+      const a = (base + i * 90) * DEG;
+      return [sr * Math.cos(a), sr * Math.sin(a)];
+    });
+  }
+  const idx = 7 - (+type[1]);
+  const d1 = ((idx - 1) * 30) * DEG;
+  const d2 = (idx * 30) * DEG;
+  const e1 = [Math.cos(d1), Math.sin(d1)];
+  const e2 = [Math.cos(d2), Math.sin(d2)];
+  const raw = [
+    [0, 0],
+    [e1[0], e1[1]],
+    [e1[0]+e2[0], e1[1]+e2[1]],
+    [e2[0], e2[1]]
+  ];
+  const cx = (raw[0][0]+raw[2][0])/2, cy = (raw[0][1]+raw[2][1])/2;
+  return raw.map(v => [v[0]-cx, v[1]-cy]);
+}
+
+/* Edge colour: even-k directions (0°,60°,120°) → blue; odd-k (30°,90°,150°) → red */
+function edgeColour(x1, y1, x2, y2) {
+  let a = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+  a = ((a % 180) + 180) % 180;
+  const r = Math.round(a / 30) * 30 % 180;
+  return (r % 60 === 0) ? '#58a6ff' : '#f78166';
+}
+
+function drawIcon(canvasId, type) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const w = c.width, h = c.height;
+  const cxc = w/2, cyc = h/2;
+  const sc = type[0] === 'R' ? 15 : 13;
+  const vs = tileVerts(type).map(v => [cxc + v[0]*sc, cyc + v[1]*sc]);
+  ctx.clearRect(0, 0, w, h);
+  ctx.beginPath(); ctx.moveTo(vs[0][0], vs[0][1]);
+  for (let i = 1; i < vs.length; i++) ctx.lineTo(vs[i][0], vs[i][1]);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(200,210,225,0.08)'; ctx.fill();
+  for (let i = 0; i < vs.length; i++) {
+    const j = (i+1) % vs.length;
+    ctx.beginPath(); ctx.moveTo(vs[i][0], vs[i][1]); ctx.lineTo(vs[j][0], vs[j][1]);
+    ctx.strokeStyle = edgeColour(vs[i][0], vs[i][1], vs[j][0], vs[j][1]);
+    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
+  }
+  for (const v of vs) {
+    ctx.beginPath(); ctx.arc(v[0], v[1], 2.2, 0, 2*Math.PI);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 0.6; ctx.stroke();
+  }
+}
+
+/* ===================================================================
+   IMAGE & COORDINATE LOADING
+   =================================================================== */
+const canvas = document.getElementById('mainCanvas');
+const cctx = canvas.getContext('2d');
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const canvasWrap = document.getElementById('canvasWrap');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadImageFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) loadImageFile(e.target.files[0]); });
+
+function parseTxtCoordinates(text) {
+  const lines = text.split('\n');
+  const pts = [];
+  for (let line of lines) {
+    line = line.trim();
+    if (!line || line.startsWith('#') || line.startsWith('//')) continue;
+    const matches = line.match(/[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/g);
+    if (matches && matches.length >= 2) {
+      const x = parseFloat(matches[0]);
+      const y = parseFloat(matches[1]);
+      if (!isNaN(x) && !isNaN(y)) {
+        pts.push({x, y});
+      }
+    }
+  }
+  return pts;
+}
+
+function loadCoordinates(pts) {
+  if (pts.length === 0) return;
+  
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let p of pts) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  
+  const pad = 40;
+  const targetW = 800, targetH = 600;
+  const dx = maxX - minX || 1;
+  const dy = maxY - minY || 1;
+  const scale = Math.min((targetW - 2*pad)/dx, (targetH - 2*pad)/dy, 1.0);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  
+  imgW = targetW;
+  imgH = targetH;
+  displayScale = 1.0;
+  canvas.width = targetW;
+  canvas.height = targetH;
+  
+  detectedVertices = pts.map(p => {
+    return {
+      x: (p.x - cx) * scale + targetW / 2,
+      y: (p.y - cy) * scale + targetH / 2,
+      size: 5
+    };
+  });
+  
+  loadedImage = null;
+  fullImageData = null;
+  
+  canvasWrap.style.display = 'block';
+  document.getElementById('controlsBar').style.display = 'flex';
+  document.getElementById('controlsPanel').style.display = 'block';
+  dropzone.style.display = 'none';
+  
+  document.getElementById('edgeMethod').value = 'delaunay';
+  
+  initSelectionWindow();
+  setStatus('Loaded ' + pts.length + ' coordinates from file. Settings initialized.', 'info');
+  updateGraphSettings(true);
+}
+
+function loadImageFile(file) {
+  const isText = file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.csv') || file.name.endsWith('.dat');
+  
+  if (isText) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const pts = parseTxtCoordinates(ev.target.result);
+      if (pts.length < 3) {
+        setStatus('Failed to parse coordinates or found too few points (min 3 required).', 'err');
+        return;
+      }
+      loadCoordinates(pts);
+    };
+    reader.readAsText(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        loadedImage = img; imgW = img.width; imgH = img.height;
+        displayScale = Math.min(800/imgW, 700/imgH, 1);
+        canvas.width = Math.round(imgW * displayScale);
+        canvas.height = Math.round(imgH * displayScale);
+        redraw();
+        canvasWrap.style.display = 'block';
+        document.getElementById('controlsBar').style.display = 'flex';
+        document.getElementById('controlsPanel').style.display = 'block';
+        dropzone.style.display = 'none';
+        const tc = document.createElement('canvas');
+        tc.width = imgW; tc.height = imgH;
+        tc.getContext('2d').drawImage(img, 0, 0);
+        fullImageData = tc.getContext('2d').getImageData(0, 0, imgW, imgH);
+        
+        selectionEnabled = false;
+        document.getElementById('selectionEnabled').checked = false;
+        
+        setStatus('Image loaded ('+imgW+'×'+imgH+'). Click Detect Vertices or enter counts manually.','info');
+        runAutoDetect();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function redraw() {
+  cctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (loadedImage) {
+    cctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
+  } else {
+    cctx.fillStyle = '#0a0e14';
+    cctx.fillRect(0, 0, canvas.width, canvas.height);
+    cctx.strokeStyle = '#18202d';
+    cctx.lineWidth = 0.5;
+    for (let x = 0; x < canvas.width; x += 40) {
+      cctx.beginPath(); cctx.moveTo(x, 0); cctx.lineTo(x, canvas.height); cctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 40) {
+      cctx.beginPath(); cctx.moveTo(0, y); cctx.lineTo(canvas.width, y); cctx.stroke();
+    }
+  }
+  if (document.getElementById('showOverlay').checked) drawOverlay();
+}
+
+/* ===================================================================
+   VERTEX DETECTION METHODS
+   =================================================================== */
+function findRedDots(imgData, w, h) {
+  const n = w * h, d = imgData.data;
+  const isRed = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const r = d[i*4], g = d[i*4+1], b = d[i*4+2];
+    if (r > 150 && g < 100 && b < 100 && r - g > 60) isRed[i] = 1;
+  }
+  const visited = new Uint8Array(n), dots = [];
+  for (let i = 0; i < n; i++) {
+    if (!isRed[i] || visited[i]) continue;
+    const comp = [], q = [i]; visited[i] = 1;
+    while (q.length) {
+      const ci = q.shift(), cx = ci % w, cy = (ci - cx) / w;
+      comp.push({x: cx, y: cy});
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = cx+dx, ny = cy+dy;
+        if (nx<0||nx>=w||ny<0||ny>=h) continue;
+        const ni = ny*w+nx;
+        if (!isRed[ni]||visited[ni]) continue;
+        visited[ni] = 1; q.push(ni);
+      }
+    }
+    if (comp.length >= 4 && comp.length <= 800) {
+      dots.push({x: comp.reduce((s,p)=>s+p.x,0)/comp.length,
+                 y: comp.reduce((s,p)=>s+p.y,0)/comp.length, size: comp.length});
+    }
+  }
+  return dots;
+}
+
+function findCorners(imgData, w, h) {
+  const n = w * h, d = imgData.data;
+  const gray = new Float32Array(n);
+  for (let i = 0; i < n; i++)
+    gray[i] = 0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2];
+
+  const blurred = new Float32Array(n);
+  const k5 = [1,4,6,4,1];
+  const tmp = new Float32Array(n);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let s = 0, sw = 0;
+      for (let dx = -2; dx <= 2; dx++) {
+        const px = Math.min(Math.max(x+dx,0),w-1);
+        const wt = k5[dx+2];
+        s += gray[y*w+px]*wt; sw += wt;
+      }
+      tmp[y*w+x] = s/sw;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let s = 0, sw = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        const py = Math.min(Math.max(y+dy,0),h-1);
+        const wt = k5[dy+2];
+        s += tmp[py*w+x]*wt; sw += wt;
+      }
+      blurred[y*w+x] = s/sw;
+    }
+  }
+
+  const Ix = new Float32Array(n), Iy = new Float32Array(n);
+  for (let y = 1; y < h-1; y++) {
+    for (let x = 1; x < w-1; x++) {
+      const idx = y*w+x;
+      Ix[idx] = (blurred[idx+1] - blurred[idx-1]) / 2;
+      Iy[idx] = (blurred[idx+w] - blurred[idx-w]) / 2;
+    }
+  }
+
+  const R = new Float32Array(n);
+  const winR = 4;
+  for (let y = winR; y < h-winR; y++) {
+    for (let x = winR; x < w-winR; x++) {
+      let sxx=0, syy=0, sxy=0;
+      for (let dy=-winR; dy<=winR; dy++) {
+        for (let dx=-winR; dx<=winR; dx++) {
+          const idx = (y+dy)*w+(x+dx);
+          sxx += Ix[idx]*Ix[idx];
+          syy += Iy[idx]*Iy[idx];
+          sxy += Ix[idx]*Iy[idx];
+        }
+      }
+      const det = sxx*syy - sxy*sxy;
+      const trace = sxx + syy;
+      R[y*w+x] = det - 0.04*trace*trace;
+    }
+  }
+
+  const positiveR = [];
+  for (let i = 0; i < n; i++) if (R[i] > 0) positiveR.push(R[i]);
+  if (positiveR.length === 0) return [];
+  positiveR.sort((a,b) => a-b);
+  const threshold = positiveR[Math.floor(positiveR.length * 0.97)];
+
+  const nmsR = 6;
+  const corners = [];
+  for (let y = nmsR; y < h-nmsR; y++) {
+    for (let x = nmsR; x < w-nmsR; x++) {
+      const val = R[y*w+x];
+      if (val < threshold) continue;
+      let isMax = true;
+      outer: for (let dy=-nmsR; dy<=nmsR; dy++)
+        for (let dx=-nmsR; dx<=nmsR; dx++)
+          if (R[(y+dy)*w+(x+dx)] > val) { isMax = false; break outer; }
+      if (isMax) corners.push({x, y, strength: val});
+    }
+  }
+
+  corners.sort((a,b) => b.strength - a.strength);
+  const merged = [], used = new Set();
+  const clusterR = 8;
+  for (let i = 0; i < corners.length; i++) {
+    if (used.has(i)) continue;
+    let sx = corners[i].x, sy = corners[i].y, cnt = 1;
+    for (let j = i+1; j < corners.length; j++) {
+      if (used.has(j)) continue;
+      if (Math.hypot(corners[j].x-corners[i].x, corners[j].y-corners[i].y) < clusterR) {
+        sx += corners[j].x; sy += corners[j].y; cnt++;
+        used.add(j);
+      }
+    }
+    merged.push({x: sx/cnt, y: sy/cnt, size: cnt});
+  }
+  return merged;
+}
+
+function findBlobs(imgData, w, h, findLight) {
+  const n = w * h, d = imgData.data;
+  const gray = new Float32Array(n);
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    gray[i] = 0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2];
+    sum += gray[i];
+  }
+  const avg = sum / n;
+  
+  const r = 3;
+  const candidates = [];
+  for (let y = r; y < h - r; y++) {
+    for (let x = r; x < w - r; x++) {
+      const idx = y * w + x;
+      const val = gray[idx];
+      
+      if (findLight && val < avg + 20) continue;
+      if (!findLight && val > avg - 20) continue;
+      
+      let isExtremum = true;
+      for (let dy = -r; dy <= r && isExtremum; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nVal = gray[(y + dy) * w + (x + dx)];
+          if (findLight) {
+            if (nVal > val) { isExtremum = false; break; }
+          } else {
+            if (nVal < val) { isExtremum = false; break; }
+          }
+        }
+      }
+      
+      if (isExtremum) {
+        candidates.push({x, y, score: Math.abs(val - avg)});
+      }
+    }
+  }
+  
+  candidates.sort((a,b) => b.score - a.score);
+  const merged = [], used = new Set();
+  const clusterR = 8;
+  for (let i = 0; i < candidates.length; i++) {
+    if (used.has(i)) continue;
+    let sx = candidates[i].x, sy = candidates[i].y, cnt = 1;
+    for (let j = i+1; j < candidates.length; j++) {
+      if (used.has(j)) continue;
+      if (Math.hypot(candidates[j].x-candidates[i].x, candidates[j].y-candidates[i].y) < clusterR) {
+        sx += candidates[j].x; sy += candidates[j].y; cnt++;
+        used.add(j);
+      }
+    }
+    merged.push({x: sx/cnt, y: sy/cnt, size: cnt});
+  }
+  return merged;
+}
+
+/* ===================================================================
+   DELAUNAY TRIANGULATION ALGORITHM (Bowyer-Watson)
+   =================================================================== */
+function delaunay(points) {
+  if (points.length < 3) return [];
+  
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  let dx = maxX - minX, dy = maxY - minY;
+  let deltaMax = Math.max(dx, dy);
+  let midX = (minX + maxX) / 2;
+  let midY = (minY + maxY) / 2;
+  
+  const pts = points.map((p, idx) => ({x: p.x, y: p.y, i: idx}));
+  const iST1 = pts.length;
+  const iST2 = pts.length + 1;
+  const iST3 = pts.length + 2;
+  pts.push({x: midX - 20 * deltaMax - 1, y: midY - deltaMax - 1, i: iST1});
+  pts.push({x: midX, y: midY + 20 * deltaMax + 1, i: iST2});
+  pts.push({x: midX + 20 * deltaMax + 1, y: midY - deltaMax - 1, i: iST3});
+  
+  let triangles = [{a: iST1, b: iST2, c: iST3}];
+  
+  function circumcircle(t) {
+    let p1 = pts[t.a], p2 = pts[t.b], p3 = pts[t.c];
+    let xc, yc, r2;
+    let d = 2 * (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y));
+    if (Math.abs(d) < 1e-9) {
+      xc = (p1.x + p2.x + p3.x) / 3;
+      yc = (p1.y + p2.y + p3.y) / 3;
+      r2 = Infinity;
+    } else {
+      let ux = ((p1.x*p1.x + p1.y*p1.y) * (p2.y - p3.y) + (p2.x*p2.x + p2.y*p2.y) * (p3.y - p1.y) + (p3.x*p3.x + p3.y*p3.y) * (p1.y - p2.y)) / d;
+      let uy = ((p1.x*p1.x + p1.y*p1.y) * (p3.x - p2.x) + (p2.x*p2.x + p2.y*p2.y) * (p1.x - p3.x) + (p3.x*p3.x + p3.y*p3.y) * (p2.x - p1.x)) / d;
+      xc = ux; yc = uy;
+      r2 = (p1.x - xc)*(p1.x - xc) + (p1.y - yc)*(p1.y - yc);
+    }
+    return {xc, yc, r2};
+  }
+  
+  for (let i = 0; i < points.length; i++) {
+    let p = pts[i];
+    let badTriangles = [];
+    
+    for (let t of triangles) {
+      let cc = circumcircle(t);
+      let dist2 = (p.x - cc.xc)*(p.x - cc.xc) + (p.y - cc.yc)*(p.y - cc.yc);
+      if (dist2 <= cc.r2 + 1e-9) {
+        badTriangles.push(t);
+      }
+    }
+    
+    let edges = [];
+    for (let t of badTriangles) {
+      edges.push({u: t.a, v: t.b});
+      edges.push({u: t.b, v: t.c});
+      edges.push({u: t.c, v: t.a});
+    }
+    
+    let boundary = [];
+    for (let j = 0; j < edges.length; j++) {
+      let e1 = edges[j];
+      let shared = false;
+      for (let k = 0; k < edges.length; k++) {
+        if (j === k) continue;
+        let e2 = edges[k];
+        if ((e1.u === e2.u && e1.v === e2.v) || (e1.u === e2.v && e1.v === e2.u)) {
+          shared = true;
+          break;
+        }
+      }
+      if (!shared) boundary.push(e1);
+    }
+    
+    triangles = triangles.filter(t => !badTriangles.includes(t));
+    for (let edge of boundary) {
+      triangles.push({a: edge.u, b: edge.v, c: i});
+    }
+  }
+  
+  triangles = triangles.filter(t => t.a < points.length && t.b < points.length && t.c < points.length);
+  return triangles.map(t => [t.a, t.b, t.c]);
+}
+
+/* ===================================================================
+   EDGE CONSTRUCTION & VERIFICATION
+   =================================================================== */
+function dist(a, b) { return Math.hypot(b.x-a.x, b.y-a.y); }
+
+function estimateEdgeLength(verts) {
+  if (verts.length < 2) return 50;
+  const mins = [];
+  for (let i = 0; i < verts.length; i++) {
+    let md = Infinity;
+    for (let j = 0; j < verts.length; j++) {
+      if (i === j) continue;
+      const d = dist(verts[i], verts[j]);
+      if (d < md) md = d;
+    }
+    mins.push(md);
+  }
+  mins.sort((a,b) => a-b);
+  return mins[Math.floor(mins.length / 2)];
+}
+
+function verifyEdge(imgData, w, h, v1, v2) {
+  const samples = 12;
+  let hits = 0;
+  for (let k = 0; k < samples; k++) {
+    const t = 0.2 + 0.6 * k / (samples - 1);
+    const x = Math.round(v1.x + t*(v2.x-v1.x));
+    const y = Math.round(v1.y + t*(v2.y-v1.y));
+    let found = false;
+    for (let dy = -1; dy <= 1 && !found; dy++)
+      for (let dx = -1; dx <= 1 && !found; dx++) {
+        const px = x+dx, py = y+dy;
+        if (px<0||px>=w||py<0||py>=h) continue;
+        const i4 = (py*w+px)*4;
+        const r = imgData.data[i4], g = imgData.data[i4+1], b = imgData.data[i4+2];
+        const br = (r+g+b)/3;
+        if (br < 140) { found = true; break; }
+        const mx = Math.max(r,g,b), mn = Math.min(r,g,b);
+        if (mx - mn > 90) { found = true; break; }
+      }
+    if (found) hits++;
+  }
+  return hits / samples >= 0.5;
+}
+
+function buildEdges(verts, edgeLen, imgData, w, h) {
+  const tol = 0.3;
+  const lo = edgeLen*(1-tol), hi = edgeLen*(1+tol);
+  const adj = verts.map(() => []);
+  const edges = [];
+  for (let i = 0; i < verts.length; i++) {
+    for (let j = i+1; j < verts.length; j++) {
+      const d = dist(verts[i], verts[j]);
+      if (d >= lo && d <= hi && verifyEdge(imgData, w, h, verts[i], verts[j])) {
+        adj[i].push(j); adj[j].push(i);
+        edges.push([i, j]);
+      }
+    }
+  }
+  return {adj, edges};
+}
+
+/* ===================================================================
+   PLANAR FACE FINDING
+   =================================================================== */
+function findFaces(verts, adj) {
+  const used = new Set(), faces = [];
+  for (let u = 0; u < verts.length; u++) {
+    for (const v of adj[u]) {
+      const startKey = u+','+v;
+      if (used.has(startKey)) continue;
+      const face = [];
+      let a = u, b = v, iter = 0;
+      while (iter++ < 30) {
+        const key = a+','+b;
+        if (used.has(key)) break;
+        used.add(key); face.push(a);
+        const nb = adj[b], idx = nb.indexOf(a);
+        if (idx === -1) break;
+        const c = nb[(idx-1+nb.length)%nb.length];
+        a = b; b = c;
+        if (a === u && b === v) break;
+      }
+      if (face.length >= 3 && face.length <= 4) {
+        let area = 0;
+        for (let i = 0; i < face.length; i++) {
+          const j = (i+1)%face.length;
+          area += verts[face[i]].x*verts[face[j]].y - verts[face[j]].x*verts[face[i]].y;
+        }
+        if (area/2 > 0) faces.push(face);
+      }
+    }
+  }
+  return faces;
+}
+
+/* ===================================================================
+   GRID SHIFT DETECTOR
+   =================================================================== */
+function detectGlobalShift(edges, verts) {
+  if (edges.length === 0) return 0;
+  
+  const angles = [];
+  for (let [i, j] of edges) {
+    const p1 = verts[i], p2 = verts[j];
+    let a = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
+    a = ((a % 180) + 180) % 180;
+    angles.push(a);
+  }
+  
+  let bestTheta = 0;
+  let minErr = Infinity;
+  for (let t = -15; t < 15; t += 0.2) {
+    let err = 0;
+    for (let a of angles) {
+      let diff = (a - t) % 30;
+      if (diff < 0) diff += 30;
+      let d = Math.min(diff, 30 - diff);
+      err += d * d;
+    }
+    if (err < minErr) {
+      minErr = err;
+      bestTheta = t;
+    }
+  }
+  return bestTheta;
+}
+
+/* ===================================================================
+   TILE CLASSIFICATION WITH ROTATION COMPENSATION
+   =================================================================== */
+function undirAngle(x1,y1,x2,y2) {
+  let a = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+  return ((a % 180) + 180) % 180;
+}
+function roundDir(a) {
+  let r = Math.round(a / 30) * 30;
+  return r >= 180 ? r - 180 : r;
+}
+
+function classifyFaceRotated(face, verts, globalShift) {
+  const vs = face.map(i => verts[i]), n = vs.length;
+  
+  let cx = 0, cy = 0;
+  for (let v of vs) { cx += v.x; cy += v.y; }
+  cx /= n; cy /= n;
+  
+  const thetaRad = globalShift * DEG;
+  const cos = Math.cos(-thetaRad), sin = Math.sin(-thetaRad);
+  const rotatedVs = vs.map(v => {
+    const dx = v.x - cx;
+    const dy = v.y - cy;
+    return {
+      x: dx * cos - dy * sin + cx,
+      y: dx * sin + dy * cos + cy
+    };
+  });
+  
+  const dirs = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i+1) % n;
+    dirs.push(roundDir(undirAngle(rotatedVs[i].x, rotatedVs[i].y, rotatedVs[j].x, rotatedVs[j].y)));
+  }
+  
+  if (n === 3) return classifyTriangle(rotatedVs, dirs);
+  return classifyQuad(rotatedVs, dirs);
+}
+
+function classifyTriangle(vs, dirs) {
+  const hasEven = dirs.some(d => d===0||d===60||d===120);
+  if (hasEven) {
+    let best = 0, bestDiff = 999;
+    for (let i = 0; i < 3; i++) { const diff = Math.min(dirs[i],180-dirs[i]); if (diff < bestDiff){bestDiff=diff;best=i;} }
+    const midY = (vs[best].y + vs[(best+1)%3].y)/2;
+    return vs[(best+2)%3].y < midY ? 'T1' : 'T3';
+  } else {
+    let best = 0, bestDiff = 999;
+    for (let i = 0; i < 3; i++) { const diff = Math.abs(dirs[i]-90); if (diff < bestDiff){bestDiff=diff;best=i;} }
+    const midX = (vs[best].x + vs[(best+1)%3].x)/2;
+    return vs[(best+2)%3].x > midX ? 'T2' : 'T4';
+  }
+}
+
+function classifyQuad(vs, dirs) {
+  const unique = [...new Set(dirs)].sort((a,b) => a-b);
+  const key = unique.join(',');
+  let acuteDiff = 90;
+  if (unique.length === 2) {
+    const diff = unique[1] - unique[0];
+    acuteDiff = Math.min(diff, 180 - diff);
+  }
+  if (acuteDiff > 45) {
+    const sqMap = {'0,90':'S1','30,120':'S2','60,150':'S3'};
+    return sqMap[key] || 'S1';
+  } else {
+    const rhMap = {
+      '0,30':'R6', '30,60':'R5', '60,90':'R4',
+      '90,120':'R3', '120,150':'R2', '0,150':'R1'
+    };
+    return rhMap[key] || 'R1';
+  }
+}
+
+/* ===================================================================
+   HYPERSLOPE CALCULATION
+   =================================================================== */
+function calculateHyperslope(counts) {
+  const NT = counts.T1+counts.T2+counts.T3+counts.T4;
+  const NS = counts.S1+counts.S2+counts.S3;
+  const NR = counts.R1+counts.R2+counts.R3+counts.R4+counts.R5+counts.R6;
+  if (NT+NS+NR === 0) return null;
+  const AT = SQRT3/4, AS = 1, AR = 0.5;
+  const A = NT*AT + NS*AS + NR*AR;
+  const tau={}, sigma={}, rho={};
+  for (let i=1;i<=4;i++) tau[i] = counts['T'+i]*AT/A;
+  for (let i=1;i<=3;i++) sigma[i] = counts['S'+i]*AS/A;
+  for (let i=1;i<=6;i++) rho[i] = counts['R'+i]*AR/A;
+  const tauT = tau[1]+tau[2]+tau[3]+tau[4];
+  const sigT = sigma[1]+sigma[2]+sigma[3];
+  const rhoT = rho[1]+rho[2]+rho[3]+rho[4]+rho[5]+rho[6];
+  const Z = tau[1]+tau[3]-tau[2]-tau[4];
+  const W = SQRT3*(-rho[1]+rho[2]-rho[3]+rho[4]-rho[5]+rho[6]);
+  const X1 = sigma[1]-2*(rho[2]+rho[5]);
+  const X2 = sigma[2]-2*(rho[1]+rho[4]);
+  const X3 = sigma[3]-2*(rho[3]+rho[6]);
+  const X = X1-(X2+X3)/2;
+  const Y = (SQRT3/2)*(X2-X3);
+  const H = [[Z+X, -Y-W],[-Y+W, Z-X]];
+  const detH = H[0][0]*H[1][1] - H[0][1]*H[1][0];
+  return {NT,NS,NR,A,tau,sigma,rho,tauT,sigT,rhoT,Z,W,X1,X2,X3,X,Y,H,detH};
+}
+
+/* ===================================================================
+   AUTO-DETECT VERTICES PIPELINE
+   =================================================================== */
+function runAutoDetect() {
+  if (!fullImageData) { setStatus('No image loaded.','err'); return; }
+  const method = document.getElementById('vertexMethod').value;
+  setStatus('Detecting vertices (' + method + ')…','info');
+  
+  setTimeout(() => {
+    try {
+      let verts = [];
+      let usedMethod = '';
+      
+      if (method === 'auto') {
+        verts = findRedDots(fullImageData, imgW, imgH);
+        usedMethod = 'Red Dots';
+        if (verts.length < 6) {
+          verts = findCorners(fullImageData, imgW, imgH);
+          usedMethod = 'Harris Corners';
+        }
+        if (verts.length < 6) {
+          verts = findBlobs(fullImageData, imgW, imgH, false);
+          usedMethod = 'Dark Blobs';
+        }
+      } else if (method === 'red') {
+        verts = findRedDots(fullImageData, imgW, imgH);
+        usedMethod = 'Red Dots';
+      } else if (method === 'corners') {
+        verts = findCorners(fullImageData, imgW, imgH);
+        usedMethod = 'Harris Corners';
+      } else if (method === 'dark') {
+        verts = findBlobs(fullImageData, imgW, imgH, false);
+        usedMethod = 'Dark Blobs';
+      } else if (method === 'light') {
+        verts = findBlobs(fullImageData, imgW, imgH, true);
+        usedMethod = 'Light Blobs';
+      }
+      
+      if (verts.length < 3) {
+        setStatus('Only ' + verts.length + ' vertices found. Choose another detection method or enter counts manually.','warn');
+        return;
+      }
+      
+      detectedVertices = verts;
+      updateGraphSettings(true);
+    } catch(e) {
+      setStatus('Detection error: '+e.message,'err');
+      console.error(e);
+    }
+  }, 50);
+}
+
+/* ===================================================================
+   GRAPH RECONSTRUCTION & ORIENTATION ANALYSIS
+   =================================================================== */
+function updateGraphSettings(isInitial) {
+  if (detectedVertices.length === 0) return;
+  
+  const edgeMethod = document.getElementById('edgeMethod').value;
+  const delaunayCtrls = document.getElementById('edgeFilterControls');
+  
+  if (edgeMethod === 'delaunay') {
+    delaunayCtrls.style.display = 'flex';
+  } else {
+    delaunayCtrls.style.display = 'none';
+  }
+  
+  let edgeLen = estimateEdgeLength(detectedVertices);
+  
+  if (isInitial) {
+    document.getElementById('edgeLenSlider').value = Math.round(edgeLen);
+    document.getElementById('edgeLenVal').textContent = Math.round(edgeLen) + ' px';
+    document.getElementById('edgeTolSlider').value = 15;
+    document.getElementById('edgeTolVal').textContent = '15%';
+  } else {
+    edgeLen = parseFloat(document.getElementById('edgeLenSlider').value);
+  }
+  
+  const tol = parseFloat(document.getElementById('edgeTolSlider').value) / 100;
+  
+  reconstructGraph(edgeMethod, edgeLen, tol, isInitial);
+}
+
+function reconstructGraph(edgeMethod, edgeLen, tol, isInitial) {
+  let verts = detectedVertices;
+  let selectedIndices = new Set();
+  
+  if (selectionEnabled) {
+    const selectedVerts = [];
+    for (let i = 0; i < detectedVertices.length; i++) {
+      const v = detectedVertices[i];
+      if (v.x >= selectionWindow.x && v.x <= selectionWindow.x + selectionWindow.w &&
+          v.y >= selectionWindow.y && v.y <= selectionWindow.y + selectionWindow.h) {
+        selectedVerts.push({x: v.x, y: v.y, origIdx: i});
+        selectedIndices.add(i);
+      }
+    }
+    verts = selectedVerts;
+  }
+  
+  let edges = [];
+  let adj = verts.map(() => []);
+  
+  if (edgeMethod === 'delaunay') {
+    const tris = delaunay(verts);
+    const edgeSet = new Set();
+    const lo = edgeLen * (1 - tol), hi = edgeLen * (1 + tol);
+    
+    for (let t of tris) {
+      const triplet = [t[0], t[1], t[2]];
+      for (let i = 0; i < 3; i++) {
+        let u = triplet[i], v = triplet[(i+1)%3];
+        if (u > v) { let tmp = u; u = v; v = tmp; }
+        const key = u + '-' + v;
+        if (!edgeSet.has(key)) {
+          edgeSet.add(key);
+          const d = dist(verts[u], verts[v]);
+          if (d >= lo && d <= hi) {
+            edges.push([u, v]);
+            adj[u].push(v);
+            adj[v].push(u);
+          }
+        }
+      }
+    }
+  } else {
+    if (!fullImageData) {
+      document.getElementById('edgeMethod').value = 'delaunay';
+      setStatus('No image loaded. Forcing Delaunay Triangulation.', 'warn');
+      setTimeout(() => updateGraphSettings(false), 10);
+      return;
+    }
+    const result = buildEdges(verts, edgeLen, fullImageData, imgW, imgH);
+    adj = result.adj;
+    edges = result.edges;
+  }
+  
+  for (let i = 0; i < verts.length; i++) {
+    adj[i].sort((a,b) => {
+      const aa = Math.atan2(verts[a].y-verts[i].y, verts[a].x-verts[i].x);
+      const ab = Math.atan2(verts[b].y-verts[i].y, verts[b].x-verts[i].x);
+      return aa - ab;
+    });
+  }
+  
+  detectedEdges = edges.map(e => {
+    const u = selectionEnabled ? verts[e[0]].origIdx : e[0];
+    const v = selectionEnabled ? verts[e[1]].origIdx : e[1];
+    return [u, v];
+  });
+  
+  adjacency = detectedVertices.map(() => []);
+  for (let [u, v] of detectedEdges) {
+    adjacency[u].push(v);
+    adjacency[v].push(u);
+  }
+  
+  const autoAlign = document.getElementById('autoAlign').checked;
+  let globalShift = 0;
+  if (autoAlign) {
+    globalShift = detectGlobalShift(edges, verts);
+    document.getElementById('globalShiftSlider').value = globalShift.toFixed(1);
+    document.getElementById('globalShiftVal').textContent = globalShift.toFixed(1) + '°';
+  } else {
+    globalShift = parseFloat(document.getElementById('globalShiftSlider').value);
+  }
+  
+  const rawFaces = findFaces(verts, adj);
+  
+  const expectedTri = (SQRT3/4)*edgeLen*edgeLen;
+  const expectedSq = edgeLen*edgeLen;
+  const expectedRh = 0.5*edgeLen*edgeLen;
+  
+  detectedFaces = [];
+  const counts = {}; TILE_TYPES.forEach(t => counts[t]=0);
+  
+  for (const f of rawFaces) {
+    let area = 0;
+    for (let i=0;i<f.length;i++){const j=(i+1)%f.length;area+=verts[f[i]].x*verts[f[j]].y-verts[f[j]].x*verts[f[i]].y;}
+    area = Math.abs(area)/2;
+    const minArea = Math.min(expectedTri, expectedRh)*0.35;
+    const maxArea = expectedSq * 2.2;
+    if (area < minArea || area > maxArea) continue;
+    
+    const type = classifyFaceRotated(f, verts, globalShift);
+    if (type) {
+      const mappedFaceIndices = f.map(idx => selectionEnabled ? verts[idx].origIdx : idx);
+      detectedFaces.push({indices: mappedFaceIndices, type});
+      counts[type]++;
+    }
+  }
+  
+  TILE_TYPES.forEach(t => { document.getElementById('N'+t).value = counts[t]; });
+  redraw();
+  
+  runCalculation();
+  
+  const total = Object.values(counts).reduce((s,v)=>s+v,0);
+  setStatus('Vertices in window: ' + verts.length + ' / Total: ' + detectedVertices.length + ' | Edges: ' + edges.length + ' | Tiles: ' + total + ' (Shift: ' + globalShift.toFixed(1) + '°).','info');
+}
+
+/* ===================================================================
+   INTERACTIVE UI EVENT HANDLERS
+   =================================================================== */
+function onEdgeLenChange(val) {
+  document.getElementById('edgeLenVal').textContent = val + ' px';
+  updateGraphSettings(false);
+}
+
+function onEdgeTolChange(val) {
+  document.getElementById('edgeTolVal').textContent = val + '%';
+  updateGraphSettings(false);
+}
+
+function onGlobalShiftChange(val) {
+  document.getElementById('globalShiftVal').textContent = parseFloat(val).toFixed(1) + '°';
+  document.getElementById('autoAlign').checked = false;
+  updateGraphSettings(false);
+}
+
+function onAutoAlignChange() {
+  updateGraphSettings(false);
+}
+
+function onVertexSizeChange(val) {
+  vertexDisplaySize = parseFloat(val);
+  document.getElementById('vertexSizeVal').textContent = vertexDisplaySize.toFixed(1) + ' px';
+  redraw();
+}
+
+function initSelectionWindow() {
+  selectionWindow = {
+    x: Math.round(canvas.width * 0.25),
+    y: Math.round(canvas.height * 0.25),
+    w: Math.round(canvas.width * 0.5),
+    h: Math.round(canvas.height * 0.5)
+  };
+}
+
+function onSelectionToggle(checked) {
+  selectionEnabled = checked;
+  if (checked) {
+    initSelectionWindow();
+  }
+  updateGraphSettings(false);
+}
+
+/* ===================================================================
+   CANVAS INTERACTIVE MOUSE CONTROLS (selection window drag/resize)
+   =================================================================== */
+canvas.addEventListener('mousedown', e => {
+  if (!selectionEnabled) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  
+  const rx = selectionWindow.x + selectionWindow.w;
+  const ry = selectionWindow.y + selectionWindow.h;
+  if (Math.hypot(mx - rx, my - ry) < 12) {
+    resizingWindow = true;
+    e.preventDefault();
+    return;
+  }
+  
+  if (mx >= selectionWindow.x && mx <= selectionWindow.x + selectionWindow.w &&
+      my >= selectionWindow.y && my <= selectionWindow.y + selectionWindow.h) {
+    draggingWindow = true;
+    dragOffset.x = mx - selectionWindow.x;
+    dragOffset.y = my - selectionWindow.y;
+    e.preventDefault();
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  
+  if (resizingWindow) {
+    selectionWindow.w = Math.max(30, mx - selectionWindow.x);
+    selectionWindow.h = Math.max(30, my - selectionWindow.y);
+    updateGraphSettings(false);
+    redraw();
+    e.preventDefault();
+    return;
+  }
+  
+  if (draggingWindow) {
+    selectionWindow.x = Math.max(0, Math.min(canvas.width - selectionWindow.w, mx - dragOffset.x));
+    selectionWindow.y = Math.max(0, Math.min(canvas.height - selectionWindow.h, my - dragOffset.y));
+    updateGraphSettings(false);
+    redraw();
+    e.preventDefault();
+    return;
+  }
+  
+  if (selectionEnabled) {
+    const rx = selectionWindow.x + selectionWindow.w;
+    const ry = selectionWindow.y + selectionWindow.h;
+    if (Math.hypot(mx - rx, my - ry) < 12) {
+      canvas.style.cursor = 'se-resize';
+    } else if (mx >= selectionWindow.x && mx <= selectionWindow.x + selectionWindow.w &&
+               my >= selectionWindow.y && my <= selectionWindow.y + selectionWindow.h) {
+      canvas.style.cursor = 'move';
+    } else {
+      canvas.style.cursor = 'default';
+    }
+  } else {
+    canvas.style.cursor = 'default';
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  draggingWindow = false;
+  resizingWindow = false;
+});
+
+/* ===================================================================
+   OVERLAY DRAWING  (green for rhombuses)
+   =================================================================== */
+const FACE_COLORS = {
+  T1:'rgba(52,152,219,0.25)', T2:'rgba(231,76,60,0.25)',
+  T3:'rgba(52,152,219,0.25)', T4:'rgba(231,76,60,0.25)',
+  S1:'rgba(155,89,182,0.25)', S2:'rgba(155,89,182,0.25)', S3:'rgba(155,89,182,0.25)',
+  R1:'rgba(63,185,80,0.25)',  R2:'rgba(63,185,80,0.25)',  R3:'rgba(63,185,80,0.25)',
+  R4:'rgba(63,185,80,0.25)',  R5:'rgba(63,185,80,0.25)',  R6:'rgba(63,185,80,0.25)',
+};
+
+function drawOverlay() {
+  const s = displayScale;
+  
+  const isSelected = (idx) => {
+    if (!selectionEnabled) return true;
+    const v = detectedVertices[idx];
+    return v.x >= selectionWindow.x && v.x <= selectionWindow.x + selectionWindow.w &&
+           v.y >= selectionWindow.y && v.y <= selectionWindow.y + selectionWindow.h;
+  };
+  
+  // 1. Draw faces
+  for (const f of detectedFaces) {
+    const vs = f.indices.map(i => detectedVertices[i]);
+    cctx.beginPath(); cctx.moveTo(vs[0].x*s, vs[0].y*s);
+    for (let i=1;i<vs.length;i++) cctx.lineTo(vs[i].x*s, vs[i].y*s);
+    cctx.closePath();
+    cctx.fillStyle = FACE_COLORS[f.type] || 'rgba(255,255,255,0.1)'; cctx.fill();
+    cctx.strokeStyle = 'rgba(255,255,255,0.5)'; cctx.lineWidth = 1; cctx.stroke();
+    
+    const cx = vs.reduce((a,v)=>a+v.x,0)/vs.length*s;
+    const cy = vs.reduce((a,v)=>a+v.y,0)/vs.length*s;
+    cctx.font = 'bold 9px Inter'; cctx.fillStyle = '#fff';
+    cctx.textAlign = 'center'; cctx.textBaseline = 'middle';
+    cctx.fillText(f.type, cx, cy);
+  }
+  
+  // 2. Draw edges (highlighted when inside window)
+  for (const [i,j] of detectedEdges) {
+    const sel = isSelected(i) && isSelected(j);
+    cctx.beginPath();
+    cctx.moveTo(detectedVertices[i].x*s, detectedVertices[i].y*s);
+    cctx.lineTo(detectedVertices[j].x*s, detectedVertices[j].y*s);
+    cctx.strokeStyle = sel ? 'rgba(57,210,192,0.65)' : 'rgba(100,120,140,0.12)';
+    cctx.lineWidth = sel ? 1.0 : 0.6; 
+    cctx.stroke();
+  }
+  
+  // 3. Draw vertices (highlighted when inside window)
+  for (let i = 0; i < detectedVertices.length; i++) {
+    const v = detectedVertices[i];
+    const sel = isSelected(i);
+    cctx.beginPath(); cctx.arc(v.x*s, v.y*s, sel ? vertexDisplaySize : Math.max(1.0, vertexDisplaySize - 1.5), 0, 2*Math.PI);
+    cctx.fillStyle = sel ? '#39d2c0' : 'rgba(100,120,140,0.3)';
+    cctx.fill();
+  }
+  
+  // 4. Draw selection rectangle if enabled
+  if (selectionEnabled) {
+    cctx.strokeStyle = 'rgba(88,166,255,0.85)';
+    cctx.lineWidth = 2;
+    cctx.setLineDash([6, 4]);
+    cctx.strokeRect(selectionWindow.x*s, selectionWindow.y*s, selectionWindow.w*s, selectionWindow.h*s);
+    cctx.setLineDash([]);
+    
+    cctx.fillStyle = 'rgba(88,166,255,0.04)';
+    cctx.fillRect(selectionWindow.x*s, selectionWindow.y*s, selectionWindow.w*s, selectionWindow.h*s);
+    
+    // Resize handle
+    cctx.beginPath();
+    cctx.arc((selectionWindow.x + selectionWindow.w)*s, (selectionWindow.y + selectionWindow.h)*s, 5, 0, 2*Math.PI);
+    cctx.fillStyle = '#58a6ff';
+    cctx.fill();
+    cctx.strokeStyle = '#fff';
+    cctx.lineWidth = 1;
+    cctx.stroke();
+  }
+}
+
+/* ===================================================================
+   CALCULATION & DISPLAY
+   =================================================================== */
+function getCounts() {
+  const c = {};
+  TILE_TYPES.forEach(t => { c[t] = parseInt(document.getElementById('N'+t).value) || 0; });
+  return c;
+}
+function fmt(v, d=6) { return v.toFixed(d).replace(/0+$/,'').replace(/\.$/,'.0'); }
+
+function runCalculation() {
+  const counts = getCounts();
+  const r = calculateHyperslope(counts);
+  if (!r) {
+    document.getElementById('val-NT').textContent = '0';
+    document.getElementById('val-NS').textContent = '0';
+    document.getElementById('val-NR').textContent = '0';
+    document.getElementById('val-A').textContent = '0.0';
+    for (let i = 1; i <= 4; i++) document.getElementById('val-tau' + i).textContent = '0.000000';
+    document.getElementById('val-tauT').textContent = '0.000000';
+    for (let i = 1; i <= 3; i++) document.getElementById('val-sigma' + i).textContent = '0.000000';
+    document.getElementById('val-sigmaT').textContent = '0.000000';
+    for (let i = 1; i <= 6; i++) document.getElementById('val-rho' + i).textContent = '0.000000';
+    document.getElementById('val-rhoT').textContent = '0.000000';
+    document.getElementById('val-sumCheck').textContent = '0.00000000';
+    document.getElementById('val-sumCheck').className = 'val';
+    
+    document.getElementById('val-Z').textContent = '0.000000';
+    document.getElementById('val-W').textContent = '0.000000';
+    for (let i = 1; i <= 3; i++) document.getElementById('val-X' + i).textContent = '0.000000';
+    document.getElementById('val-X').textContent = '0.000000';
+    document.getElementById('val-Y').textContent = '0.000000';
+    
+    document.getElementById('H00').textContent = '—';
+    document.getElementById('H01').textContent = '—';
+    document.getElementById('H10').textContent = '—';
+    document.getElementById('H11').textContent = '—';
+    document.getElementById('val-detH').textContent = '—';
+    return;
+  }
+  
+  document.getElementById('val-NT').textContent = r.NT;
+  document.getElementById('val-NS').textContent = r.NS;
+  document.getElementById('val-NR').textContent = r.NR;
+  document.getElementById('val-A').textContent = fmt(r.A, 4);
+  
+  for (let i = 1; i <= 4; i++) document.getElementById('val-tau' + i).textContent = fmt(r.tau[i]);
+  document.getElementById('val-tauT').textContent = fmt(r.tauT);
+  for (let i = 1; i <= 3; i++) document.getElementById('val-sigma' + i).textContent = fmt(r.sigma[i]);
+  document.getElementById('val-sigmaT').textContent = fmt(r.sigT);
+  for (let i = 1; i <= 6; i++) document.getElementById('val-rho' + i).textContent = fmt(r.rho[i]);
+  document.getElementById('val-rhoT').textContent = fmt(r.rhoT);
+  
+  const sumCheck = r.tauT + r.sigT + r.rhoT;
+  const sumEl = document.getElementById('val-sumCheck');
+  sumEl.textContent = fmt(sumCheck, 8);
+  const ok = Math.abs(sumCheck - 1) < 1e-9;
+  sumEl.className = 'val ' + (ok ? 'check-ok' : 'check-warn');
+  
+  document.getElementById('val-Z').textContent = fmt(r.Z);
+  document.getElementById('val-W').textContent = fmt(r.W);
+  for (let i = 1; i <= 3; i++) document.getElementById('val-X' + i).textContent = fmt(r['X' + i]);
+  document.getElementById('val-X').textContent = fmt(r.X);
+  document.getElementById('val-Y').textContent = fmt(r.Y);
+  
+  document.getElementById('H00').textContent = fmt(r.H[0][0]);
+  document.getElementById('H01').textContent = fmt(r.H[0][1]);
+  document.getElementById('H10').textContent = fmt(r.H[1][0]);
+  document.getElementById('H11').textContent = fmt(r.H[1][1]);
+  document.getElementById('val-detH').textContent = fmt(r.detH);
+}
+
+function sub(i) { return '₀₁₂₃₄₅₆₇₈₉'[i] || i; }
+
+/* ===================================================================
+   UI HELPERS
+   =================================================================== */
+function setStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.className = 'status-msg ' + type + '-msg'; el.textContent = msg;
+}
+function clearAll() {
+  loadedImage = null; fullImageData = null;
+  detectedVertices=[]; detectedEdges=[]; detectedFaces=[]; adjacency=[];
+  cctx.clearRect(0,0,canvas.width,canvas.height);
+  canvasWrap.style.display='none'; dropzone.style.display='block';
+  document.getElementById('controlsBar').style.display='none';
+  document.getElementById('controlsPanel').style.display='none';
+  document.getElementById('statusMsg').className='status-msg';
+  resetCounts();
+  fileInput.value='';
+}
+function resetCounts() {
+  TILE_TYPES.forEach(t => { document.getElementById('N'+t).value = 0; });
+  runCalculation();
+}
+
+/* ===================================================================
+   INIT
+   =================================================================== */
+window.addEventListener('DOMContentLoaded', () => {
+  TILE_TYPES.forEach(t => drawIcon('ic-'+t, t));
+  
+  document.querySelectorAll('.count-item input[type=number]').forEach(input => {
+    input.addEventListener('input', runCalculation);
+    input.addEventListener('change', runCalculation);
+  });
+});
+</script>
+</body>
+</html>
