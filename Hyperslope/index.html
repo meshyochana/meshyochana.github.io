@@ -209,7 +209,18 @@ header p{color:var(--txt2);font-size:.85rem;margin-top:.3rem}
           <input type="checkbox" id="selectionEnabled" onchange="onSelectionToggle(this.checked)">
           <label for="selectionEnabled" style="cursor:pointer; font-weight:600; color:var(--blue);">Enable Selection Box</label>
         </div>
-        <p class="info" style="font-size:0.7rem; color:var(--txt3);">Drag the box to move it, or drag the bottom-right handle to resize it. Calculations update in real-time.</p>
+        <div id="selectionSizeControls" style="display:none; margin-top: 0.4rem; gap: 0.5rem;">
+          <div style="flex:1; display:flex; flex-direction:column; gap:0.15rem;">
+            <label style="font-size:0.7rem; color:var(--txt2);">Width (px)</label>
+            <input type="number" id="selectionWidthInput" style="width:100%; padding:0.25rem; background:var(--bg0); color:var(--txt); border:1px solid var(--bdr); border-radius:4px; font-size:0.75rem; font-family:monospace;" min="10" oninput="onSelectionSizeInput()">
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:0.15rem;">
+            <label style="font-size:0.7rem; color:var(--txt2);">Height (px)</label>
+            <input type="number" id="selectionHeightInput" style="width:100%; padding:0.25rem; background:var(--bg0); color:var(--txt); border:1px solid var(--bdr); border-radius:4px; font-size:0.75rem; font-family:monospace;" min="10" oninput="onSelectionSizeInput()">
+          </div>
+        </div>
+        <p class="info" style="font-size:0.7rem; color:var(--txt3); margin-top: 0.4rem;">Drag the box to move it, or drag the bottom-right handle to resize it. Calculations update in real-time.</p>
+        <button class="btn btn-primary" id="btnCalcHeatmaps" style="margin-top: 0.5rem; justify-content: center;" onclick="generateHeatmaps()">📊 Calculate Heatmaps</button>
       </div>
     </div>
   </div>
@@ -339,6 +350,55 @@ header p{color:var(--txt2);font-size:.85rem;margin-top:.3rem}
     <div class="result-item"><span class="lbl">det(H)</span><span class="val" id="val-detH">—</span></div>
   </section>
 </div>
+
+  <!-- ④ Spatial Heatmaps Card -->
+  <section class="card" id="heatmapCard" style="display:none; margin-top:1.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; border-bottom: 1px solid var(--bdr); padding-bottom: 0.6rem; margin-bottom: 0.6rem;">
+      <h2>④ Spatial Heatmaps</h2>
+      <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:0.4rem;">
+          <input type="checkbox" id="heatmapShowImage" onchange="renderHeatmaps()" style="accent-color: var(--cyan);">
+          <label for="heatmapShowImage" style="font-size:0.75rem; color:var(--txt2); font-weight:600; cursor:pointer;">Show Original Image</label>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.4rem;">
+          <label for="heatmapImageOpacity" style="font-size:0.7rem; color:var(--txt3);">Opacity:</label>
+          <input type="range" id="heatmapImageOpacity" min="0.05" max="0.9" step="0.05" value="0.35" oninput="renderHeatmaps()" style="width:80px;">
+        </div>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <label for="heatmapTransform" style="font-size:0.75rem; color:var(--txt2); font-weight:600; text-transform:uppercase; letter-spacing:0.02em;">Color Scaling:</label>
+          <select id="heatmapTransform" onchange="renderHeatmaps()" style="padding:0.35rem; background:var(--bg0); color:var(--txt); border:1px solid var(--bdr); border-radius:4px; outline:none; font-size:0.8rem; font-weight:500;">
+            <option value="linear">Linear (Raw)</option>
+            <option value="inverse">Inverse: sign(x) / (|x| + 1e-5)</option>
+            <option value="log">Logarithmic: sign(x) * log10(1 + |x| * 1e5)</option>
+            <option value="cos">Cosine: cos(x)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <p class="info">Calculated by sampling the whole image with a sliding window of size <span id="heatmapWinSize" style="color:var(--cyan); font-weight:bold;">0 × 0</span> px and step size <span id="heatmapStepSize" style="color:var(--cyan); font-weight:bold;">0</span> px.</p>
+    
+    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; justify-content: center;">
+      <!-- det(H) Heatmap -->
+      <div style="flex: 1; min-width: 320px; display: flex; flex-direction: column; align-items: center; background: var(--bg2); border: 1px solid var(--bdr); border-radius: 10px; padding: 1rem; position: relative;">
+        <h3 style="color: var(--cyan); margin-bottom: 0.5rem;">det(H) Heatmap</h3>
+        <div style="position: relative; width: 100%; display: flex; justify-content: center; background: var(--bg0); padding: 10px; border-radius: 6px;">
+          <canvas id="detHCanvas" style="max-width: 100%; border: 1px solid var(--bdr); border-radius: 6px;"></canvas>
+        </div>
+        <div id="detHLegend" style="width: 100%; margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.2rem;"></div>
+      </div>
+
+      <!-- W Heatmap -->
+      <div style="flex: 1; min-width: 320px; display: flex; flex-direction: column; align-items: center; background: var(--bg2); border: 1px solid var(--bdr); border-radius: 10px; padding: 1rem; position: relative;">
+        <h3 style="color: var(--yellow); margin-bottom: 0.5rem;">W Heatmap</h3>
+        <div style="position: relative; width: 100%; display: flex; justify-content: center; background: var(--bg0); padding: 10px; border-radius: 6px;">
+          <canvas id="wCanvas" style="max-width: 100%; border: 1px solid var(--bdr); border-radius: 6px;"></canvas>
+        </div>
+        <div id="wLegend" style="width: 100%; margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.2rem;"></div>
+      </div>
+    </div>
+
+    <div id="heatmapTooltip" style="position: absolute; display: none; background: rgba(10, 14, 20, 0.95); border: 1px solid var(--blue); padding: 0.5rem 0.8rem; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--txt); pointer-events: none; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); white-space: nowrap;"></div>
+  </section>
 </div>
 
 <script>
@@ -360,6 +420,21 @@ let selectionWindow = {x: 100, y: 100, w: 200, h: 200};
 let draggingWindow = false;
 let resizingWindow = false;
 let dragOffset = {x: 0, y: 0};
+
+// Heatmap State
+let heatmapData = {
+  cols: 0,
+  rows: 0,
+  gridX: [],
+  gridY: [],
+  winW: 0,
+  winH: 0,
+  stepX: 0,
+  stepY: 0,
+  detHMatrix: [],
+  wMatrix: []
+};
+let heatmapTooltipAbort = null; // AbortController for heatmap tooltip listeners
 
 /* ===================================================================
    TILE GEOMETRY  (edge-length = 1, centred at origin)
@@ -1329,10 +1404,35 @@ function initSelectionWindow() {
   };
 }
 
+function updateSelectionSizeUI() {
+  const wInput = document.getElementById('selectionWidthInput');
+  const hInput = document.getElementById('selectionHeightInput');
+  if (wInput && hInput) {
+    wInput.value = Math.round(selectionWindow.w);
+    hInput.value = Math.round(selectionWindow.h);
+  }
+}
+
+function onSelectionSizeInput() {
+  const wVal = parseInt(document.getElementById('selectionWidthInput').value) || 30;
+  const hVal = parseInt(document.getElementById('selectionHeightInput').value) || 30;
+  
+  selectionWindow.w = Math.max(30, Math.min(canvas.width - selectionWindow.x, wVal));
+  selectionWindow.h = Math.max(30, Math.min(canvas.height - selectionWindow.y, hVal));
+  
+  updateGraphSettings(false);
+  redraw();
+}
+
 function onSelectionToggle(checked) {
   selectionEnabled = checked;
+  const sizeCtrls = document.getElementById('selectionSizeControls');
+  if (sizeCtrls) {
+    sizeCtrls.style.display = checked ? 'flex' : 'none';
+  }
   if (checked) {
     initSelectionWindow();
+    updateSelectionSizeUI();
   }
   updateGraphSettings(false);
 }
@@ -1371,6 +1471,7 @@ canvas.addEventListener('mousemove', e => {
   if (resizingWindow) {
     selectionWindow.w = Math.max(30, mx - selectionWindow.x);
     selectionWindow.h = Math.max(30, my - selectionWindow.y);
+    updateSelectionSizeUI();
     updateGraphSettings(false);
     redraw();
     e.preventDefault();
@@ -1575,12 +1676,492 @@ function clearAll() {
   document.getElementById('controlsBar').style.display='none';
   document.getElementById('controlsPanel').style.display='none';
   document.getElementById('statusMsg').className='status-msg';
+  document.getElementById('heatmapCard').style.display='none';
+  heatmapData = { cols: 0, rows: 0, gridX: [], gridY: [], winW: 0, winH: 0, stepX: 0, stepY: 0, detHMatrix: [], wMatrix: [] };
   resetCounts();
   fileInput.value='';
 }
 function resetCounts() {
   TILE_TYPES.forEach(t => { document.getElementById('N'+t).value = 0; });
   runCalculation();
+}
+
+/* ===================================================================
+   SPATIAL HEATMAPS GENERATION & VISUALIZATION
+   =================================================================== */
+
+function getGlobalFacesAndVertices() {
+  if (detectedVertices.length === 0) return null;
+  const edgeMethod = document.getElementById('edgeMethod').value;
+  let edgeLen = parseFloat(document.getElementById('edgeLenSlider').value);
+  const tol = parseFloat(document.getElementById('edgeTolSlider').value) / 100;
+  const autoAlign = document.getElementById('autoAlign').checked;
+  let globalShift = parseFloat(document.getElementById('globalShiftSlider').value);
+
+  const verts = detectedVertices;
+  let edges = [];
+  let adj = verts.map(() => []);
+
+  if (edgeMethod === 'delaunay') {
+    const tris = delaunay(verts);
+    const edgeSet = new Set();
+    const lo = edgeLen * (1 - tol), hi = edgeLen * (1 + tol);
+    for (let t of tris) {
+      const triplet = [t[0], t[1], t[2]];
+      for (let i = 0; i < 3; i++) {
+        let u = triplet[i], v = triplet[(i+1)%3];
+        if (u > v) { let tmp = u; u = v; v = tmp; }
+        const key = u + '-' + v;
+        if (!edgeSet.has(key)) {
+          edgeSet.add(key);
+          const d = dist(verts[u], verts[v]);
+          if (d >= lo && d <= hi) {
+            edges.push([u, v]);
+            adj[u].push(v);
+            adj[v].push(u);
+          }
+        }
+      }
+    }
+  } else {
+    if (!fullImageData) return null;
+    const result = buildEdges(verts, edgeLen, fullImageData, imgW, imgH);
+    adj = result.adj;
+    edges = result.edges;
+  }
+
+  for (let i = 0; i < verts.length; i++) {
+    adj[i].sort((a,b) => {
+      const aa = Math.atan2(verts[a].y-verts[i].y, verts[a].x-verts[i].x);
+      const ab = Math.atan2(verts[b].y-verts[i].y, verts[b].x-verts[i].x);
+      return aa - ab;
+    });
+  }
+
+  if (autoAlign) {
+    globalShift = detectGlobalShift(edges, verts);
+  }
+
+  const rawFaces = findFaces(verts, adj);
+  const expectedTri = (SQRT3/4)*edgeLen*edgeLen;
+  const expectedSq = edgeLen*edgeLen;
+  const expectedRh = 0.5*edgeLen*edgeLen;
+
+  const globalFaces = [];
+  for (const f of rawFaces) {
+    let area = 0;
+    for (let i=0;i<f.length;i++){const j=(i+1)%f.length;area+=verts[f[i]].x*verts[f[j]].y-verts[f[j]].x*verts[f[i]].y;}
+    area = Math.abs(area)/2;
+    const minArea = Math.min(expectedTri, expectedRh)*0.35;
+    const maxArea = expectedSq * 2.2;
+    if (area < minArea || area > maxArea) continue;
+
+    const type = classifyFaceRotated(f, verts, globalShift);
+    if (type) {
+      globalFaces.push({indices: f, type});
+    }
+  }
+
+  return { verts, faces: globalFaces };
+}
+
+function applyTransform(x, mode) {
+  const eps = 1e-5;
+  if (mode === 'inverse') {
+    if (Math.abs(x) < 1e-9) return 0;
+    return Math.sign(x) / (Math.abs(x) + eps);
+  }
+  if (mode === 'log') {
+    return Math.sign(x) * Math.log10(1 + Math.abs(x) * 1e5);
+  }
+  if (mode === 'cos') {
+    return Math.cos(x);
+  }
+  return x;
+}
+
+function interpolateRGB(rgb1, rgb2, t) {
+  t = Math.max(0, Math.min(1, t));
+  const r = Math.round(rgb1[0] + (rgb2[0] - rgb1[0]) * t);
+  const g = Math.round(rgb1[1] + (rgb2[1] - rgb1[1]) * t);
+  const b = Math.round(rgb1[2] + (rgb2[2] - rgb1[2]) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function getDetHColor(val, min, max) {
+  if (min < 0 && max > 0) {
+    if (val < 0) {
+      const t = val / min; // 1 at min, 0 at 0
+      return interpolateRGB([30, 41, 59], [88, 166, 255], t); // slate to blue
+    } else {
+      const t = val / max; // 0 at 0, 1 at max
+      return interpolateRGB([30, 41, 59], [247, 129, 102], t); // slate to red
+    }
+  } else {
+    const range = max - min || 1;
+    const t = (val - min) / range;
+    return interpolateRGB([30, 41, 59], [57, 210, 192], t); // slate to cyan
+  }
+}
+
+function getWColor(val, min, max) {
+  if (min < 0 && max > 0) {
+    if (val < 0) {
+      const t = val / min; // 1 at min, 0 at 0
+      return interpolateRGB([30, 41, 59], [63, 185, 80], t); // slate to green
+    } else {
+      const t = val / max; // 0 at 0, 1 at max
+      return interpolateRGB([30, 41, 59], [210, 153, 34], t); // slate to yellow
+    }
+  } else {
+    const range = max - min || 1;
+    const t = (val - min) / range;
+    return interpolateRGB([30, 41, 59], [210, 153, 34], t); // slate to yellow
+  }
+}
+
+function drawLegend(containerId, min, max, type) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  
+  const labelRow = document.createElement('div');
+  labelRow.style.display = 'flex';
+  labelRow.style.justifyContent = 'space-between';
+  labelRow.style.fontSize = '0.75rem';
+  labelRow.style.color = 'var(--txt2)';
+  labelRow.style.fontFamily = 'monospace';
+  
+  const minLabel = document.createElement('span');
+  minLabel.textContent = min.toFixed(4);
+  const midLabel = document.createElement('span');
+  midLabel.textContent = ((min + max)/2).toFixed(4);
+  const maxLabel = document.createElement('span');
+  maxLabel.textContent = max.toFixed(4);
+  
+  labelRow.appendChild(minLabel);
+  labelRow.appendChild(midLabel);
+  labelRow.appendChild(maxLabel);
+  
+  const bar = document.createElement('div');
+  bar.style.height = '10px';
+  bar.style.borderRadius = '3px';
+  bar.style.marginTop = '4px';
+  
+  let gradCss = '';
+  if (type === 'detH') {
+    if (min < 0 && max > 0) {
+      gradCss = 'linear-gradient(to right, rgb(88,166,255), rgb(30,41,59) 50%, rgb(247,129,102))';
+    } else {
+      gradCss = 'linear-gradient(to right, rgb(30,41,59), rgb(57,210,192))';
+    }
+  } else {
+    if (min < 0 && max > 0) {
+      gradCss = 'linear-gradient(to right, rgb(63,185,80), rgb(30,41,59) 50%, rgb(210,153,34))';
+    } else {
+      gradCss = 'linear-gradient(to right, rgb(30,41,59), rgb(210,153,34))';
+    }
+  }
+  bar.style.background = gradCss;
+  
+  container.appendChild(labelRow);
+  container.appendChild(bar);
+}
+
+function setupHeatmapTooltip(canvasId, matrix, txMatrix, label, signal) {
+  const canvasEl = document.getElementById(canvasId);
+  const tooltip = document.getElementById('heatmapTooltip');
+  
+  canvasEl.addEventListener('mousemove', e => {
+    if (heatmapData.cols === 0 || heatmapData.rows === 0) return;
+    const rect = canvasEl.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    
+    const cIdx = Math.floor((mx / rect.width) * heatmapData.cols);
+    const rIdx = Math.floor((my / rect.height) * heatmapData.rows);
+    
+    if (cIdx >= 0 && cIdx < heatmapData.cols && rIdx >= 0 && rIdx < heatmapData.rows) {
+      const val = matrix[rIdx][cIdx];
+      const txVal = txMatrix[rIdx][cIdx];
+      const xCoord = heatmapData.gridX[cIdx];
+      const yCoord = heatmapData.gridY[rIdx];
+      
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.pageX + 15) + 'px';
+      tooltip.style.top = (e.pageY + 15) + 'px';
+      
+      tooltip.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 3px; color: var(--blue);">${label}</div>
+        <div style="display: flex; justify-content: space-between; gap: 1rem;"><span>Raw Value:</span> <span style="color: var(--cyan); font-weight: bold;">${val.toFixed(6)}</span></div>
+        <div style="display: flex; justify-content: space-between; gap: 1rem;"><span>Scaled:</span> <span style="color: var(--purple); font-weight: bold;">${txVal.toFixed(4)}</span></div>
+        <div style="margin-top: 4px; font-size: 0.7rem; color: var(--txt2);">Window: X[${Math.round(xCoord)}, ${Math.round(xCoord + heatmapData.winW)}] Y[${Math.round(yCoord)}, ${Math.round(yCoord + heatmapData.winH)}]</div>
+      `;
+    }
+  }, { signal });
+  
+  canvasEl.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+  }, { signal });
+}
+
+function renderHeatmaps() {
+  if (heatmapData.cols === 0 || heatmapData.rows === 0) return;
+  
+  const mode = document.getElementById('heatmapTransform').value;
+  const cols = heatmapData.cols;
+  const rows = heatmapData.rows;
+  
+  const txDetHMatrix = [];
+  const txWMatrix = [];
+  
+  let minTxDetH = Infinity, maxTxDetH = -Infinity;
+  let minTxW = Infinity, maxTxW = -Infinity;
+  
+  for (let r = 0; r < rows; r++) {
+    const detHRow = [];
+    const wRow = [];
+    for (let c = 0; c < cols; c++) {
+      const txDetH = applyTransform(heatmapData.detHMatrix[r][c], mode);
+      const txW = applyTransform(heatmapData.wMatrix[r][c], mode);
+      
+      detHRow.push(txDetH);
+      wRow.push(txW);
+      
+      if (txDetH < minTxDetH) minTxDetH = txDetH;
+      if (txDetH > maxTxDetH) maxTxDetH = txDetH;
+      if (txW < minTxW) minTxW = txW;
+      if (txW > maxTxW) maxTxW = txW;
+    }
+    txDetHMatrix.push(detHRow);
+    txWMatrix.push(wRow);
+  }
+  
+  if (minTxDetH === Infinity) { minTxDetH = 0; maxTxDetH = 0; }
+  if (minTxW === Infinity) { minTxW = 0; maxTxW = 0; }
+  
+  const targetDisplayWidth = 400;
+  const cellSize = Math.max(4, Math.floor(targetDisplayWidth / cols));
+  const canvasW = cols * cellSize;
+  const canvasH = rows * cellSize;
+  
+  const detHCanvas = document.getElementById('detHCanvas');
+  detHCanvas.width = canvasW;
+  detHCanvas.height = canvasH;
+  const detHCtx = detHCanvas.getContext('2d');
+  
+  const wCanvas = document.getElementById('wCanvas');
+  wCanvas.width = canvasW;
+  wCanvas.height = canvasH;
+  const wCtx = wCanvas.getContext('2d');
+  
+  detHCtx.clearRect(0, 0, canvasW, canvasH);
+  wCtx.clearRect(0, 0, canvasW, canvasH);
+  
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const valDetH = txDetHMatrix[r][c];
+      const valW = txWMatrix[r][c];
+      
+      detHCtx.fillStyle = getDetHColor(valDetH, minTxDetH, maxTxDetH);
+      detHCtx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+      
+      wCtx.fillStyle = getWColor(valW, minTxW, maxTxW);
+      wCtx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+    }
+  }
+  
+  if (cellSize >= 10) {
+    detHCtx.strokeStyle = 'rgba(10, 14, 20, 0.15)';
+    wCtx.strokeStyle = 'rgba(10, 14, 20, 0.15)';
+    detHCtx.lineWidth = 1;
+    wCtx.lineWidth = 1;
+    
+    for (let r = 0; r <= rows; r++) {
+      detHCtx.beginPath(); detHCtx.moveTo(0, r * cellSize); detHCtx.lineTo(canvasW, r * cellSize); detHCtx.stroke();
+      wCtx.beginPath(); wCtx.moveTo(0, r * cellSize); wCtx.lineTo(canvasW, r * cellSize); wCtx.stroke();
+    }
+    for (let c = 0; c <= cols; c++) {
+      detHCtx.beginPath(); detHCtx.moveTo(c * cellSize, 0); detHCtx.lineTo(c * cellSize, canvasH); detHCtx.stroke();
+      wCtx.beginPath(); wCtx.moveTo(c * cellSize, 0); wCtx.lineTo(c * cellSize, canvasH); wCtx.stroke();
+    }
+  }
+  
+  // Overlay the original image if checkbox is checked
+  const showImage = document.getElementById('heatmapShowImage').checked;
+  if (showImage && loadedImage) {
+    const opacity = parseFloat(document.getElementById('heatmapImageOpacity').value) || 0.35;
+    const gx = heatmapData.gridX;
+    const gy = heatmapData.gridY;
+    const wW = heatmapData.winW;
+    const wH = heatmapData.winH;
+    
+    // The heatmap cell (c, r) represents the window starting at (gridX[c], gridY[r]).
+    // Map so that cell center = window center in image space.
+    // Cell center on canvas: ((c + 0.5) * cellSize, (r + 0.5) * cellSize)
+    // Window center in image: (gridX[c] + winW/2, gridY[r] + winH/2)
+    // 
+    // Image source region that maps onto the full canvas:
+    //   The canvas left edge (x=0) corresponds to image x = gridX[0] + winW/2 - 0.5*cellSize * (imgSpan / canvasW)
+    //   But with uniform step, gridX[c] = gridX[0] + c*stepX, so:
+    //   img_x = gridX[0] + winW/2 + (canvas_x/cellSize - 0.5) * stepX
+    //
+    // drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
+    // We want: sx = gridX[0] + winW/2 - 0.5*stepX  (image x at canvas left edge)
+    //          sw = cols * stepX                     (image width span)
+    //          similarly for Y
+    
+    const stepX = heatmapData.stepX || (gx.length > 1 ? gx[1] - gx[0] : wW);
+    const stepY = heatmapData.stepY || (gy.length > 1 ? gy[1] - gy[0] : wH);
+    
+    const sx = gx[0] + wW / 2 - 0.5 * stepX;
+    const sy = gy[0] + wH / 2 - 0.5 * stepY;
+    const sw = cols * stepX;
+    const sh = rows * stepY;
+    
+    [detHCtx, wCtx].forEach(ctx => {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(loadedImage, sx, sy, sw, sh, 0, 0, canvasW, canvasH);
+      ctx.restore();
+    });
+  }
+  
+  drawLegend('detHLegend', minTxDetH, maxTxDetH, 'detH');
+  drawLegend('wLegend', minTxW, maxTxW, 'w');
+  
+  // Abort previous tooltip listeners before adding new ones
+  if (heatmapTooltipAbort) heatmapTooltipAbort.abort();
+  heatmapTooltipAbort = new AbortController();
+  const signal = heatmapTooltipAbort.signal;
+  
+  setupHeatmapTooltip('detHCanvas', heatmapData.detHMatrix, txDetHMatrix, 'det(H)', signal);
+  setupHeatmapTooltip('wCanvas', heatmapData.wMatrix, txWMatrix, 'W', signal);
+}
+
+function generateHeatmaps() {
+  if (detectedVertices.length === 0) {
+    setStatus('Please detect vertices first.', 'warn');
+    return;
+  }
+  
+  if (!selectionEnabled) {
+    document.getElementById('selectionEnabled').checked = true;
+    onSelectionToggle(true);
+  }
+  
+  const winW = selectionWindow.w;
+  const winH = selectionWindow.h;
+  const width = loadedImage ? imgW : canvas.width;
+  const height = loadedImage ? imgH : canvas.height;
+  
+  const stepX = Math.max(1, Math.floor(winW / 3));
+  const stepY = Math.max(1, Math.floor(winH / 3));
+  
+  document.getElementById('heatmapCard').style.display = 'block';
+  document.getElementById('heatmapWinSize').textContent = `${Math.round(winW)} × ${Math.round(winH)}`;
+  document.getElementById('heatmapStepSize').textContent = `${stepX}`;
+  
+  setStatus('Constructing global graph and calculating heatmaps...', 'info');
+  
+  setTimeout(() => {
+    try {
+      const globalData = getGlobalFacesAndVertices();
+      if (!globalData) {
+        setStatus('Failed to build global graph.', 'err');
+        return;
+      }
+      const { verts: globalVertices, faces: globalFaces } = globalData;
+      
+      const gridX = [];
+      for (let x = 0; x <= width - winW; x += stepX) {
+        gridX.push(x);
+      }
+      if (gridX.length === 0 || gridX[gridX.length - 1] !== width - winW) {
+        gridX.push(width - winW);
+      }
+      
+      const gridY = [];
+      for (let y = 0; y <= height - winH; y += stepY) {
+        gridY.push(y);
+      }
+      if (gridY.length === 0 || gridY[gridY.length - 1] !== height - winH) {
+        gridY.push(height - winH);
+      }
+      
+      const cols = gridX.length;
+      const rows = gridY.length;
+      
+      const detHMatrix = [];
+      const wMatrix = [];
+      
+      for (let rIdx = 0; rIdx < rows; rIdx++) {
+        const y = gridY[rIdx];
+        const detHRow = [];
+        const wRow = [];
+        
+        for (let cIdx = 0; cIdx < cols; cIdx++) {
+          const x = gridX[cIdx];
+          
+          const counts = {};
+          TILE_TYPES.forEach(t => counts[t] = 0);
+          
+          for (const f of globalFaces) {
+            let allInside = true;
+            for (const vIdx of f.indices) {
+              const v = globalVertices[vIdx];
+              if (v.x < x || v.x > x + winW || v.y < y || v.y > y + winH) {
+                allInside = false;
+                break;
+              }
+            }
+            if (allInside) {
+              counts[f.type]++;
+            }
+          }
+          
+          const res = calculateHyperslope(counts);
+          let detHVal = 0;
+          let wVal = 0;
+          if (res) {
+            detHVal = res.detH;
+            wVal = res.W;
+          }
+          
+          detHRow.push(detHVal);
+          wRow.push(wVal);
+        }
+        
+        detHMatrix.push(detHRow);
+        wMatrix.push(wRow);
+      }
+      
+      // Update global heatmap state
+      heatmapData = {
+        cols,
+        rows,
+        gridX,
+        gridY,
+        winW,
+        winH,
+        stepX,
+        stepY,
+        detHMatrix,
+        wMatrix
+      };
+      
+      // Draw heatmaps with current transform selection
+      renderHeatmaps();
+      
+      setStatus(`Calculated ${cols} × ${rows} cells successfully.`, 'info');
+      
+      // Scroll to heatmaps card smoothly
+      document.getElementById('heatmapCard').scrollIntoView({ behavior: 'smooth' });
+      
+    } catch (err) {
+      console.error(err);
+      setStatus('Error generating heatmaps: ' + err.message, 'err');
+    }
+  }, 100);
 }
 
 /* ===================================================================
